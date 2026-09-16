@@ -1,0 +1,98 @@
+{
+  "name": "handoff",
+  "category": "multi_agent",
+  "topology": "hierarchical",
+  "context": "Conversational systems with multiple specialists: the active conversation is transferred from one agent to another carrying full context, instead of one agent handling everything.",
+  "benefits": [
+    "Specialized prompts per domain",
+    "Smaller focused contexts",
+    "Clean escalation paths",
+    "Transparent or silent transfer, as designed"
+  ],
+  "tradeoffs": [
+    "Context transfer losses",
+    "Handoff-churn loops",
+    "Specialist overlap confusion"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 8,
+    "latency": 8,
+    "output_quality": 8,
+    "observability": 7,
+    "safety": 7,
+    "simplicity": 8
+  },
+  "suitable_domains": [
+    "customer-support",
+    "conversational-assistants",
+    "api-automation",
+    "it-service-management",
+    "workflow-automation"
+  ],
+  "unsuitable_domains": [
+    "research-reports"
+  ],
+  "use_cases": [
+    "Billing to technical support transfer",
+    "Sales to onboarding",
+    "Frontline to specialist escalation",
+    "Language-specific agents"
+  ],
+  "avoid_when": [
+    "Specialists differ only marginally",
+    "Frequent back-and-forth handoffs occur",
+    "Single-agent systems with no specialization requirements"
+  ],
+  "component_types": [
+    "Handoff Tool or Router",
+    "Context Serializer",
+    "Specialist Agents",
+    "Transcript Store",
+    "Handoff Input Filter",
+    "Handoff Metadata Schema",
+    "Transfer Callback Handler"
+  ],
+  "technology_stack": [
+    "OpenAI Agents SDK handoffs",
+    "LiveKit agent patterns",
+    "Custom router prompts",
+    "LangChain Agents",
+    "AutoGen",
+    "CrewAI",
+    "MCP agents"
+  ],
+  "anti_patterns": [
+    "Handoffs dropping state",
+    "Unexplained hidden switches confusing users",
+    "Ping-pong loops between agents",
+    "Handoffs without input_filter causing context bloat",
+    "Missing on_handoff callback for audit logging"
+  ],
+  "migration_from": [
+    "routing"
+  ],
+  "migration_to": [
+    "supervisor-worker",
+    "graph-orchestration"
+  ],
+  "design_principles": [
+    "Explicit handoff criteria",
+    "Carry minimal sufficient context",
+    "Announce or log every transfer",
+    "Use input_filter to strip unnecessary history",
+    "Validate state after transfer",
+    "Set max_handoff_depth to prevent loops"
+  ],
+  "best_practices": [
+    "Summarize-so-far in the transfer payload",
+    "Count and limit handoffs",
+    "Verify state after transfer",
+    "Use input_type for structured reason/priority metadata",
+    "Filter tool_calls from history when specialist does not need them"
+  ],
+  "references": [
+    "OpenAI, OpenAI Agents SDK, 2024 — https://platform.openai.com/docs/agents/hand-offs",
+    "Agent Patterns Catalog, Handoff pattern — https://www.agentpatternscatalog.org/patterns/handoff/"
+  ]
+}

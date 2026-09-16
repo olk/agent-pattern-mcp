@@ -1,0 +1,85 @@
+{
+  "name": "goal-creator-passive",
+  "category": "planning",
+  "topology": "single-agent-loop",
+  "context": "Agent systems where the agent interprets a user's explicit natural-language request to extract and formalize the intended goal before planning begins. The user says what they want; the agent converts this into a structured goal with parameters, constraints, and success criteria. This is the entry point for all agentic workflows — it precedes planning, tool selection, and execution.",
+  "benefits": [
+    "Clarifies ambiguous requests before costly execution begins",
+    "Produces explicit success criteria that can be verified after execution",
+    "Documents the user's intent in a form that survives context window limits",
+    "Enables the agent to catch misaligned expectations early"
+  ],
+  "tradeoffs": [
+    "Adds a round-trip to confirm goal understanding before execution",
+    "Users may find explicit goal-setting cumbersome for simple requests",
+    "Poorly phrased goals produce misaligned plans even with perfect execution",
+    "Can feel slow if the user already provided a precise request"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 8,
+    "latency": 9,
+    "output_quality": 8,
+    "observability": 6,
+    "safety": 7,
+    "simplicity": 8
+  },
+  "suitable_domains": [
+    "conversational-assistants",
+    "autonomous-task-execution",
+    "customer-support",
+    "api-automation",
+    "personal-productivity"
+  ],
+  "unsuitable_domains": [
+    "exploratory-research",
+    "long-horizon-tasks"
+  ],
+  "use_cases": [
+    "A user asks to book a flight; the agent extracts destination, dates, budget, and preferences",
+    "A developer asks to fix a bug; the agent extracts the error message, file location, and expected behavior",
+    "A business user requests a report; the agent extracts scope, time range, and delivery format",
+    "A support agent receives a complaint; the agent extracts the issue type, customer tier, and urgency"
+  ],
+  "avoid_when": [
+    "User input is already fully structured (JSON, form data)",
+    "The agent operates in a fully autonomous mode with no human in the loop",
+    "Tasks are exploratory and goals emerge dynamically during execution"
+  ],
+  "component_types": [
+    "Intent Parser",
+    "Goal Formalizer",
+    "Constraint Extractor",
+    "Confirmation Interface"
+  ],
+  "technology_stack": [
+    "Structured output parsing",
+    "Function calling for parameter extraction",
+    "Conversation history for context",
+    "Human confirmation step"
+  ],
+  "anti_patterns": [
+    "Skipping confirmation and executing immediately on ambiguous input",
+    "Asking the user to reformulate their goal rather than doing it for them",
+    "Extracting goals without capturing constraints or success criteria"
+  ],
+  "migration_from": [
+    "routing"
+  ],
+  "migration_to": [
+    "plan-and-solve"
+  ],
+  "design_principles": [
+    "Goal extraction must be explicit enough to support post-hoc verification",
+    "The agent should ask clarifying questions when the goal is under-specified",
+    "Extracted parameters should be typed and validated before planning begins"
+  ],
+  "best_practices": [
+    "Confirm extracted goals with the user before beginning execution",
+    "Surface the goal in a structured format so the user can correct misunderstandings",
+    "Log the extracted goal alongside the final output for traceability"
+  ],
+  "references": [
+    "Lu et al., Agent Design Pattern Catalogue, 2024 (arXiv:2405.10467) — https://arxiv.org/abs/2405.10467"
+  ]
+}

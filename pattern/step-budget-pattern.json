@@ -1,0 +1,94 @@
+{
+  "name": "step-budget",
+  "category": "safety_control",
+  "topology": "single-agent-loop",
+  "context": "Any autonomous loop (ReAct, LATS, agentic RAG) must be bounded: a per-request cap on tool calls, iterations, or tokens prevents runaway cost and infinite loops.",
+  "benefits": [
+    "Hard cost and latency ceiling",
+    "Prevents infinite loops",
+    "Enables capacity planning"
+  ],
+  "tradeoffs": [
+    "Hard caps can truncate legitimate long tasks",
+    "Budget tuning is required",
+    "No per-step semantic awareness"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 9,
+    "latency": 8,
+    "output_quality": 6,
+    "observability": 9,
+    "safety": 9,
+    "simplicity": 10
+  },
+  "suitable_domains": [
+    "autonomous-task-execution",
+    "tool-use-tasks",
+    "long-horizon-tasks",
+    "api-automation",
+    "personal-productivity",
+    "gui-computer-use"
+  ],
+  "unsuitable_domains": [
+    "exploratory-research"
+  ],
+  "use_cases": [
+    "Cap ReAct at ten tool calls",
+    "Token budget per session",
+    "Max trials for Reflexion",
+    "Request-cost ceiling per tenant"
+  ],
+  "avoid_when": [
+    "Fixed budgets truncate mission-critical work without escalation",
+    "Mid-transaction stops lack rollback",
+    "The task can be reliably completed within a fixed step count without risk"
+  ],
+  "component_types": [
+    "Budget Counter",
+    "Budget Enforcer",
+    "Graceful-Stop Handler",
+    "Partial Result Formatter",
+    "No-Progress Detector",
+    "Per-Tool Quota Tracker",
+    "Token-Dollar Accumulator",
+    "External Abort Signal Handler"
+  ],
+  "technology_stack": [
+    "LangGraph recursion limits",
+    "Middleware counters",
+    "Platform quota services"
+  ],
+  "anti_patterns": [
+    "Budgets only in prompts, never enforced in code",
+    "Stopping without explanation",
+    "Silently resetting the budget",
+    "Flat per-turn token budget on accumulating context loops",
+    "Only checking budgets at end, not before each step"
+  ],
+  "migration_from": [
+    "guardrails"
+  ],
+  "migration_to": [
+    "kill-switch",
+    "human-in-the-loop"
+  ],
+  "design_principles": [
+    "Enforce in code, not prompts",
+    "Degrade gracefully",
+    "Make the budget visible to the agent"
+  ],
+  "best_practices": [
+    "Warn at eighty percent of ANY predicate (step, time, cost, tool calls)",
+    "Return partial results with status",
+    "Weight budgets per tool cost",
+    "Check all predicates before every step, not after",
+    "Use tool+args hash for no-progress detection (3 repeats = stuck)",
+    "Apply per-tool quotas independent of global step cap",
+    "Use remaining_budget = min(remaining_budget, max_per_call) for wall-clock"
+  ],
+  "references": [
+    "Kim et al., An LLM Compiler for Parallel Function Calling, 2024 — https://arxiv.org/abs/2312.04511",
+    "Agent Patterns Catalog, Step Budget pattern — https://www.agentpatternscatalog.org/patterns/step-budget/"
+  ]
+}

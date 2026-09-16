@@ -1,0 +1,83 @@
+{
+  "name": "procedural-memory",
+  "category": "memory",
+  "topology": "single-agent-loop",
+  "context": "Long-horizon agents that must acquire, store, and reuse executable skills across tasks. After completing a task or task type, the agent extracts a reusable procedure (e.g., a Python function or shell script) and stores it in a skill library. Future tasks that match the skill's preconditions retrieve and execute the stored procedure directly rather than recomputing from scratch. Unlike scratchpad-note-taking (working memory for the current task), procedural memory stores reusable, executable artifacts that persist across sessions.",
+  "benefits": [
+    "Compounds agent capabilities over time without retraining",
+    "Reduces cost and latency on repeated task patterns",
+    "Alleviates catastrophic forgetting in long-running agents",
+    "Skills are interpretable and debuggable executable code"
+  ],
+  "tradeoffs": [
+    "Skill extraction requires an LLM call per skill",
+    "Precondition matching is non-trivial (what task fits which skill?)",
+    "Stored skills may become stale as the environment evolves",
+    "Skill library management adds complexity"
+  ],
+  "quality_attributes": {
+    "reliability": 7,
+    "cost_efficiency": 6,
+    "latency": 6,
+    "output_quality": 8,
+    "observability": 7,
+    "safety": 6,
+    "simplicity": 5
+  },
+  "suitable_domains": [
+    "autonomous-task-execution",
+    "long-horizon-tasks",
+    "code-generation",
+    "trial-and-error-learning"
+  ],
+  "unsuitable_domains": [
+    "cost-sensitive-workloads",
+    "conversational-assistants"
+  ],
+  "use_cases": [
+    "Coding agents that learn reusable functions across tasks",
+    "Autonomous agents in game environments (Minecraft Voyager-style)",
+    "DevOps agents that build reusable runbook scripts",
+    "Research agents that extract reusable experiment protocols"
+  ],
+  "avoid_when": [
+    "Tasks are unique and never repeat",
+    "Skills require physical world interaction to validate",
+    "Environment changes too fast for stored procedures to remain valid"
+  ],
+  "component_types": [
+    "Skill Extractor",
+    "Skill Library Index",
+    "Precondition Matcher",
+    "Skill Executor",
+    "Skill Validator"
+  ],
+  "technology_stack": [
+    "Voyager skill library",
+    "LangGraph memory",
+    "LlamaIndex"
+  ],
+  "anti_patterns": [
+    "Storing unvalidated skills without testing",
+    "No skill staleness check before reuse",
+    "Matching purely on lexical similarity rather than semantic preconditions"
+  ],
+  "migration_from": [
+    "scratchpad-note-taking",
+    "episodic-memory"
+  ],
+  "migration_to": [],
+  "design_principles": [
+    "Extract skills only after successful task completion",
+    "Validate extracted skills against a test case before storing",
+    "Index skills by both description embedding and input/output schema"
+  ],
+  "best_practices": [
+    "Store skills as executable code with docstrings and type hints",
+    "Test each new skill against a golden validation case before committing",
+    "Set a skill library size cap and evict rarely-used skills"
+  ],
+  "references": [
+    "Wang et al., Voyager: An Open-Ended Embodied Agent with Large Language Models, 2023 — https://arxiv.org/abs/2305.16291"
+  ]
+}

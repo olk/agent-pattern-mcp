@@ -1,0 +1,86 @@
+{
+  "name": "prompt-response-optimizer",
+  "category": "planning",
+  "topology": "single-agent-loop",
+  "context": "Systems that iteratively refine prompts or response templates based on observed outputs, success rates, or user feedback. Rather than treating prompts as fixed, the system treats them as tunable parameters — adjusting prompt construction, instruction ordering, or response schemas to maximize measured quality over multiple rounds.",
+  "benefits": [
+    "Improves output quality without changing model architecture",
+    "Adapts prompts to the specific distribution of inputs",
+    "Can discover prompt strategies that human engineers miss",
+    "Enables automated A/B testing of prompt variations"
+  ],
+  "tradeoffs": [
+    "Requires a feedback signal (human labels, task success, evaluator scores)",
+    "Prompt optimization can be sample-inefficient — many attempts before improvement",
+    "Overfitting to the evaluation metric can degrade real-world performance",
+    "Optimized prompts may not generalize to out-of-distribution inputs"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 7,
+    "latency": 7,
+    "output_quality": 9,
+    "observability": 7,
+    "safety": 7,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "tool-use-tasks",
+    "code-generation",
+    "content-generation",
+    "rag-applications",
+    "it-service-management",
+    "workflow-automation"
+  ],
+  "unsuitable_domains": [
+    "high-stakes-outputs"
+  ],
+  "use_cases": [
+    "Tool definition refinement: a prompt is tuned based on observed tool call success rates",
+    "RAG query optimization: prompt templates are refined based on retrieval precision metrics",
+    "Response format tuning: JSON schema instructions are adjusted based on parsing success rates",
+    "System prompt optimization: agent instructions are refined based on task completion rates"
+  ],
+  "avoid_when": [
+    "No feedback signal is available to evaluate prompt quality",
+    "Inputs are so diverse that a single optimized prompt cannot cover the distribution",
+    "Latency constraints require keeping prompts static between runs"
+  ],
+  "component_types": [
+    "Prompt Generator",
+    "Evaluator",
+    "Optimizer Controller",
+    "Prompt Version Store"
+  ],
+  "technology_stack": [
+    "DSPy optimizer",
+    "Optimum prompt tuning",
+    "Custom feedback-prompt-refine loop",
+    "Human-in-the-loop prompt review"
+  ],
+  "anti_patterns": [
+    "Optimizing for a metric that does not correlate with real task quality",
+    "Keeping prompts static when the input distribution has changed significantly",
+    "No evaluation harness — changes are deployed without measuring impact"
+  ],
+  "migration_from": [
+    "prompt-chaining"
+  ],
+  "migration_to": [
+    "evaluator-optimizer"
+  ],
+  "design_principles": [
+    "Prompt changes must be tracked in version control alongside code",
+    "The optimization target must correlate with real-world task quality",
+    "Deployments should use shadow mode to test prompts before full rollout"
+  ],
+  "best_practices": [
+    "Start with a simple heuristic (word ordering, few-shot examples) before automated optimization",
+    "Use a held-out eval set to detect overfitting to the optimization signal",
+    "Maintain a prompt changelog so regressions can be traced to specific changes"
+  ],
+  "references": [
+    "Khattab et al., DSPy: Compiling Declarative Language Model Calls into Self-Improving Pipelines, 2023 — https://arxiv.org/abs/2310.03714",
+    "Agent Patterns Catalog, Prompt-Response-Optimizer pattern — https://www.agentpatternscatalog.org/patterns/prompt-response-optimizer/"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "name": "tree-of-thoughts",
+  "category": "reasoning",
+  "topology": "single-agent-loop",
+  "context": "Complex reasoning tasks where a single linear reasoning chain is insufficient and the agent must explore multiple alternative reasoning branches. The agent generates intermediate thoughts as nodes, evaluates their promise, and explores the most promising branches using breadth-first or depth-first search before committing to a final answer.",
+  "benefits": [
+    "Systematic exploration of alternative reasoning paths",
+    "Backtracking from bad branches preserves correctness",
+    "Improves output quality on hard reasoning benchmarks",
+    "Explicit reasoning tree is highly observable"
+  ],
+  "tradeoffs": [
+    "Exponential branching increases cost and latency",
+    "Requires a good evaluation function to prune branches",
+    "More complex implementation than linear CoT",
+    "Node budget management is critical"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 3,
+    "latency": 3,
+    "output_quality": 9,
+    "observability": 8,
+    "safety": 5,
+    "simplicity": 4
+  },
+  "suitable_domains": [
+    "complex-reasoning",
+    "code-generation",
+    "exploratory-research",
+    "long-horizon-tasks",
+    "trial-and-error-learning"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads",
+    "customer-support",
+    "devops"
+  ],
+  "use_cases": [
+    "Mathematical proof search",
+    "Strategic planning with multiple alternatives",
+    "Creative writing with plot exploration",
+    "Code debugging with alternative fix paths"
+  ],
+  "avoid_when": [
+    "Simple tasks where a single pass suffices",
+    "Hard latency or cost constraints",
+    "No reliable evaluation function for branches"
+  ],
+  "component_types": [
+    "Thought Generator",
+    "Branch Evaluator",
+    "Search Controller",
+    "Node Budget Manager",
+    "Backtracking Memory"
+  ],
+  "technology_stack": [
+    "LangGraph",
+    "agent-patterns ToTAgent",
+    "Tree search libraries"
+  ],
+  "anti_patterns": [
+    "Exploring too wide without depth first",
+    "No node or depth budget",
+    "Linear evaluation of non-comparable branches"
+  ],
+  "migration_from": [
+    "chain-of-thought",
+    "react"
+  ],
+  "migration_to": [
+    "lats",
+    "multi-agent-debate"
+  ],
+  "design_principles": [
+    "Generate before evaluating — explore all branches fairly",
+    "Prune with value estimates, not just length",
+    "Cap total node budget upfront"
+  ],
+  "best_practices": [
+    "Start breadth-first, switch to depth-first when a strong candidate emerges",
+    "Store failed branch summaries to avoid repeating dead ends",
+    "Use the LLM itself as the branch evaluator when no external signal exists"
+  ],
+  "references": [
+    "Yao et al., Tree of Thoughts: Deliberate Problem Solving with Large Language Models, 2023 — https://arxiv.org/abs/2305.10601"
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "name": "hybrid-rerank",
+  "category": "retrieval",
+  "topology": "parallel-fan-out",
+  "context": "Retrieval at scale where a single strategy misses: sparse (BM25) and dense (embedding) candidates are fused, then a cross-encoder reranks the merged pool.",
+  "benefits": [
+    "Robust to keyword and semantic queries alike",
+    "Cross-encoder precision",
+    "Tunable fusion (reciprocal rank)"
+  ],
+  "tradeoffs": [
+    "Reranker compute on candidates",
+    "More moving parts",
+    "Two indexes to maintain"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 7,
+    "latency": 6,
+    "output_quality": 9,
+    "observability": 7,
+    "safety": 7,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "rag-applications",
+    "research-reports",
+    "data-analysis",
+    "customer-support",
+    "multimodal",
+    "e-commerce",
+    "enterprise-search"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks"
+  ],
+  "use_cases": [
+    "Enterprise search",
+    "Legal and medical document retrieval",
+    "Product catalog search",
+    "Code search"
+  ],
+  "avoid_when": [
+    "The corpus is small",
+    "Single-digit-millisecond budgets apply",
+    "Only one retrieval strategy is needed or available"
+  ],
+  "component_types": [
+    "BM25 Index",
+    "Dense Vector Index",
+    "Fusion Layer (reciprocal rank)",
+    "Cross-Encoder Reranker",
+    "Late Chunking (Jina AI)"
+  ],
+  "technology_stack": [
+    "bm25s",
+    "FAISS",
+    "sentence-transformers cross-encoders",
+    "LlamaIndex hybrid retrievers",
+    "Cohere Rerank v4",
+    "Voyage rerank-2",
+    "Jina-ColBERT-v2"
+  ],
+  "anti_patterns": [
+    "Reranking the entire corpus",
+    "No fusion weights",
+    "Stale sparse index",
+    "Embedding model mismatch with reranker",
+    "Context overflow in reranker"
+  ],
+  "migration_from": [
+    "naive-rag"
+  ],
+  "migration_to": [
+    "agentic-rag"
+  ],
+  "design_principles": [
+    "Retrieve wide, rerank narrow",
+    "Fuse with reciprocal rank before reranking",
+    "Cache reranker scores for hot queries"
+  ],
+  "best_practices": [
+    "Use a 50-to-10 rerank funnel",
+    "Refresh BM25 on corpus change",
+    "Monitor per-strategy contribution",
+    "Run BM25 and dense in parallel; latency = max(BM25, ANN), not sum",
+    "chunk_size = min(reranker_max_tokens, embedding_max_tokens) × 0.9"
+  ],
+  "references": [
+    "Gao et al., Retrieval-Augmented Generation for Large Language Models: A Survey (ch. 4–5 on hybrid retrieval & reranking), 2024 — https://arxiv.org/abs/2312.10997",
+    "Santhanam et al., ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction, NAACL 2022 — https://arxiv.org/abs/2205.04807"
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "name": "human-in-the-loop",
+  "category": "safety_control",
+  "topology": "single-agent-loop",
+  "context": "Agents whose actions can have irreversible or high-impact consequences; defined checkpoints require explicit human approval before proceeding.",
+  "benefits": [
+    "Prevents catastrophic actions",
+    "Builds user trust",
+    "Satisfies compliance requirements",
+    "Separates autonomy tiers"
+  ],
+  "tradeoffs": [
+    "Adds latency and staffing",
+    "Approval fatigue can erode safety",
+    "Breaks fully autonomous SLAs"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 7,
+    "latency": 3,
+    "output_quality": 8,
+    "observability": 9,
+    "safety": 10,
+    "simplicity": 8
+  },
+  "suitable_domains": [
+    "high-stakes-outputs",
+    "regulated-domains",
+    "api-automation",
+    "autonomous-task-execution",
+    "education"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks"
+  ],
+  "use_cases": [
+    "Payment execution approval",
+    "Production database migration",
+    "External email sending",
+    "Code merge approval"
+  ],
+  "avoid_when": [
+    "Latency budget forbids waiting",
+    "Actions are fully reversible and low-impact",
+    "Production pipelines where automation is mandatory and latency is critical"
+  ],
+  "component_types": [
+    "Approval Gate",
+    "Action Risk Classifier",
+    "Notification Channel",
+    "Audit Log",
+    "Confidence Threshold Monitor"
+  ],
+  "technology_stack": [
+    "LangGraph interrupts",
+    "Approval UIs",
+    "Slack or Jira approval flows"
+  ],
+  "anti_patterns": [
+    "Rubber-stamping prompts",
+    "Missing audit trail",
+    "Approval required for every trivial step",
+    "Gates that trigger 98-99% approval rates unchanged should be auto-promoted (approval fatigue)"
+  ],
+  "migration_from": [
+    "guardrails"
+  ],
+  "migration_to": [
+    "guardrails",
+    "step-budget"
+  ],
+  "design_principles": [
+    "Approve by risk class, not every step",
+    "Timeout with default-deny",
+    "Immutable audit log",
+    "Per-action confidence thresholds override global thresholds"
+  ],
+  "best_practices": [
+    "Batch approvals where possible",
+    "Show a diff or preview",
+    "Auto-approve idempotent reads",
+    "Implement HMAC-signed approved payloads to prevent mutation between review and execution",
+    "Capture approvals/rejections as eval data to shrink future queues",
+    "Auto-promote gates with >95% approval rate unchanged"
+  ],
+  "references": [
+    "Wu et al., AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation, 2023 — https://arxiv.org/abs/2308.08155",
+    "Agent Patterns Catalog, Human-in-the-Loop pattern — https://www.agentpatternscatalog.org/patterns/human-in-the-loop/"
+  ]
+}

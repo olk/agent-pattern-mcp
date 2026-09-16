@@ -1,0 +1,84 @@
+{
+  "name": "cross-reflection",
+  "category": "reflection",
+  "topology": "swarm",
+  "context": "Multi-agent systems where two or more agents or models provide reflective feedback on each other's plans or outputs before execution. Unlike debate (which is adversarial and converges through argument), cross-reflection is cooperative — agents share critiques to strengthen each other's reasoning before a final decision is made.",
+  "benefits": [
+    "Catches blind spots that a single agent's self-reflection misses",
+    "Different agent perspectives surface implicit assumptions in the plan",
+    "Improves reasoning certainty by requiring explicit justification to a critic",
+    "Works without an explicit evaluator or rubric — criticism emerges from diversity"
+  ],
+  "tradeoffs": [
+    "Requires multiple agents or models capable of genuine critique",
+    "Can deadlock if agents continuously reject each other's revisions without resolution",
+    "Higher token cost than single-agent self-reflection",
+    "Quality depends on critic agents having relevant domain knowledge"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 5,
+    "latency": 6,
+    "output_quality": 9,
+    "observability": 8,
+    "safety": 7,
+    "simplicity": 5
+  },
+  "suitable_domains": [
+    "multi-agent-systems",
+    "complex-reasoning",
+    "high-stakes-outputs",
+    "regulated-domains"
+  ],
+  "unsuitable_domains": [
+    "cost-sensitive-workloads",
+    "latency-sensitive-tasks"
+  ],
+  "use_cases": [
+    "Strategic planning: a planner agent and a risk agent cross-review a proposed course of action",
+    "Research: two agents with different source expertise critique each other's literature interpretations",
+    "Legal reasoning: a facts agent and a law agent cross-review each other's analysis before a brief",
+    "Code review: an implementation agent and a security agent cross-check before a change is approved"
+  ],
+  "avoid_when": [
+    "Only one agent has relevant expertise — cross-reflection adds no signal",
+    "Time pressure requires immediate single-pass response",
+    "Agents do not have sufficient context about each other's domain to critique effectively"
+  ],
+  "component_types": [
+    "Proposer Agent",
+    "Critic Agent",
+    "Reflection Aggregator",
+    "Resolution Gate"
+  ],
+  "technology_stack": [
+    "CrewAI sequential agents with critique steps",
+    "AutoGen two-agent critique loop",
+    "Custom multi-model reflection pipeline"
+  ],
+  "anti_patterns": [
+    "Having critics with identical perspectives — no new information is generated",
+    "No mechanism to resolve persistent disagreement — loops indefinitely",
+    "Critique without actionable revision — agents identify problems but do not fix them"
+  ],
+  "migration_from": [
+    "reflection",
+    "verifier-critic"
+  ],
+  "migration_to": [
+    "multi-agent-debate"
+  ],
+  "design_principles": [
+    "Critic agents must have a distinct expertise or perspective from the proposer",
+    "Critiques must be actionable — vague criticism without revision paths is noise",
+    "The loop must have a defined exit condition (consensus, vote, or max iterations)"
+  ],
+  "best_practices": [
+    "Structure critique around specific questions (does the plan handle edge case X?)",
+    "Limit the number of cross-reflection rounds to prevent infinite loops",
+    "Combine cross-reflection with a final synthesizer agent that integrates revisions"
+  ],
+  "references": [
+    "Lu et al., Agent Design Pattern Catalogue, 2024 (arXiv:2405.10467) — https://arxiv.org/abs/2405.10467"
+  ]
+}

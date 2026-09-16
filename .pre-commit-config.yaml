@@ -1,0 +1,12 @@
+# Local hooks only: run tools through uv so the project venv (fastmcp,
+# llama-index, pydantic) is visible.
+repos:
+  - repo: local
+    hooks:
+      - id: mypy-strict
+        name: mypy --strict (changed src/ files)
+        entry: uv run mypy --strict
+        language: system
+        types: [python]
+        files: ^src/
+        require_serial: true

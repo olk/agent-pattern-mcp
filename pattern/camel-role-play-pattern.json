@@ -1,0 +1,87 @@
+{
+  "name": "camel-role-play",
+  "category": "multi_agent",
+  "topology": "swarm",
+  "context": "Multi-agent collaboration where agents adopt distinct social roles (e.g., a software architect and a frontend developer) and communicate autonomously to solve a task. Agents are given their role descriptions and the task goal, and they negotiate, delegate, and synthesize results through natural language dialogue. A human operator sets the initial roles and goal but takes no part in the deliberation. Unlike supervisor-worker (hierarchical delegation) or debate (adversarial), role-play agents engage in cooperative dyadic dialogue.",
+  "benefits": [
+    "Exploits role specialization for higher-quality outputs",
+    "Agents self-coordinate without a central orchestrator",
+    "Dialogue structure mirrors real-world team collaboration",
+    "Flexible — roles can be any domain expertise combination"
+  ],
+  "tradeoffs": [
+    "Unbounded dialogue can drift from the task goal",
+    "Harder to predict and audit than structured pipelines",
+    "Requires careful role specification to avoid conflicting instructions",
+    "Dialogue length grows quickly, increasing latency and cost"
+  ],
+  "quality_attributes": {
+    "reliability": 7,
+    "cost_efficiency": 5,
+    "latency": 5,
+    "output_quality": 8,
+    "observability": 6,
+    "safety": 5,
+    "simplicity": 5
+  },
+  "suitable_domains": [
+    "multi-agent-systems",
+    "content-generation",
+    "code-generation",
+    "research-reports"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "regulated-domains",
+    "customer-support"
+  ],
+  "use_cases": [
+    "AI writing team with specialized writer and editor agents",
+    "Code review with separate architect and reviewer roles",
+    "Research synthesis with scientist and synthesizer agents",
+    "Product design with separate UX and engineering agents"
+  ],
+  "avoid_when": [
+    "Tasks are too simple to benefit from role specialization",
+    "Tight latency requirements",
+    "Regulated domains requiring auditable structured outputs"
+  ],
+  "component_types": [
+    "Role Specifier",
+    "User Proxy Agent",
+    "Assistant Agent",
+    "Dialogue Manager",
+    "Role Matcher"
+  ],
+  "technology_stack": [
+    "CAMEL framework",
+    "LangGraph",
+    "multi-agent message passing"
+  ],
+  "anti_patterns": [
+    "Under-specified roles leading to role confusion",
+    "No turn-taking limit — unbounded deliberation",
+    "No final answer extraction from dialogue"
+  ],
+  "migration_from": [
+    "multi-agent-debate",
+    "swarm"
+  ],
+  "migration_to": [
+    "metagpt-sop-pipeline",
+    "orchestrator-workers"
+  ],
+  "design_principles": [
+    "Specify roles with clear responsibilities and constraints",
+    "Limit total dialogue turns to prevent infinite loops",
+    "Designate one agent to produce the final synthesis"
+  ],
+  "best_practices": [
+    "Start with a minimal task to calibrate role descriptions",
+    "Set a maximum number of dialogue rounds with a fallback synthesizer",
+    "Log the full dialogue for post-hoc analysis and debugging"
+  ],
+  "references": [
+    "Li et al., CAMEL: Communicative Agents for 'Mind' Exploration of Large Language Model Society, NeurIPS 2023 — https://arxiv.org/abs/2303.17760"
+  ]
+}

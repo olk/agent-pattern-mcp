@@ -1,0 +1,86 @@
+{
+  "name": "context-compaction",
+  "category": "memory",
+  "topology": "pipeline",
+  "context": "Long-running agent conversations or tasks that exceed the context window limit. Compaction periodically summarizes the accumulated context — including user messages, assistant reasoning traces, tool calls, and tool results — into a high-fidelity summary, then replaces the full history with the summary. This enables the agent to continue working without losing essential information while staying within the context budget. Unlike scratchpad-note-taking (selective note-taking) or conversational-memory (windowing), compaction is a whole-context lossy compression that preserves key decisions and facts.",
+  "benefits": [
+    "Enables arbitrarily long task completion within a fixed context window",
+    "Distills context to what matters — decisions, open questions, key facts",
+    "Agent continues with minimal performance degradation",
+    "Works for any agent without structural changes"
+  ],
+  "tradeoffs": [
+    "Compaction itself requires an LLM call (latency and cost)",
+    "Information loss is inevitable — overly aggressive compaction loses critical context",
+    "Must preserve enough detail to allow meaningful continuation",
+    "Tool call records become opaque after compaction (only tool_use record remains)"
+  ],
+  "quality_attributes": {
+    "reliability": 7,
+    "cost_efficiency": 5,
+    "latency": 6,
+    "output_quality": 7,
+    "observability": 6,
+    "safety": 6,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "long-horizon-tasks",
+    "research-reports",
+    "code-generation",
+    "autonomous-task-execution",
+    "personal-productivity"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "conversational-assistants"
+  ],
+  "use_cases": [
+    "Long coding sessions that exceed the context window",
+    "Research agents processing large document collections",
+    "Autonomous agents running multi-hour training sequences",
+    "Customer support agents handling long troubleshooting sessions"
+  ],
+  "avoid_when": [
+    "Tasks that fit entirely within the context window",
+    "Latency-sensitive applications where compaction overhead is prohibitive",
+    "Tasks where specific verbatim records must be preserved for compliance"
+  ],
+  "component_types": [
+    "Context Monitor",
+    "Compaction Trigger",
+    "Summarizer LLM",
+    "Summary Serializer",
+    "Compaction Block"
+  ],
+  "technology_stack": [
+    "Anthropic Claude API server-side compaction",
+    "LangChain compaction utilities",
+    "LlamaIndex context management"
+  ],
+  "anti_patterns": [
+    "Compacting too aggressively and losing critical context",
+    "Never compacting and running into context overflow",
+    "Compacting without preserving open questions and pending decisions"
+  ],
+  "migration_from": [
+    "conversational-memory",
+    "scratchpad-note-taking"
+  ],
+  "migration_to": [
+    "procedural-memory"
+  ],
+  "design_principles": [
+    "Compact when context reaches a token threshold (e.g., 95% of window)",
+    "Preserve: open questions, pending decisions, key facts, architectural choices",
+    "Discard: verbatim tool outputs, redundant reasoning traces, old user prompts"
+  ],
+  "best_practices": [
+    "Tune the compaction prompt for your domain — preserve what matters",
+    "Serialize the compaction block so the model knows context was summarized",
+    "Test compaction trajectories by querying for specific facts from before compaction"
+  ],
+  "references": [
+    "Anthropic, Effective Context Engineering for AI Agents: Compaction, 2025 — https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents"
+  ]
+}

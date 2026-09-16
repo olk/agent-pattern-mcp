@@ -1,0 +1,93 @@
+{
+  "name": "memoization",
+  "category": "memory",
+  "topology": "pipeline",
+  "context": "Repeated identical or near-identical LLM and tool calls: results are cached, keyed by normalized input, model, and parameters, to cut cost and latency.",
+  "benefits": [
+    "Dramatic savings on repeat traffic",
+    "Consistent answers for identical inputs",
+    "Reduces rate-limit pressure"
+  ],
+  "tradeoffs": [
+    "Stale results after data changes",
+    "Cache key normalization is tricky for semantic caches",
+    "Storage cost"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 10,
+    "latency": 10,
+    "output_quality": 7,
+    "observability": 7,
+    "safety": 8,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "cost-sensitive-workloads",
+    "latency-sensitive-tasks",
+    "api-automation",
+    "customer-support",
+    "database-operations",
+    "enterprise-search"
+  ],
+  "unsuitable_domains": [
+    "exploratory-research",
+    "high-stakes-outputs"
+  ],
+  "use_cases": [
+    "FAQ answering",
+    "Deterministic tool outputs",
+    "Embedding caching",
+    "Dev and test replay"
+  ],
+  "avoid_when": [
+    "Freshness-sensitive answers",
+    "Highly personalized outputs",
+    "Responses must always reflect the absolute latest state of external data"
+  ],
+  "component_types": [
+    "Cache Key Normalizer",
+    "Result Cache (exact and semantic)",
+    "TTL Invalidation Policy",
+    "Hit and Miss Metrics"
+  ],
+  "technology_stack": [
+    "Redis",
+    "Semantic caches (GPTCache)",
+    "HTTP caching layers"
+  ],
+  "anti_patterns": [
+    "Caching without TTL",
+    "Semantic cache false hits",
+    "Caching side-effectful tool calls",
+    "Caching requests with temperature > 0",
+    "Caching without namespace isolation"
+  ],
+  "migration_from": [
+    "prompt-chaining",
+    "naive-rag"
+  ],
+  "migration_to": [
+    "semantic-memory"
+  ],
+  "design_principles": [
+    "Never cache side effects",
+    "Normalize inputs",
+    "Invalidate on data version bumps",
+    "Never cache requests with temperature > 0",
+    "Include model_id, system_prompt_hash, tenant_id, and language in cache keys"
+  ],
+  "best_practices": [
+    "Use two tiers: exact then semantic",
+    "Measure hit rate",
+    "Pin cache entries per model version",
+    "Use similarity thresholds by workload: FAQ (0.85-0.93), Code (0.94-0.97+)",
+    "Validate cached answers on borderline similarity scores (0.85-0.94)",
+    "Use TTL jitter to prevent thundering herd on expiry",
+    "Place guardrails before cache to filter PII and detect prompt injection"
+  ],
+  "references": [
+    "Komal et al., GPTCache: A Semantic Cache for Building Practical Chatbot Systems, NLP-OSS 2023 — https://aclanthology.org/2023.nlposs-1.4/",
+    "Agent Patterns Catalog, Memoization pattern — https://www.agentpatternscatalog.org/patterns/memoization/"
+  ]
+}

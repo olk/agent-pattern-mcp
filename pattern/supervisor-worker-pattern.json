@@ -1,0 +1,98 @@
+{
+  "name": "supervisor-worker",
+  "category": "multi_agent",
+  "topology": "hierarchical",
+  "context": "Complex work exceeding one agent's context or skill breadth: a supervisor decomposes the goal, routes subtasks to specialized worker agents, aggregates results, and decides completion.",
+  "benefits": [
+    "Modular reliability",
+    "Parallelizable workers",
+    "Specialization per domain",
+    "Clear ownership"
+  ],
+  "tradeoffs": [
+    "Coordination overhead",
+    "Supervisor is a bottleneck and failure point",
+    "Harder debugging",
+    "More total tokens"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 5,
+    "latency": 6,
+    "output_quality": 9,
+    "observability": 7,
+    "safety": 7,
+    "simplicity": 5
+  },
+  "suitable_domains": [
+    "multi-agent-systems",
+    "long-horizon-tasks",
+    "complex-reasoning",
+    "code-generation",
+    "it-service-management",
+    "workflow-automation"
+  ],
+  "unsuitable_domains": [
+    "cost-sensitive-workloads",
+    "latency-sensitive-tasks"
+  ],
+  "use_cases": [
+    "Research three competitors then compare",
+    "Multi-file code change",
+    "Content pipeline with outline, writing, editing",
+    "Triage across queues",
+    "Research: spawn 3-5 subagents for parallel web search, synthesize findings"
+  ],
+  "avoid_when": [
+    "One agent suffices",
+    "Latency is tight",
+    "The budget is constrained"
+  ],
+  "component_types": [
+    "Supervisor",
+    "Task Queue",
+    "Worker Agents",
+    "Result Aggregator",
+    "Completion Checker",
+    "Circuit Breaker",
+    "State Checkpointer"
+  ],
+  "technology_stack": [
+    "LangGraph subgraphs",
+    "CrewAI",
+    "AutoGen",
+    "OpenAI Agents SDK"
+  ],
+  "anti_patterns": [
+    "Supervisor doing the work itself",
+    "Workers sharing one giant context",
+    "No completion criteria",
+    "No circuit breaker - one failing worker blocks entire pipeline"
+  ],
+  "migration_from": [
+    "routing",
+    "plan-and-solve"
+  ],
+  "migration_to": [
+    "graph-orchestration",
+    "orchestrator-workers"
+  ],
+  "design_principles": [
+    "Workers own one skill",
+    "Supervisor owns decomposition and aggregation",
+    "Explicit task and result contracts",
+    "One worker failing should not crash session - per-worker retry and circuit breakers"
+  ],
+  "best_practices": [
+    "Use typed task messages",
+    "Retry at the worker level",
+    "Cap workers per goal",
+    "Summarize worker results at handoff points when round trips exceed 5-8 to prevent context saturation",
+    "Hard-cap delegation depth at 3 levels to prevent runaway loops",
+    "Implement per-worker retry and circuit breakers for fault isolation"
+  ],
+  "references": [
+    "Wu et al., AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation, 2023 — https://arxiv.org/abs/2308.08155",
+    "Agent Patterns Catalog, Supervisor pattern — https://www.agentpatternscatalog.org/patterns/supervisor/"
+  ]
+}

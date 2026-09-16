@@ -1,0 +1,96 @@
+{
+  "name": "multi-agent-debate",
+  "category": "multi_agent",
+  "topology": "swarm",
+  "context": "Decisions or analyses where a single generation risks bias or hallucination: multiple agents argue distinct positions across rounds while a judge synthesizes the final verdict.",
+  "benefits": [
+    "Adversarial stress-testing",
+    "Surfaces overlooked failure modes",
+    "Diversity improves factuality",
+    "Auditable argument trail"
+  ],
+  "tradeoffs": [
+    "Highest token multipliers (agents times rounds)",
+    "Slow",
+    "Judge quality bounds the outcome"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 2,
+    "latency": 2,
+    "output_quality": 9,
+    "observability": 8,
+    "safety": 8,
+    "simplicity": 4
+  },
+  "suitable_domains": [
+    "high-stakes-outputs",
+    "complex-reasoning",
+    "regulated-domains",
+    "research-reports"
+  ],
+  "unsuitable_domains": [
+    "cost-sensitive-workloads",
+    "latency-sensitive-tasks",
+    "conversational-assistants"
+  ],
+  "use_cases": [
+    "Legal argument review",
+    "Medical second-opinion synthesis",
+    "Design decision records",
+    "Safety review of generated code"
+  ],
+  "avoid_when": [
+    "The task is routine",
+    "Agents share one uncritical stance",
+    "There is no judge"
+  ],
+  "component_types": [
+    "Proponent Agents",
+    "Opponent Agents",
+    "Debate Round Router",
+    "Judge Synthesizer",
+    "Transcript Store"
+  ],
+  "technology_stack": [
+    "AutoGen group chat",
+    "CrewAI",
+    "LangGraph",
+    "CAMEL (Communicative Agents)",
+    "MetaGPT"
+  ],
+  "anti_patterns": [
+    "Agents copying each other's stance",
+    "Unbounded rounds",
+    "A judge that also argues",
+    "Agents with similar capabilities converging on same bias",
+    "Same model instance for all agents (no diversity)",
+    "No deadlock exit condition"
+  ],
+  "migration_from": [
+    "verifier-critic",
+    "evaluator-optimizer"
+  ],
+  "migration_to": [
+    "verifier-critic",
+    "human-in-the-loop"
+  ],
+  "design_principles": [
+    "Assign distinct personas and positions",
+    "Fix the round budget",
+    "The judge never argues"
+  ],
+  "best_practices": [
+    "Use two to three agents over two to three rounds",
+    "Reveal positions simultaneously",
+    "Score arguments by evidence",
+    "Use diversity pruning to reduce influence of similar responses (prevents majority tyranny)",
+    "Apply misconception refutation to directly counter shared errors",
+    "Adjust agent agreement level tuning for faster convergence"
+  ],
+  "references": [
+    "Du et al., Improving Factuality and Reasoning in Language Models through Multiagent Debate, 2023 — https://arxiv.org/abs/2305.14325",
+    "Smit et al., Should we be going MAD? A Look at Multi-Agent Debate Strategies for LLMs, 2024 — https://proceedings.mlr.press/v235/smit24a.html",
+    "MultiAgent Collaboration Attack: Investigating Adversarial Attacks in LLM Collaborations via Debate (arxiv:2406.14711)"
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "name": "voting-based-cooperation",
+  "category": "multi_agent",
+  "topology": "swarm",
+  "context": "Multi-agent systems where several agents produce candidate answers or evaluations on the same task and the system needs to return a single decision that reflects the group's collective judgment rather than any individual agent's output. Unlike debate, agents do not argue with each other — they vote, and a tallying mechanism produces the final outcome.",
+  "benefits": [
+    "Aggregates diverse perspectives without requiring agents to justify their positions",
+    "Produces auditable decisions with a record of who voted for what",
+    "Handles genuine disagreement without requiring convergence dialogue",
+    "Scales to large electorates without combinatorial complexity"
+  ],
+  "tradeoffs": [
+    "Majority rule can entrench dominant agents regardless of expertise",
+    "Agents may vote strategically rather than truthfully",
+    "No mechanism for agents to revise beliefs based on others' evidence",
+    "Tie-breaking rules require explicit design",
+    "All voting methods are subject to Arrow's impossibility theorem"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 5,
+    "latency": 5,
+    "output_quality": 9,
+    "observability": 8,
+    "safety": 8,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "multi-agent-systems",
+    "high-stakes-outputs",
+    "regulated-domains",
+    "research-reports"
+  ],
+  "unsuitable_domains": [
+    "cost-sensitive-workloads",
+    "latency-sensitive-tasks"
+  ],
+  "use_cases": [
+    "Medical triage: three specialist agents recommend tests; five generalist voters rank and tally",
+    "Code review: multiple agents flag different vulnerability classes; a coordinator tallies by severity",
+    "Content moderation: diverse perspective agents vote on appropriateness; threshold determines action",
+    "Research synthesis: multiple fact-checking agents vote on claim accuracy"
+  ],
+  "avoid_when": [
+    "Expertise is concentrated in one agent and others have no meaningful signal",
+    "Time pressure requires immediate single-agent response",
+    "The task requires negotiation or iterative refinement rather than independent judgment"
+  ],
+  "component_types": [
+    "Voter Agent",
+    "Ballot Coordinator",
+    "Tally Engine",
+    "Audit Trail Logger",
+    "Borda Count Voter",
+    "Confidence-Calibrated Voter"
+  ],
+  "technology_stack": [
+    "CrewAI role-based agents",
+    "AutoGen team voting",
+    "Custom ballot aggregation service"
+  ],
+  "anti_patterns": [
+    "Returning a single agent's output as final without tallying",
+    "Giving all voters identical prompts (no diversity of perspective)",
+    "No mechanism to handle ties or low-confidence outcomes",
+    "No mechanism to detect or discourage strategic voting behavior"
+  ],
+  "migration_from": [
+    "multi-agent-debate"
+  ],
+  "migration_to": [
+    "verifier-critic"
+  ],
+  "design_principles": [
+    "Every voter must have a distinct perspective or expertise — identical agents add no value",
+    "The final decision must be the outcome of the tally, not a single agent's output",
+    "The ballot record must be persisted for post-hoc audit"
+  ],
+  "best_practices": [
+    "Use weighted voting where voter expertise is known (role-based weights)",
+    "Define explicit tie-breaking rules before deployment",
+    "Log the full ballot (who voted what) alongside the outcome for accountability",
+    "Use Borda Count for multi-candidate elections where preference order matters",
+    "Preserve minority votes and dissenting opinions in audit trail for high-stakes decisions"
+  ],
+  "references": [
+    "Wang et al., Self-Consistency Improves Chain of Thought Reasoning in Language Models, 2022 — https://arxiv.org/abs/2203.11171",
+    "Lin et al., LLM-Blender: Ensembling Large Language Models with pairwise comparison and preferential reasoning, ACL 2024 — https://arxiv.org/abs/2306.02561"
+  ]
+}

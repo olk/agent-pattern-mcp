@@ -1,0 +1,90 @@
+{
+  "name": "structured-output",
+  "category": "safety_control",
+  "topology": "single-agent-loop",
+  "context": "Every machine-consumed agent output: responses are constrained to a schema (JSON or function-call format) so downstream parsing and validation never depend on free-text luck.",
+  "benefits": [
+    "Reliable downstream integration",
+    "Validation via schema",
+    "Enables safe tool chaining",
+    "Eliminates parse-failure retries"
+  ],
+  "tradeoffs": [
+    "Schema rigidity versus open-ended tasks",
+    "Constrained decoding can reduce creativity",
+    "Schema maintenance"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 8,
+    "latency": 8,
+    "output_quality": 8,
+    "observability": 8,
+    "safety": 8,
+    "simplicity": 9
+  },
+  "suitable_domains": [
+    "api-automation",
+    "data-analysis",
+    "tool-use-tasks",
+    "autonomous-task-execution",
+    "legal-research"
+  ],
+  "unsuitable_domains": [
+    "content-generation"
+  ],
+  "use_cases": [
+    "Agent-to-API payloads",
+    "Pipeline step contracts",
+    "Eval harness extraction",
+    "Database write records"
+  ],
+  "avoid_when": [
+    "Creative free-form writing",
+    "Exploratory brainstorming",
+    "The schema churns every release"
+  ],
+  "component_types": [
+    "Response Schema",
+    "Constrained Decoder or API mode",
+    "Schema Validator",
+    "Retry Repair Handler"
+  ],
+  "technology_stack": [
+    "OpenAI structured outputs and JSON mode",
+    "Pydantic",
+    "MCP typed tools",
+    "outlines or guidance",
+    "Instructor (Python)",
+    "Vercel AI SDK (TypeScript)",
+    "XGrammar (llama.cpp/vLLM)"
+  ],
+  "anti_patterns": [
+    "Parsing free text with regex",
+    "Schemas without versioning",
+    "Silent truncation of long fields",
+    "Loose metadata objects that become junk drawers",
+    "Assuming structurally valid JSON means semantically correct values"
+  ],
+  "migration_from": [
+    "prompt-chaining"
+  ],
+  "migration_to": [
+    "guardrails"
+  ],
+  "design_principles": [
+    "The schema is the contract",
+    "Validate before accepting",
+    "Version schemas",
+    "Max 3 levels of nesting; prefer flat schemas",
+    "Set additionalProperties: false on all objects"
+  ],
+  "best_practices": [
+    "Use native constrained decoding",
+    "Validate with Pydantic and clear errors",
+    "Reject and repair on violation"
+  ],
+  "references": [
+    "Anthropic, Building Effective Agents: Structured Outputs, Dec 2024 — https://www.anthropic.com/engineering/building-effective-agents"
+  ]
+}

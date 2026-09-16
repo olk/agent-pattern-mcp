@@ -1,0 +1,93 @@
+{
+  "name": "graph-rag",
+  "category": "retrieval",
+  "topology": "pipeline",
+  "context": "Knowledge-intensive tasks over large document collections where flat-text chunk retrieval misses relationships between entities. GraphRAG first extracts a knowledge graph from the corpus (entities, relationships), then computes community structures within the graph, generates community-level summaries, and answers user questions by first identifying relevant communities and then finding specific supporting evidence within those communities. This produces more comprehensive and semantically coherent answers than flat chunk retrieval.",
+  "benefits": [
+    "Captures entity relationships that flat chunk retrieval misses",
+    "Community-structured summaries enable global question answering",
+    "Improved factual accuracy on knowledge-intensive tasks",
+    "Better coverage of multi-hop questions"
+  ],
+  "tradeoffs": [
+    "Graph construction is expensive (requires LLM entity extraction)",
+    "Higher latency than naive chunk retrieval",
+    "Requires a graph-capable vector store",
+    "Tuning community detection parameters is non-trivial"
+  ],
+  "quality_attributes": {
+    "reliability": 7,
+    "cost_efficiency": 4,
+    "latency": 5,
+    "output_quality": 9,
+    "observability": 7,
+    "safety": 6,
+    "simplicity": 4
+  },
+  "suitable_domains": [
+    "rag-applications",
+    "research-reports",
+    "exploratory-research",
+    "regulated-domains",
+    "document-processing",
+    "multimodal",
+    "scientific-research",
+    "legal-research",
+    "enterprise-search"
+  ],
+  "unsuitable_domains": [
+    "customer-support",
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads"
+  ],
+  "use_cases": [
+    "Answering questions about a legal document corpus",
+    "Research literature synthesis across papers",
+    "Technical documentation Q&A over a codebase",
+    "Financial report analysis over earnings filings"
+  ],
+  "avoid_when": [
+    "Small corpus where flat chunk retrieval suffices",
+    "Purely keyword-based questions",
+    "Latency-critical production deployments",
+    "Corpus is not parseable for entity extraction"
+  ],
+  "component_types": [
+    "Graph Extractor",
+    "Community Detector",
+    "Community Summarizer",
+    "Global Retriever",
+    "Local Retriever",
+    "Answer Synthesizer"
+  ],
+  "technology_stack": [
+    "LangChain/LangGraph",
+    "Neo4j",
+    "Microsoft GraphRAG",
+    "NetworkX"
+  ],
+  "anti_patterns": [
+    "Skipping community structure and doing flat graph retrieval only",
+    "Using the same chunk size for entity extraction and final retrieval",
+    "No entity deduplication across the corpus"
+  ],
+  "migration_from": [
+    "naive-rag",
+    "agentic-rag"
+  ],
+  "migration_to": [],
+  "design_principles": [
+    "Extract entities and relationships before building the graph index",
+    "Tune community detection for corpus size and entity density",
+    "Combine global community answers with local supporting evidence"
+  ],
+  "best_practices": [
+    "Use an LLM for entity and relationship extraction from each chunk",
+    "Apply community detection (e.g., Leiden algorithm) before summarization",
+    "Store both the community summaries and the raw community subgraph for answer grounding"
+  ],
+  "references": [
+    "Microsoft Research, GraphRAG Project, 2024 — https://www.microsoft.com/en-us/research/project/graphrag/",
+    "Edge et al., From Local to Global: A GraphRAG Approach to Query-Focused Summarization, 2024 — https://arxiv.org/abs/2404.16130"
+  ]
+}

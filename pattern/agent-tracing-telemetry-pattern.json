@@ -1,0 +1,85 @@
+{
+  "name": "agent-tracing-telemetry",
+  "category": "observability",
+  "topology": "pipeline",
+  "context": "Production agent systems that require full observability into agent behavior — not just input/output pairs but the full reasoning trace, tool calls, intermediate decisions, and state transitions. Tracing instruments the agent at the instrumentation layer to emit structured spans for every step (reasoning, tool call, memory access, plan update), enabling distributed tracing, latency analysis, cost attribution, and failure diagnosis. Unlike decision-log (post-hoc audit of actions), tracing is real-time instrumentation that feeds into observability platforms.",
+  "benefits": [
+    "Full end-to-end trace enables root-cause analysis of failures",
+    "Per-step latency and cost attribution enables cost optimization",
+    "Distributed tracing-style spans enable correlation across agent components",
+    "Production-grade observability for agent deployments"
+  ],
+  "tradeoffs": [
+    "Instrumentation adds overhead to every agent step",
+    "Trace storage and processing can be expensive at scale",
+    "Requires defining a trace schema that covers all agent operations",
+    "Tool outputs can be very large — trace volume management is critical"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 5,
+    "latency": 7,
+    "output_quality": 6,
+    "observability": 10,
+    "safety": 7,
+    "simplicity": 5
+  },
+  "suitable_domains": [
+    "regulated-domains",
+    "high-stakes-outputs",
+    "multi-agent-systems",
+    "long-horizon-tasks",
+    "devops"
+  ],
+  "unsuitable_domains": [
+    "cost-sensitive-workloads",
+    "conversational-assistants"
+  ],
+  "use_cases": [
+    "Production monitoring of customer-facing agent systems",
+    "Cost attribution across agents, tools, and users in an enterprise deployment",
+    "Debugging long-running agent failures in production",
+    "Compliance auditing of agent decisions in regulated industries"
+  ],
+  "avoid_when": [
+    "Development-time debugging (use decision-log instead)",
+    "High-volume inference where tracing overhead is prohibitive",
+    "Simple single-agent single-turn applications"
+  ],
+  "component_types": [
+    "Span Emitter",
+    "Trace Context Propagator",
+    "Trace Processor",
+    "Span Storage",
+    "Dashboard Integrator"
+  ],
+  "technology_stack": [
+    "OpenTelemetry SDK",
+    "LangSmith",
+    "Arize Phoenix",
+    "Jaeger"
+  ],
+  "anti_patterns": [
+    "Tracing every token — too much noise",
+    "No trace sampling strategy (storing every trace in production)",
+    "Tracing without a schema — unstructured spans are hard to query"
+  ],
+  "migration_from": [
+    "decision-log"
+  ],
+  "migration_to": [],
+  "design_principles": [
+    "Emit spans for every agent step with structured attributes",
+    "Propagate trace context across sub-agent boundaries",
+    "Sample traces intelligently — 100% at low volume, sampled at high volume"
+  ],
+  "best_practices": [
+    "Define a span naming convention and stick to it across the codebase",
+    "Include cost, latency, token count, and decision reason as standard span attributes",
+    "Integrate trace storage with a queryable backend for dashboarding"
+  ],
+  "references": [
+    "OpenTelemetry, Distributed Tracing for LLM Applications, 2024 — https://opentelemetry.io/docs/specs/otel/",
+    "LangSmith, Tracing LLM Applications — https://docs.smith.langchain.com/tracing"
+  ]
+}

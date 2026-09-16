@@ -1,0 +1,95 @@
+{
+  "name": "semantic-memory",
+  "category": "memory",
+  "topology": "single-agent-loop",
+  "context": "Agents needing durable factual knowledge beyond the context window: curated facts are embedded in a knowledge store queried by similarity at prompt time.",
+  "benefits": [
+    "Scales knowledge beyond context",
+    "Updatable without retraining",
+    "Transparent provenance",
+    "Shareable across agents"
+  ],
+  "tradeoffs": [
+    "Knowledge curation cost",
+    "Retrieval misses on phrasing drift",
+    "Index maintenance"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 8,
+    "latency": 8,
+    "output_quality": 8,
+    "observability": 7,
+    "safety": 7,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "rag-applications",
+    "customer-support",
+    "research-reports",
+    "conversational-assistants",
+    "enterprise-search"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "code-generation"
+  ],
+  "use_cases": [
+    "Product FAQ knowledge",
+    "Company policy store",
+    "Domain glossary",
+    "Persona backstories"
+  ],
+  "avoid_when": [
+    "Fast-changing source-of-truth data",
+    "Knowledge is tiny and static (put it in the prompt)",
+    "The knowledge base is small and fits entirely within the context window"
+  ],
+  "component_types": [
+    "Knowledge Store",
+    "Embedding Pipeline",
+    "Similarity Retriever",
+    "Provenance Metadata",
+    "Memory Writer (ADD/UPDATE/DELETE)",
+    "Memory Evictor (TTL-based expiration)"
+  ],
+  "technology_stack": [
+    "FAISS",
+    "pgvector",
+    "LlamaIndex",
+    "Knowledge-graph variants"
+  ],
+  "anti_patterns": [
+    "Storing duplicates",
+    "Facts without provenance",
+    "Never refreshing",
+    "Pure vector retrieval without graph traversal for relational queries"
+  ],
+  "migration_from": [
+    "naive-rag"
+  ],
+  "migration_to": [
+    "hybrid-rerank",
+    "episodic-memory",
+    "conversational-memory"
+  ],
+  "design_principles": [
+    "Knowledge carries provenance",
+    "Version the embedding model",
+    "Provide a query-time fallback",
+    "Resolve fact conflicts at write or read time, never silently prefer latest",
+    "Implement TTL-based re-indexing by freshness tier"
+  ],
+  "best_practices": [
+    "Chunk by semantic units",
+    "Evaluate recall on golden questions",
+    "Watch drift after re-embedding",
+    "Implement hybrid retrieval: vector similarity + graph traversal for relational queries",
+    "Track retrieval hops guidance: 1-3 for simple, 5-10 for multi-hop research"
+  ],
+  "references": [
+    "Park et al., Generative Agents: Interactive Simulacra of Human Behavior, 2023 — https://arxiv.org/abs/2304.03442",
+    "Packer et al., MemGPT: Towards LLMs as Operating Systems, 2023 — https://arxiv.org/abs/2310.08560",
+    "CoALA (Sumers et al. 2023) - authoritative taxonomy for semantic/episodic/procedural memory distinction"
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "name": "reflexion",
+  "category": "reflection",
+  "topology": "single-agent-loop",
+  "context": "Trial-and-error tasks with an evaluator: after each failed attempt the agent writes a verbal reflection about the failure, stores it in memory, and uses it to guide the next attempt.",
+  "benefits": [
+    "Learns across attempts within a session",
+    "Cheap form of self-improvement",
+    "Strong gains on coding and test tasks"
+  ],
+  "tradeoffs": [
+    "Needs an evaluator or success signal",
+    "Multiple full attempts are expensive",
+    "May not converge"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 4,
+    "latency": 4,
+    "output_quality": 9,
+    "observability": 8,
+    "safety": 6,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "code-generation",
+    "trial-and-error-learning",
+    "complex-reasoning"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads",
+    "conversational-assistants"
+  ],
+  "use_cases": [
+    "Function passing test cases",
+    "SQL passing validation",
+    "Regex matching examples",
+    "API design meeting requirements"
+  ],
+  "avoid_when": [
+    "No clear success metric",
+    "Multiple trials are unaffordable",
+    "The task is simple"
+  ],
+  "component_types": [
+    "Actor (generator)",
+    "Evaluator",
+    "Self-Reflector",
+    "Episodic Memory Store",
+    "Memory Manager (max 1-3 experiences per task)"
+  ],
+  "technology_stack": [
+    "agent-patterns ReflexionAgent (thinking and reflection roles)",
+    "Episodic memory stores"
+  ],
+  "anti_patterns": [
+    "Reflections without actionable changes",
+    "Discarding memory between trials",
+    "Retrying without reflection",
+    "Reflections without ground-truth anchor",
+    "Storing full traces instead of distilled lessons",
+    "Infinite retry loops without escalation"
+  ],
+  "migration_from": [
+    "reflection"
+  ],
+  "migration_to": [
+    "lats",
+    "verifier-critic"
+  ],
+  "design_principles": [
+    "Reflect on the failure cause",
+    "Persist lessons",
+    "Modify the strategy, not only the output",
+    "Memory bound: 1-3 experiences (critical for implementation)"
+  ],
+  "best_practices": [
+    "Set max_trials to about three",
+    "Include evaluator output verbatim in the reflection",
+    "Reset memory on task change",
+    "Reflection length caps (50-150 tokens)",
+    "Trial budget limits with early stopping criteria"
+  ],
+  "references": [
+    "Shinn et al., Reflexion: Language Agents with Verbal Reinforcement Learning, 2023 — https://arxiv.org/abs/2303.11366"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "name": "dual-llm-quarantine",
+  "category": "safety_control",
+  "topology": "hierarchical",
+  "context": "Agent systems exposed to untrusted input (user prompts, fetched web pages, email attachments, third-party API responses) that may contain prompt injection attacks. A Privileged LLM holds tool access but never sees raw untrusted content; a Quarantined LLM processes untrusted data and returns only typed structured extractions. The two communicate through opaque handles — the Privileged LLM composes tool calls using these handles without ever observing the raw content that triggered the injection.",
+  "benefits": [
+    "Strong defense against prompt injection attacks",
+    "No single execution path holds all three: private data, untrusted content, outbound channel",
+    "Structured extraction prevents smuggled instructions",
+    "Works without modifying the underlying model"
+  ],
+  "tradeoffs": [
+    "Near-doubled cost and latency (two LLM calls per processing step)",
+    "Requires a privileged LLM that never sees untrusted content",
+    "Symbolic handle design needs careful schema specification",
+    "Does not prevent injection in the user prompt itself"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 3,
+    "latency": 4,
+    "output_quality": 7,
+    "observability": 7,
+    "safety": 10,
+    "simplicity": 4
+  },
+  "suitable_domains": [
+    "regulated-domains",
+    "customer-support",
+    "api-automation",
+    "high-stakes-outputs",
+    "cybersecurity",
+    "gui-computer-use"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads",
+    "conversational-assistants"
+  ],
+  "use_cases": [
+    "Email assistants that read inbound messages and draft replies",
+    "Web research agents that browse untrusted pages",
+    "CRM systems processing inbound customer messages with tool access",
+    "Document processing pipelines with tool execution"
+  ],
+  "avoid_when": [
+    "All input is fully trusted (internal tools only)",
+    "Latency is the dominant constraint",
+    "Cost is the primary concern",
+    "No consequential tools to protect"
+  ],
+  "component_types": [
+    "Privileged LLM",
+    "Quarantined LLM",
+    "Schema Validator",
+    "Symbolic Handle",
+    "Tool Permission Layer"
+  ],
+  "technology_stack": [
+    "agent-patterns DualLLM",
+    "Pydantic schemas",
+    "MCP tool servers"
+  ],
+  "anti_patterns": [
+    "Letting the Privileged LLM ever see raw untrusted content",
+    "Free-form text responses from the Quarantined LLM",
+    "No schema validation on structured extractions"
+  ],
+  "migration_from": [
+    "guardrails",
+    "structured-output"
+  ],
+  "migration_to": [],
+  "design_principles": [
+    "Zero-content exposure: Privileged LLM sees handles only, never raw untrusted data",
+    "Fail-closed on schema validation: reject malformed extractions from Quarantined LLM",
+    "Least privilege on tool access: tools available only to Privileged LLM"
+  ],
+  "best_practices": [
+    "Define minimal schemas for each extraction task (30-char max field names)",
+    "Rate-limit or timeout the Quarantined LLM to prevent resource exhaustion",
+    "Log all Quarantined LLM extractions for audit trail"
+  ],
+  "references": [
+    "Willison, The Dual LLM Pattern for Building AI Assistants that Resist Prompt Injection, 2023 — https://simonwillison.net/2023/Apr/14/dual-llm-pattern/",
+    "Beurer-Kellner et al., Design Patterns for Securing LLM Agents against Prompt Injections, 2025 — https://arxiv.org/abs/2506.08837",
+    "Debenedetti et al., Defeating Prompt Injections by Design (CaMeL), 2025 — https://arxiv.org/abs/2503.18813"
+  ]
+}

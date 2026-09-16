@@ -1,0 +1,93 @@
+{
+  "name": "naive-rag",
+  "category": "retrieval",
+  "topology": "single-agent-loop",
+  "context": "Knowledge tasks beyond parametric memory: chunks from documents are embedded, the top-k are retrieved for a query, and the answer is generated with them in context.",
+  "benefits": [
+    "Simple baseline to ship fast",
+    "Grounds answers in data",
+    "No fine-tuning needed"
+  ],
+  "tradeoffs": [
+    "Single-shot retrieval misses multi-hop needs",
+    "Chunking quality bounds everything",
+    "No verification of relevance"
+  ],
+  "quality_attributes": {
+    "reliability": 7,
+    "cost_efficiency": 8,
+    "latency": 8,
+    "output_quality": 7,
+    "observability": 6,
+    "safety": 7,
+    "simplicity": 9
+  },
+  "suitable_domains": [
+    "rag-applications",
+    "customer-support",
+    "conversational-assistants",
+    "e-commerce"
+  ],
+  "unsuitable_domains": [
+    "complex-reasoning",
+    "research-reports",
+    "scientific-research"
+  ],
+  "use_cases": [
+    "Documentation question answering",
+    "Policy lookup",
+    "Product manual assistant",
+    "Internal wiki search"
+  ],
+  "avoid_when": [
+    "Questions are multi-hop",
+    "The corpus changes rapidly",
+    "Citation verification is required"
+  ],
+  "component_types": [
+    "Chunker",
+    "Embedder",
+    "Vector Index",
+    "Retriever",
+    "Generator",
+    "BM25 Retriever",
+    "Reranker"
+  ],
+  "technology_stack": [
+    "LlamaIndex",
+    "LangChain",
+    "FAISS or pgvector",
+    "Chroma",
+    "Qdrant",
+    "Cohere reranker"
+  ],
+  "anti_patterns": [
+    "Oversized chunks",
+    "No metadata filters",
+    "Answering beyond the retrieved context",
+    "No hybrid search (BM25 + vector)"
+  ],
+  "migration_from": [
+    "semantic-memory"
+  ],
+  "migration_to": [
+    "hybrid-rerank",
+    "corrective-rag",
+    "agentic-rag"
+  ],
+  "design_principles": [
+    "Fix retrieval quality first",
+    "Cite sources",
+    "Refuse when retrieval is empty"
+  ],
+  "best_practices": [
+    "Evaluate retrieval recall separately",
+    "Chunk along semantic units",
+    "Filter by metadata",
+    "Use hybrid search (BM25 + vector) for better recall",
+    "Add metadata to every chunk (source, date, type, section)"
+  ],
+  "references": [
+    "Lewis et al., Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks, 2020 — https://arxiv.org/abs/2005.11401"
+  ]
+}

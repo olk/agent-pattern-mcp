@@ -1,0 +1,93 @@
+{
+  "name": "agent-resumption",
+  "category": "observability",
+  "topology": "single-agent-loop",
+  "context": "Long-running agent tasks that must survive process restarts, container redeployments, user disconnects, or infrastructure events without losing meaningful work. State is checkpointed to durable storage so the agent can resume from a named boundary rather than retrying from scratch or duplicating side effects.",
+  "benefits": [
+    "Agents survive infrastructure events (restarts, deploys, crashes) without losing progress",
+    "Prevents duplicate side effects (double emails, double charges) through idempotency keys",
+    "Enables long-running tasks that would otherwise be impractical in stateless environments",
+    "Provides a natural pause point for human review or escalation"
+  ],
+  "tradeoffs": [
+    "Checkpoint storage cost accumulates with run duration and state size",
+    "Resumed runs may encounter drifted external state (external systems changed during pause)",
+    "Non-serializable in-memory references are forbidden in long-running paths",
+    "Requires idempotency guarantees from all downstream side-effect targets"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 7,
+    "latency": 8,
+    "output_quality": 8,
+    "observability": 9,
+    "safety": 9,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "long-horizon-tasks",
+    "autonomous-task-execution",
+    "regulated-domains",
+    "multi-agent-systems",
+    "personal-productivity",
+    "workflow-automation",
+    "gui-computer-use"
+  ],
+  "unsuitable_domains": [
+    "cost-sensitive-workloads",
+    "parallel-data-gathering"
+  ],
+  "use_cases": [
+    "Research scraping: a 40-minute scrape-and-summarize run survives a container restart",
+    "Code migration: a multi-hour refactoring task resumes after a deployment",
+    "Customer service: an agent handling a complex multi-turn ticket pauses for human review, then resumes",
+    "Batch processing: a large document set is processed across restarts without reprocessing completed items"
+  ],
+  "avoid_when": [
+    "Tasks complete in seconds — retry-from-scratch is cheaper",
+    "Downstream services cannot make their operations idempotent",
+    "State is inherently ephemeral and retrying from scratch is acceptable"
+  ],
+  "component_types": [
+    "Checkpoint Manager",
+    "State Serializer",
+    "Idempotency Key Issuer",
+    "Resume Controller",
+    "Distributed Lease Manager",
+    "Resume Token Issuer"
+  ],
+  "technology_stack": [
+    "LangGraph Checkpointer",
+    "Temporal/Inngest durable workflows",
+    "OpenAI Agents SDK session persistence",
+    "Claude Agent SDK continue functionality"
+  ],
+  "anti_patterns": [
+    "Keeping all state in memory with no durable checkpoint — loses work on any interruption",
+    "Checkpointing at arbitrary points rather than meaningful boundaries",
+    "Resuming without revalidating external state that may have drifted",
+    "Resuming without classifying ambiguous timeouts as ToolOutcomeUnknown — blind continuation re-fires side effects"
+  ],
+  "migration_from": [
+    "conversational-memory"
+  ],
+  "migration_to": [
+    "decision-log"
+  ],
+  "design_principles": [
+    "Agent state must be serializable — no in-memory function references",
+    "Checkpoints must occur at named boundaries (not mid-step) for consistent resumption",
+    "Every side-effect target must accept an idempotency key to prevent duplicates on replay",
+    "Write idempotency key before network call; record result before advancing step",
+    "Resume tokens with epoch prevent stale workers from resuming after lease expiry"
+  ],
+  "best_practices": [
+    "Checkpoint at goal milestones, not at arbitrary iteration counts",
+    "Distinguish durable state (keep across restarts) from ephemeral state (recompute)",
+    "Validate that resumed runs re-check volatile external state (queue positions, approvals)"
+  ],
+  "references": [
+    "Wu et al., Crab: A Semantics-Aware Checkpoint/Restore Runtime for Agent Sandboxes, 2026 — https://arxiv.org/abs/2604.28138",
+    "Agent Patterns Catalog, Agent Resumption pattern — https://www.agentpatternscatalog.org/patterns/agent-resumption/"
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "name": "scratchpad-note-taking",
+  "category": "memory",
+  "topology": "single-agent-loop",
+  "context": "Long-running multi-step tasks where the agent accumulates intermediate findings, partial results, and reminders that must survive across tool calls and context resets. The agent writes notes to persistent external storage and reads them back at relevant moments, preventing the context window from being cluttered with verbose intermediate traces. Unlike episodic memory (past episodes), scratchpad is active working memory for the current task.",
+  "benefits": [
+    "Keeps context window lean by offloading intermediate reasoning",
+    "Survives context resets and compaction events",
+    "Makes the agent's internal state inspectable from outside",
+    "Enables progressive disclosure — agent reveals notes to user on demand"
+  ],
+  "tradeoffs": [
+    "Extra tool calls to write and read notes",
+    "Note format and retrieval strategy must be designed carefully",
+    "Stale notes can mislead if not invalidated on context changes",
+    "Adds implementation complexity over bare context accumulation"
+  ],
+  "quality_attributes": {
+    "reliability": 7,
+    "cost_efficiency": 6,
+    "latency": 7,
+    "output_quality": 8,
+    "observability": 9,
+    "safety": 7,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "long-horizon-tasks",
+    "code-generation",
+    "conversational-assistants",
+    "research-reports",
+    "autonomous-task-execution",
+    "personal-productivity",
+    "gui-computer-use"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks"
+  ],
+  "use_cases": [
+    "Complex coding tasks where the agent must track file changes across many edits",
+    "Research agents that build a persistent notes file over a multi-session investigation",
+    "Customer support agents that maintain case notes across turns",
+    "Autonomous agents running long dungeon explorations or training sequences"
+  ],
+  "avoid_when": [
+    "Tasks that fit entirely within the context window",
+    "Latency-critical single-turn applications",
+    "Environments where external file writes are not available"
+  ],
+  "component_types": [
+    "Note Writer Tool",
+    "Note Reader Tool",
+    "Note Index",
+    "Staleness Checker",
+    "NOTES.md or structured store"
+  ],
+  "technology_stack": [
+    "Anthropic Claude Code NOTES.md pattern",
+    "file-backed memory",
+    "LlamaIndex memory tool"
+  ],
+  "anti_patterns": [
+    "Writing raw tool outputs verbatim instead of distilled findings",
+    "Never reading notes back — writing-only scratchpad",
+    "Notes that grow without bound (same compaction problem)"
+  ],
+  "migration_from": [
+    "conversational-memory",
+    "episodic-memory"
+  ],
+  "migration_to": [
+    "procedural-memory",
+    "semantic-memory"
+  ],
+  "design_principles": [
+    "Write findings, not transcripts — distill, do not append",
+    "Index notes by task phase or file so retrieval is targeted",
+    "Treat notes as ephemeral — they do not survive session boundaries without explicit persistence"
+  ],
+  "best_practices": [
+    "Use a structured format (JSON or Markdown) for machine-readable notes",
+    "Validate notes on read — check staleness before trusting",
+    "Expose notes to the user via a read tool so they can follow the agent's reasoning"
+  ],
+  "references": [
+    "Nye et al., Show Your Work: Scratchpads for Intermediate Computation in Language Models, 2021 — https://arxiv.org/abs/2112.00114",
+    "Anthropic, Effective Context Engineering for AI Agents, 2025 — https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+    "LangChain Blog, Context Engineering for Agents, 2025 — https://www.langchain.com/blog/context-engineering-for-agents"
+  ]
+}

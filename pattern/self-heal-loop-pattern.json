@@ -1,0 +1,95 @@
+{
+  "name": "self-heal-loop",
+  "category": "reflection",
+  "topology": "single-agent-loop",
+  "context": "Agent systems where a deterministic verifier evaluates the output of each execution step and triggers a repair-retry cycle when the output fails validation. Unlike reflexion (which uses verbal learning from failure feedback), self-heal-loop uses a programmatic verifier — a test suite, schema validator, or policy check — to drive the repair, enabling fully automated correction without human or LLM-generated critique.",
+  "benefits": [
+    "Fully automated error correction without human intervention",
+    "Deterministic verifier provides objective pass/fail signal",
+    "Catches regressions that LLM self-critique might miss",
+    "Each iteration moves closer to a verifiable end state"
+  ],
+  "tradeoffs": [
+    "Requires a deterministic evaluator — not all failure modes are programmatically checkable",
+    "Can loop indefinitely if the verifier is mis-specified",
+    "Repair may introduce new errors between verification cycles",
+    "Higher per-attempt cost than single-pass when failures are rare"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 6,
+    "latency": 6,
+    "output_quality": 9,
+    "observability": 9,
+    "safety": 8,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "code-generation",
+    "data-analysis",
+    "high-stakes-outputs",
+    "regulated-domains",
+    "api-automation",
+    "trial-and-error-learning",
+    "devops",
+    "it-service-management",
+    "software-testing",
+    "gui-computer-use"
+  ],
+  "unsuitable_domains": [
+    "cost-sensitive-workloads"
+  ],
+  "use_cases": [
+    "Code generation: an agent writes a function; a test suite runs; failures trigger targeted repair",
+    "Data pipeline: outputs are validated against a schema; invalid rows trigger regeneration with corrected constraints",
+    "API responses: JSON output is validated against a schema; malformed responses are regenerated",
+    "Infrastructure as code: a plan is applied to a dry-run environment; drift detection triggers correction"
+  ],
+  "avoid_when": [
+    "No deterministic way to evaluate whether the output is correct",
+    "The task is inherently subjective (creative writing, opinions)",
+    "Failures are so rare that the overhead of the loop is not justified"
+  ],
+  "component_types": [
+    "Generator Agent",
+    "Deterministic Verifier",
+    "Repair Controller",
+    "Iteration Guard",
+    "Independent Critic",
+    "Rollback Manager"
+  ],
+  "technology_stack": [
+    "Reflexion framework with programmatic evaluators",
+    "LangGraph while loop with validator nodes",
+    "Claude Agent SDK with built-in verify tool",
+    "Custom test-runner integration"
+  ],
+  "anti_patterns": [
+    "Verifier that always passes — the loop becomes an infinite generator",
+    "Repair that introduces a new error not caught by the verifier",
+    "No maximum iteration cap — runaway loops consume budget without converging",
+    "Failure drift: fix one error, introduce another",
+    "Regression cascade: non-atomic commits"
+  ],
+  "migration_from": [
+    "reflexion",
+    "chain-of-verification"
+  ],
+  "migration_to": [
+    "evaluator-optimizer"
+  ],
+  "design_principles": [
+    "The verifier must be objective and deterministic — same input always produces same result",
+    "Each repair must be targeted at the specific failure, not a wholesale regeneration",
+    "An iteration cap (step-budget) is mandatory to prevent infinite loops",
+    "Verifier must output: {location, observed_value, expected_alternatives, confidence}"
+  ],
+  "best_practices": [
+    "Design the verifier to be specific — catch only the failure class, not unrelated properties",
+    "Log each verify-repair cycle so failures are traceable to specific input conditions",
+    "Combine with agent-resumption so interrupted loops can resume from the last checkpoint"
+  ],
+  "references": [
+    "Dao et al., Agentic Design Patterns: A System-Theoretic Framework, 2026 — https://arxiv.org/abs/2601.19752"
+  ]
+}

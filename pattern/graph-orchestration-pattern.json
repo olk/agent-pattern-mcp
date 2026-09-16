@@ -1,0 +1,89 @@
+{
+  "name": "graph-orchestration",
+  "category": "multi_agent",
+  "topology": "graph-orchestrated",
+  "context": "Production multi-agent systems needing explicit, observable control flow: agents are nodes in a directed graph with conditional edges, checkpoints, and replayable state.",
+  "benefits": [
+    "Deterministic flows where needed",
+    "First-class observability",
+    "Human-in-the-loop interrupts",
+    "State persistence and time-travel debugging"
+  ],
+  "tradeoffs": [
+    "Upfront graph design cost",
+    "Framework lock-in",
+    "Overkill for two-step flows"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 7,
+    "latency": 7,
+    "output_quality": 8,
+    "observability": 10,
+    "safety": 8,
+    "simplicity": 5
+  },
+  "suitable_domains": [
+    "multi-agent-systems",
+    "long-horizon-tasks",
+    "regulated-domains",
+    "autonomous-task-execution",
+    "workflow-automation"
+  ],
+  "unsuitable_domains": [
+    "exploratory-research"
+  ],
+  "use_cases": [
+    "Order-processing agent mesh",
+    "Compliance-checked content pipeline",
+    "Coding agent with review gates",
+    "Support escalation graph"
+  ],
+  "avoid_when": [
+    "The flow is not yet stabilized (prototype in code first)",
+    "The workflow is a simple chain",
+    "The task is purely sequential (no branching or conditional logic needed)"
+  ],
+  "component_types": [
+    "StateGraph",
+    "Agent Nodes",
+    "Conditional Edges",
+    "Checkpointer",
+    "Interrupt Points",
+    "StateMachineAgent (zero-token cost nodes)",
+    "Middleware/Interceptor",
+    "RemoteCheckpointer"
+  ],
+  "technology_stack": [
+    "LangGraph",
+    "Microsoft Agent Framework",
+    "Temporal-style workflow engines"
+  ],
+  "anti_patterns": [
+    "Mega-node agents (a graph in name only)",
+    "Hidden state outside checkpointing",
+    "Edges without semantics",
+    "Runaway loop agents (no iteration limits)"
+  ],
+  "migration_from": [
+    "supervisor-worker",
+    "prompt-chaining"
+  ],
+  "migration_to": [
+    "swarm"
+  ],
+  "design_principles": [
+    "Encode control flow in edges, not prompts",
+    "Checkpoint every step",
+    "Keep nodes small"
+  ],
+  "best_practices": [
+    "Replay failing runs",
+    "Add interrupts at human gates",
+    "Version the graph"
+  ],
+  "references": [
+    "LangChain, LangGraph: Low-level Orchestration Framework for Stateful Multi-Actor Agents — https://github.com/langchain-ai/langgraph",
+    "LangChain, LangGraph Documentation: Workflows & Agents — https://docs.langchain.com/oss/python/langgraph/workflows-agents"
+  ]
+}

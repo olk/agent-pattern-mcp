@@ -1,0 +1,91 @@
+{
+  "name": "control-flow-integrity",
+  "category": "safety_control",
+  "topology": "plan-execute",
+  "context": "Agent systems that must execute tool calls in the presence of untrusted content (e.g., web pages, emails, documents) without allowing that content to redirect the control flow. The agent plans the full sequence of tool calls upfront, before any untrusted content enters the context. Once a plan is committed, tool outputs (which may contain injection payloads) cannot influence the choice of actions — they can only provide data to already-selected tools. This is a strict form of control-flow integrity that prevents content-borne instructions from hijacking the execution path.",
+  "benefits": [
+    "Prevents prompt injection from redirecting the agent's action sequence",
+    "Separation of planning (clean context) from execution (potentially polluted)",
+    "Preserves tool-usefulness while blocking injection-driven redirection",
+    "More permissive than dual-llm-quarantine (single model, no doubling)"
+  ],
+  "tradeoffs": [
+    "Cannot adapt the plan based on intermediate tool outputs",
+    "Requires the full task to be decomposable into a static plan",
+    "Long plans may become stale if environment changes mid-execution",
+    "Less flexible than reactive ReAct-style interleaving"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 6,
+    "latency": 6,
+    "output_quality": 7,
+    "observability": 7,
+    "safety": 9,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "regulated-domains",
+    "api-automation",
+    "high-stakes-outputs",
+    "customer-support",
+    "web-automation",
+    "document-processing",
+    "cybersecurity",
+    "gui-computer-use"
+  ],
+  "unsuitable_domains": [
+    "exploratory-research",
+    "complex-reasoning",
+    "long-horizon-tasks"
+  ],
+  "use_cases": [
+    "Email automation where inbox content is untrusted",
+    "Web automation where fetched pages may contain injection payloads",
+    "CRM automation processing inbound customer requests",
+    "Document processing with content from untrusted sources"
+  ],
+  "avoid_when": [
+    "Tasks that genuinely require adaptive planning mid-execution",
+    "Tasks where tool outputs genuinely inform next steps (no untrusted content)",
+    "Latency-sensitive interactive applications"
+  ],
+  "component_types": [
+    "Planner (clean context)",
+    "Plan Commit Gate",
+    "Executor",
+    "Tool Output Filter",
+    "Untrusted Data Isolator"
+  ],
+  "technology_stack": [
+    "LangGraph plan-execute",
+    "agent-patterns CFI",
+    "Pydantic plan schemas"
+  ],
+  "anti_patterns": [
+    "Updating the plan based on tool outputs from untrusted sources",
+    "Feeding untrusted content back into the planner",
+    "No validation that the executed plan matches the committed plan"
+  ],
+  "migration_from": [
+    "react",
+    "guardrails",
+    "structured-output"
+  ],
+  "migration_to": [
+    "dual-llm-quarantine"
+  ],
+  "design_principles": [
+    "Plan in a clean context before any untrusted content is processed",
+    "Once committed, tool outputs provide data — not instructions",
+    "Validate plan execution against the committed plan at each step"
+  ],
+  "best_practices": [
+    "Keep the planner isolated from any untrusted content",
+    "Serialize the plan before execution begins and log it for audit",
+    "Abort and re-plan only at explicitly defined replan triggers, never on tool output content"
+  ],
+  "references": [
+    "Beurer-Kellner et al., Design Patterns for Securing LLM Agents against Prompt Injections, 2025 — https://arxiv.org/abs/2506.08837"
+  ]
+}

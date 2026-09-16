@@ -1,0 +1,87 @@
+{
+  "name": "self-consistency",
+  "category": "reasoning",
+  "topology": "single-agent-loop",
+  "context": "Reasoning tasks where a single sampled reasoning path may be unreliable. The agent samples multiple diverse reasoning chains for the same problem, then selects the most consistent answer via majority voting. Unlike chain-of-thought which is linear and single-pass, self-consistency is an ensemble method that improves accuracy at the cost of multiple LLM calls.",
+  "benefits": [
+    "Significantly improves accuracy on arithmetic and commonsense reasoning",
+    "Simple to implement on top of existing CoT prompts",
+    "Works with any underlying reasoning prompt",
+    "Reduces hallucination through consensus"
+  ],
+  "tradeoffs": [
+    "N× cost where N is the number of samples",
+    "N× latency for same reason",
+    "Only works for tasks with a verifiable final answer",
+    "Diversity of samples depends on temperature and prompting"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 4,
+    "latency": 4,
+    "output_quality": 9,
+    "observability": 7,
+    "safety": 6,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "complex-reasoning",
+    "code-generation",
+    "data-analysis",
+    "high-stakes-outputs"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads",
+    "customer-support",
+    "conversational-assistants"
+  ],
+  "use_cases": [
+    "Mathematical word problems",
+    "Commonsense reasoning benchmarks",
+    "Multi-step arithmetic",
+    "Logical deduction with verifiable answers"
+  ],
+  "avoid_when": [
+    "Open-ended generation tasks with no single correct answer",
+    "Tight latency or cost budgets",
+    "Tasks requiring creative or subjective outputs"
+  ],
+  "component_types": [
+    "CoT Prompt",
+    "Sample Generator",
+    "Answer Extractor",
+    "Vote Aggregator",
+    "Consistency Scorer"
+  ],
+  "technology_stack": [
+    "LangGraph",
+    "agent-patterns SelfConsistencyAgent",
+    "OpenAI function calling"
+  ],
+  "anti_patterns": [
+    "Using the same temperature for all samples (no diversity)",
+    "Voting on intermediate steps rather than final answers",
+    "Ignoring ties and defaulting to first sample"
+  ],
+  "migration_from": [
+    "chain-of-thought"
+  ],
+  "migration_to": [
+    "voting-based-cooperation",
+    "lats"
+  ],
+  "design_principles": [
+    "Sample at least 5-10 times for meaningful majority",
+    "Use chain-of-thought prompting for each sample",
+    "Parse answers programmatically — do not rely on free-text comparison"
+  ],
+  "best_practices": [
+    "Set temperature > 0 for diverse samples",
+    "Normalize answer formats before voting (e.g., strip whitespace)",
+    "Log all sampled answers for post-hoc analysis"
+  ],
+  "references": [
+    "Wang et al., Self-Consistency Improves Chain of Thought Reasoning in Language Models, 2022 — https://arxiv.org/abs/2203.11171"
+  ]
+}

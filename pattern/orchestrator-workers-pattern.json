@@ -1,0 +1,96 @@
+{
+  "name": "orchestrator-workers",
+  "category": "multi_agent",
+  "topology": "hierarchical",
+  "context": "Tasks where subtasks cannot be predicted in advance (for example, the number of files to change depends on the codebase): a central LLM dynamically decomposes and delegates, then synthesizes.",
+  "benefits": [
+    "Input-adaptive decomposition",
+    "Flexibility over static plans",
+    "Parallel workers",
+    "Coherent final synthesis"
+  ],
+  "tradeoffs": [
+    "Decomposition quality bounds everything",
+    "Coordination overhead similar to supervisor-worker",
+    "Unpredictable cost"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 5,
+    "latency": 6,
+    "output_quality": 9,
+    "observability": 7,
+    "safety": 6,
+    "simplicity": 5
+  },
+  "suitable_domains": [
+    "code-generation",
+    "complex-reasoning",
+    "multi-agent-systems",
+    "long-horizon-tasks",
+    "workflow-automation"
+  ],
+  "unsuitable_domains": [
+    "cost-sensitive-workloads",
+    "latency-sensitive-tasks"
+  ],
+  "use_cases": [
+    "Refactor across an unknown file set",
+    "Open-ended analysis with unknown subtopics",
+    "Multi-platform content adaptation",
+    "Incident triage"
+  ],
+  "avoid_when": [
+    "Subtasks are enumerable upfront",
+    "Strict budgets apply",
+    "The work is single-domain"
+  ],
+  "component_types": [
+    "Orchestrator",
+    "Worker Pool",
+    "Task Spec Generator",
+    "Synthesizer",
+    "State Store",
+    "Context Isolator",
+    "Failure Handler"
+  ],
+  "technology_stack": [
+    "LangGraph",
+    "Claude subagents",
+    "OpenAI Agents SDK",
+    "AutoGen"
+  ],
+  "anti_patterns": [
+    "A static task list despite the dynamic label",
+    "Synthesizer ignoring worker conflicts",
+    "No worker timeout",
+    "Orchestrator context overflow from verbose worker outputs",
+    "Workers with overlapping scope causing non-deterministic routing"
+  ],
+  "migration_from": [
+    "supervisor-worker",
+    "plan-and-solve"
+  ],
+  "migration_to": [
+    "graph-orchestration"
+  ],
+  "design_principles": [
+    "Decompose along data and ownership boundaries",
+    "Workers return structured findings",
+    "Synthesize conflicts explicitly",
+    "Workers return compact summaries, never full transcripts",
+    "Cap worker fan-out with maximum count per request"
+  ],
+  "best_practices": [
+    "Provide few-shot decomposition examples",
+    "Give workers scratchpads",
+    "Define a conflict resolution policy",
+    "Use tiered models: strong orchestrator, cheaper workers",
+    "Implement parallel worker execution for independent tasks",
+    "Log orchestrator plan, each dispatch, and summaries as discrete events"
+  ],
+  "references": [
+    "Wu et al., AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation, 2023 — https://arxiv.org/abs/2308.08155",
+    "Agent Patterns Catalog, Orchestrator-Workers pattern — https://www.agentpatternscatalog.org/patterns/orchestrator-workers/"
+  ]
+}

@@ -1,0 +1,756 @@
+# Copyright (c) 2026 Oliver Kowalke
+# SPDX-License-Identifier: MIT
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+"""
+Unit tests for HybridPatternRetriever fallback behaviour.
+
+Test Case IDs: UT-RET-1 through UT-RET-4
+Validates Requirements: FR-189 (no-match fallback)
+
+Test Scenarios:
+- UT-RET-1: When retrieve() finds no patterns, fallback is returned with score 0.0
+- UT-RET-2: When retrieve() finds no patterns and fallback is missing, empty list is returned
+- UT-RET-3: When retrieve() finds patterns, fallback is NOT used and real results returned
+- UT-RET-4: get_by_name() returns pattern dict or None
+
+Port note (arch → agent adaptation):
+- HybridPatternRetriever legs are injected (dense_retriever=/bm25_retriever=);
+  the old vector_index=/bm25_index= mock index classes are gone.
+- Default fallback pattern is 'react' (arch: 'layered-monolith').
+- Pattern names/slugs use the agent catalogue (supervisor-worker,
+  multi-agent-systems) and the agent 7-key quality model.
+- Stage-1 fusion is locked to relative_score (arch test expectation carried
+  over; the pre-migration reciprocal_rerank expectation is obsolete).
+"""
+
+import logging
+from typing import Any
+from unittest.mock import MagicMock, patch
+
+import pytest
+from llama_index.core.schema import NodeWithScore, TextNode
+
+from src.patterns.retriever import (
+    DEFAULT_FALLBACK_PATTERN_NAME,
+    HybridPatternRetriever,
+)
+from src.patterns.safe_tei_rerank import SafeTEIReranker, _safe_tei_rerank_call
+
+# Stage-1 fusion (relative_score, dense weight 0.7) sends a single-leg
+# dense hit to 0.7 * 1.0 (min-max top of leg times leg weight).
+MOCK_FUSION_SCORE = 0.7
+
+
+class _DummyRetriever:
+    """Minimal retriever that returns empty nodes for any query."""
+
+    def retrieve(self, _query_bundle):
+        return []
+
+
+# Canonical fallback pattern dict (arch: LAYERED_MONOLITH).
+REACT = {
+    "name": "react",
+    "category": "reasoning",
+    "context": "Reason + act loop for tool-using agents.",
+    "benefits": ["Simplicity"],
+    "tradeoffs": ["Coupling"],
+    "quality_attributes": {
+        "reliability": 6,
+        "cost_efficiency": 4,
+        "latency": 6,
+        "output_quality": 6,
+        "observability": 5,
+        "safety": 6,
+        "simplicity": 8,
+    },
+    "suitable_domains": ["autonomous-task-execution"],
+    "best_practices": [],
+}
+
+
+class MockPatternLoader:
+    """Mock PatternLoader with configurable filter_by_domain and get_by_name."""
+
+    def __init__(
+        self,
+        filter_by_domain_result: list[dict] | None = None,
+        get_by_name_result: dict | None = None,
+    ) -> None:
+        self._filter_result = filter_by_domain_result or []
+        self._get_by_name_result = get_by_name_result
+        self._loaded = True
+
+    def filter_by_domain(self, _domain: str) -> list[dict]:
+        return self._filter_result
+
+    def get_by_name(self, _name: str) -> dict | None:
+        return self._get_by_name_result
+
+
+class TestRetrieveFallbackWhenNoMatch:
+    """UT-RET-1: Fallback returned with score 0.0 when no patterns match."""
+
+    def test_retrieve_returns_fallback_when_no_match(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """
+        When QueryFusionRetriever returns no nodes and filter_by_domain
+        finds nothing, retrieve() must return the fallback pattern
+        with score 0.0 and emit a WARNING log.
+        """
+        loader = MockPatternLoader(
+            filter_by_domain_result=[],
+            get_by_name_result=REACT,
+        )
+
+        retriever = HybridPatternRetriever(
+            dense_retriever=_DummyRetriever(),
+            bm25_retriever=_DummyRetriever(),
+            pattern_loader=loader,
+        )
+        retriever._dense_retriever = MagicMock()
+        retriever._bm25_retriever = MagicMock()
+        retriever._dense_retriever.retrieve.return_value = []
+        retriever._bm25_retriever.retrieve.return_value = []
+
+        result = retriever.retrieve(
+            user_domain="nonexistent-domain",
+            normalized_domain="nonexistent-domain",
+        )
+
+        assert len(result.patterns) == 1
+        pattern, score = result.patterns[0]
+        assert pattern["name"] == "react"
+        assert score == 0.0
+        assert result.matched_domains == []
+        assert "No pattern matched domain" in caplog.text
+        assert "react" in caplog.text
+        assert any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+class TestRetrieveFallbackMissing:
+    """UT-RET-2: Empty list returned when fallback pattern is also missing."""
+
+    def test_retrieve_returns_empty_when_fallback_missing(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """
+        When QueryFusionRetriever returns no nodes, filter_by_domain
+        finds nothing, AND get_by_name returns None,
+        retrieve() must return an empty list and emit a WARNING.
+        """
+        loader = MockPatternLoader(
+            filter_by_domain_result=[],
+            get_by_name_result=None,
+        )
+
+        retriever = HybridPatternRetriever(
+            dense_retriever=_DummyRetriever(),
+            bm25_retriever=_DummyRetriever(),
+            pattern_loader=loader,
+            reranker_config=MagicMock(base_url="http://localhost:8080", timeout=30.0, max_batch_size=48),
+        )
+        retriever._dense_retriever = MagicMock()
+        retriever._bm25_retriever = MagicMock()
+        # Dense returns 2 fake nodes, BM25 returns empty
+        retriever._dense_retriever.retrieve.return_value = [
+            NodeWithScore(node=TextNode(text="x", metadata={"slug": "slug1"}), score=0.5),
+            NodeWithScore(node=TextNode(text="y", metadata={"slug": "slug2"}), score=0.4),
+        ]
+        retriever._bm25_retriever.retrieve.return_value = []
+
+        class _DummyReranker:
+            top_n = 1
+
+            def postprocess_nodes(self, nodes, query_bundle=None):
+                return nodes
+
+        with patch(
+            "src.patterns.retriever.SafeTEIReranker",
+            return_value=_DummyReranker(),
+        ):
+            result = retriever.retrieve(
+                user_domain="nonexistent-domain",
+                normalized_domain="nonexistent-domain",
+            )
+
+        assert result.patterns == []
+        assert result.matched_domains == []
+        assert "fallback" in caplog.text.lower()
+        assert "not found" in caplog.text.lower()
+        assert any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+class TestRetrieveRealResults:
+    """UT-RET-3: Real results returned when patterns are found."""
+
+    def test_retrieve_returns_real_results_when_available(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """
+        When QueryFusionRetriever returns matching nodes that map to patterns,
+        retrieve() must return those real patterns and NOT use the fallback.
+        No WARNING should be emitted.
+        """
+        real_pattern = {
+            "name": "supervisor-worker",
+            "category": "multi_agent",
+            "context": "Supervisor delegates tasks to worker agents.",
+            "benefits": ["Scalability"],
+            "tradeoffs": ["Complexity"],
+            "quality_attributes": {
+                "reliability": 7,
+                "cost_efficiency": 6,
+                "latency": 6,
+                "output_quality": 9,
+                "observability": 7,
+                "safety": 6,
+                "simplicity": 5,
+            },
+            "suitable_domains": ["multi-agent-systems"],
+            "best_practices": [],
+        }
+
+        loader = MockPatternLoader(
+            filter_by_domain_result=[real_pattern],
+            get_by_name_result=REACT,
+        )
+
+        retriever = HybridPatternRetriever(
+            dense_retriever=_DummyRetriever(),
+            bm25_retriever=_DummyRetriever(),
+            pattern_loader=loader,
+        )
+        retriever._dense_retriever = MagicMock()
+        retriever._bm25_retriever = MagicMock()
+
+        fake_fusion_nodes = [
+            NodeWithScore(
+                node=TextNode(text="multi-agent-systems", metadata={"slug": "multi-agent-systems"}),
+                score=MOCK_FUSION_SCORE,
+            )
+        ]
+        retriever._dense_retriever.retrieve.return_value = fake_fusion_nodes
+        retriever._bm25_retriever.retrieve.return_value = []
+
+        result = retriever.retrieve(user_domain="multi-agent-systems", normalized_domain="multi-agent-systems")
+
+        assert len(result.patterns) == 1
+        pattern, score = result.patterns[0]
+        assert pattern["name"] == "supervisor-worker"
+        assert score == MOCK_FUSION_SCORE
+        assert len(result.matched_domains) == 1
+        assert result.matched_domains[0].slug == "multi-agent-systems"
+        assert "No pattern matched" not in caplog.text
+        assert not any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+class TestDefaultFallbackConstant:
+    """UT-RET-4: DEFAULT_FALLBACK_PATTERN_NAME is 'react'."""
+
+    def test_default_fallback_pattern_name_is_react(self) -> None:
+        assert DEFAULT_FALLBACK_PATTERN_NAME == "react"
+
+
+class TestRetrievalLogging:
+    """Verify INFO logs are emitted at each stage of the retrieval pipeline."""
+
+    @pytest.fixture
+    def retriever_with_mocks(self) -> HybridPatternRetriever:
+        """Create a retriever with pre-seeded mock retrievers."""
+        pattern = {
+            "name": "supervisor-worker",
+            "category": "multi_agent",
+            "context": "Supervisor delegates tasks to worker agents.",
+            "benefits": ["Scalability"],
+            "tradeoffs": ["Complexity"],
+            "quality_attributes": {
+                "reliability": 7,
+                "cost_efficiency": 6,
+                "latency": 6,
+                "output_quality": 9,
+                "observability": 7,
+                "safety": 6,
+                "simplicity": 5,
+            },
+            "suitable_domains": ["multi-agent-systems"],
+            "best_practices": [],
+        }
+        loader = MockPatternLoader(
+            filter_by_domain_result=[pattern],
+            get_by_name_result=REACT,
+        )
+        retriever = HybridPatternRetriever(
+            dense_retriever=_DummyRetriever(),
+            bm25_retriever=_DummyRetriever(),
+            pattern_loader=loader,
+            min_fusion_score=0.0,  # stage-1 semantics under test, not the gate
+            reranker_config=MagicMock(base_url="http://reranker:8080", timeout=30.0, max_batch_size=48),
+        )
+        return retriever
+
+    def test_dense_leg_emits_info_log(
+        self, retriever_with_mocks: HybridPatternRetriever, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Stage 1: Dense leg emits INFO with slug and score."""
+        retriever = retriever_with_mocks
+        retriever._dense_retriever = MagicMock()
+        retriever._bm25_retriever = MagicMock()
+        retriever._dense_retriever.retrieve.return_value = [
+            NodeWithScore(node=TextNode(text="x", metadata={"slug": "multi-agent-systems"}), score=0.9),
+            NodeWithScore(node=TextNode(text="y", metadata={"slug": "long-horizon-tasks"}), score=0.7),
+        ]
+        retriever._bm25_retriever.retrieve.return_value = []
+
+        class _DummyReranker:
+            top_n = 1
+
+            def postprocess_nodes(self, nodes, query_bundle=None):
+                return nodes
+
+        with caplog.at_level(logging.INFO, logger="src.patterns.retriever"), \
+             patch("src.patterns.retriever.SafeTEIReranker", return_value=_DummyReranker()):
+            retriever.retrieve(user_domain="multi-agent-systems", normalized_domain="multi-agent-systems")
+
+        dense_logs = [r for r in caplog.records if r.levelno == logging.INFO and getattr(r, "stage", None) == "dense"]
+        assert len(dense_logs) >= 1
+        assert getattr(dense_logs[0], "summary", {}).get("count") == 2
+        assert len(getattr(dense_logs[0], "summary", {}).get("top", [])) == 2
+
+    def test_bm25_leg_emits_info_log(
+        self, retriever_with_mocks: HybridPatternRetriever, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Stage 2: BM25 leg emits INFO with slug and score."""
+        retriever = retriever_with_mocks
+        retriever._dense_retriever = MagicMock()
+        retriever._bm25_retriever = MagicMock()
+        retriever._dense_retriever.retrieve.return_value = []
+        retriever._bm25_retriever.retrieve.return_value = [
+            NodeWithScore(node=TextNode(text="x", metadata={"slug": "multi-agent-systems"}), score=0.85),
+            NodeWithScore(node=TextNode(text="y", metadata={"slug": "long-horizon-tasks"}), score=0.65),
+        ]
+
+        class _DummyReranker:
+            top_n = 1
+
+            def postprocess_nodes(self, nodes, query_bundle=None):
+                return nodes
+
+        with caplog.at_level(logging.INFO, logger="src.patterns.retriever"), \
+             patch("src.patterns.retriever.SafeTEIReranker", return_value=_DummyReranker()):
+            retriever.retrieve(user_domain="multi-agent-systems", normalized_domain="multi-agent-systems")
+
+        bm25_logs = [r for r in caplog.records if r.levelno == logging.INFO and getattr(r, "stage", None) == "bm25"]
+        assert len(bm25_logs) >= 1
+        assert getattr(bm25_logs[0], "summary", {}).get("count") == 2
+
+    def test_fusion_emits_info_log(
+        self, retriever_with_mocks: HybridPatternRetriever, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Stage 3: Fusion emits INFO with fused scores."""
+        retriever = retriever_with_mocks
+        retriever._dense_retriever = MagicMock()
+        retriever._bm25_retriever = MagicMock()
+        retriever._dense_retriever.retrieve.return_value = [
+            NodeWithScore(node=TextNode(text="x", metadata={"slug": "multi-agent-systems"}), score=0.9),
+        ]
+        retriever._bm25_retriever.retrieve.return_value = [
+            NodeWithScore(node=TextNode(text="x", metadata={"slug": "multi-agent-systems"}), score=0.8),
+        ]
+
+        with caplog.at_level(logging.INFO, logger="src.patterns.retriever"):
+            retriever.retrieve(user_domain="multi-agent-systems", normalized_domain="multi-agent-systems")
+
+        fusion_logs = [r for r in caplog.records if r.levelno == logging.INFO and getattr(r, "stage", None) == "fusion"]
+        assert len(fusion_logs) >= 1
+        assert getattr(fusion_logs[0], "mode", None) == "relative_score"
+
+    def test_rerank_emits_info_log(
+        self, retriever_with_mocks: HybridPatternRetriever, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Stage 4: Reranking emits INFO."""
+        retriever = retriever_with_mocks
+        retriever._dense_retriever = MagicMock()
+        retriever._bm25_retriever = MagicMock()
+        retriever._dense_retriever.retrieve.return_value = [
+            NodeWithScore(node=TextNode(text="x", metadata={"slug": "multi-agent-systems"}), score=0.9),
+            NodeWithScore(node=TextNode(text="y", metadata={"slug": "long-horizon-tasks"}), score=0.7),
+        ]
+        retriever._bm25_retriever.retrieve.return_value = [
+            NodeWithScore(node=TextNode(text="y", metadata={"slug": "long-horizon-tasks"}), score=0.8),
+        ]
+
+        with caplog.at_level(logging.INFO, logger="src.patterns.retriever"), \
+             patch("src.patterns.retriever.SafeTEIReranker") as mock_reranker_cls:
+            mock_reranker = MagicMock()
+            mock_reranker.postprocess_nodes.return_value = retriever._dense_retriever.retrieve.return_value[:1]
+            mock_reranker_cls.return_value = mock_reranker
+            retriever.retrieve(user_domain="multi-agent-systems", normalized_domain="multi-agent-systems")
+
+        rerank_logs = [r for r in caplog.records if r.levelno == logging.INFO and getattr(r, "stage", None) == "rerank"]
+        assert len(rerank_logs) >= 1
+
+    def test_final_selection_emits_info_log(
+        self, retriever_with_mocks: HybridPatternRetriever, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Stage 5: Recall set emits INFO with pattern names and scores.
+
+        Selection (top_k_patterns truncation) moved downstream to the analyze
+        phase, so the retriever now emits a 'recall' stage log (not 'selected')
+        carrying the full candidate set.
+        """
+        retriever = retriever_with_mocks
+        retriever._dense_retriever = MagicMock()
+        retriever._bm25_retriever = MagicMock()
+        retriever._dense_retriever.retrieve.return_value = [
+            NodeWithScore(node=TextNode(text="x", metadata={"slug": "multi-agent-systems"}), score=0.9),
+        ]
+        retriever._bm25_retriever.retrieve.return_value = []
+
+        with caplog.at_level(logging.INFO, logger="src.patterns.retriever"):
+            retriever.retrieve(user_domain="multi-agent-systems", normalized_domain="multi-agent-systems")
+
+        selected_logs = [r for r in caplog.records if r.levelno == logging.INFO and getattr(r, "stage", None) == "recall"]
+        assert len(selected_logs) >= 1
+        assert getattr(selected_logs[0], "domain", None) == "multi-agent-systems"
+        assert getattr(selected_logs[0], "fusion_mode", None) == "relative_score"
+        patterns = getattr(selected_logs[0], "patterns", [])
+        assert len(patterns) == 1
+        assert patterns[0]["name"] == "supervisor-worker"
+
+
+class TestSafeTeiRerankCall:
+    """Error surfacing: _safe_tei_rerank_call raises RuntimeError on HTTP errors."""
+
+    def test_raises_on_http_429_overloaded(self) -> None:
+        """TEI returns HTTP 429 'Model is overloaded' — must raise RuntimeError, not AssertionError."""
+        with patch("src.patterns.safe_tei_rerank.httpx.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_resp = MagicMock()
+            mock_resp.status_code = 429
+            mock_resp.text = '{"error":"Model is overloaded","error_type":"Overloaded"}'
+            mock_resp.json.return_value = {"error": "Model is overloaded", "error_type": "Overloaded"}
+            mock_client.post.return_value = mock_resp
+            mock_client_cls.return_value.__enter__.return_value = mock_client
+
+            with pytest.raises(RuntimeError) as exc_info:
+                _safe_tei_rerank_call(
+                    base_url="http://localhost:8080",
+                    timeout=30.0,
+                    auth_token=None,
+                    query="rag-applications",
+                    texts=[f"domain-{i}" for i in range(35)],
+                )
+
+            assert "429" in str(exc_info.value)
+            assert "Model is overloaded" in str(exc_info.value)
+
+    def test_raises_on_http_400_batch_size(self) -> None:
+        """TEI returns HTTP 400 for oversized batch — must raise RuntimeError."""
+        with patch("src.patterns.safe_tei_rerank.httpx.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_resp = MagicMock()
+            mock_resp.status_code = 422
+            mock_resp.text = '{"error":"batch size > maximum allowed batch size 48","error_type":"Validation"}'
+            mock_resp.json.return_value = {"error": "batch size > maximum allowed batch size 48", "error_type": "Validation"}
+            mock_client.post.return_value = mock_resp
+            mock_client_cls.return_value.__enter__.return_value = mock_client
+
+            with pytest.raises(RuntimeError) as exc_info:
+                _safe_tei_rerank_call(
+                    base_url="http://localhost:8080",
+                    timeout=30.0,
+                    auth_token=None,
+                    query="q",
+                    texts=[f"d-{i}" for i in range(50)],
+                )
+
+            assert "422" in str(exc_info.value)
+            assert "batch size" in str(exc_info.value)
+
+    def test_raises_on_non_list_body(self) -> None:
+        """TEI returns HTTP 200 but with an error dict body — must raise RuntimeError."""
+        with patch("src.patterns.safe_tei_rerank.httpx.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {"error": "some internal error"}
+            mock_client.post.return_value = mock_resp
+            mock_client_cls.return_value.__enter__.return_value = mock_client
+
+            with pytest.raises(RuntimeError) as exc_info:
+                _safe_tei_rerank_call(
+                    base_url="http://localhost:8080",
+                    timeout=30.0,
+                    auth_token=None,
+                    query="q",
+                    texts=["a", "b"],
+                )
+
+            assert "non-list response" in str(exc_info.value)
+
+    def test_passes_through_valid_list_response(self) -> None:
+        """HTTP 200 with a valid list of scores — returns the list unchanged."""
+        with patch("src.patterns.safe_tei_rerank.httpx.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = [
+                {"index": 1, "score": 0.85},
+                {"index": 0, "score": 0.72},
+            ]
+            mock_client.post.return_value = mock_resp
+            mock_client_cls.return_value.__enter__.return_value = mock_client
+
+            result = _safe_tei_rerank_call(
+                base_url="http://localhost:8080",
+                timeout=30.0,
+                auth_token=None,
+                query="rag-applications",
+                texts=["slug-a", "slug-b"],
+            )
+
+            assert len(result) == 2
+            assert result[0]["score"] == 0.85
+
+
+class TestSafeTeiAuthHeader:
+    """Auth token variants: static string, callable, and absent."""
+
+    @staticmethod
+    def _post_with_auth(auth_token: Any) -> dict:
+        """Invoke _safe_tei_rerank_call with a mocked httpx.Client; return the post kwargs."""
+        with patch("src.patterns.safe_tei_rerank.httpx.Client") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = [{"index": 0, "score": 1.0}]
+            mock_client.post.return_value = mock_resp
+            mock_client_cls.return_value.__enter__.return_value = mock_client
+
+            _safe_tei_rerank_call(
+                base_url="http://localhost:8080",
+                timeout=30.0,
+                auth_token=auth_token,
+                query="q",
+                texts=["a"],
+            )
+
+            _, kwargs = mock_client.post.call_args
+            return kwargs["headers"]
+
+    def test_static_auth_token_sets_authorization_header(self) -> None:
+        """A static string token is sent verbatim in the Authorization header."""
+        headers = self._post_with_auth("Bearer static-token")
+        assert headers["Authorization"] == "Bearer static-token"
+
+    def test_callable_auth_token_is_resolved_with_base_url(self) -> None:
+        """A callable token is invoked with base_url; its return value becomes the header."""
+        headers = self._post_with_auth(lambda base_url: f"Bearer token-for-{base_url}")
+        assert headers["Authorization"] == "Bearer token-for-http://localhost:8080"
+
+    def test_absent_auth_token_omits_authorization_header(self) -> None:
+        """auth_token=None sends only the content-type header."""
+        headers = self._post_with_auth(None)
+        assert "Authorization" not in headers
+        assert headers["Content-Type"] == "application/json"
+
+
+class TestSafeTeiRerankerDelegation:
+    """SafeTEIReranker stores the auth token and delegates _call_api to the safe call."""
+
+    def test_call_api_delegates_with_own_config(self) -> None:
+        """_call_api forwards base_url/timeout/auth_token and the query/texts."""
+        reranker = SafeTEIReranker(
+            base_url="http://tei:8080",
+            timeout=12.5,
+            top_n=3,
+            auth_token="Bearer abc",
+        )
+        assert reranker.auth_token == "Bearer abc"
+
+        with patch("src.patterns.safe_tei_rerank._safe_tei_rerank_call") as mock_call:
+            mock_call.return_value = [{"index": 0, "score": 0.9}]
+            result = reranker._call_api("query-string", ["text-1", "text-2"])
+
+        mock_call.assert_called_once_with(
+            base_url="http://tei:8080",
+            timeout=12.5,
+            auth_token="Bearer abc",
+            query="query-string",
+            texts=["text-1", "text-2"],
+        )
+        assert result == [{"index": 0, "score": 0.9}]
+
+    def test_call_api_propagates_runtime_error_from_safe_call(self) -> None:
+        """RuntimeErrors from the safe call surface unchanged (no AssertionError wrapping)."""
+        reranker = SafeTEIReranker(base_url="http://tei:8080")
+        with patch("src.patterns.safe_tei_rerank._safe_tei_rerank_call") as mock_call:
+            mock_call.side_effect = RuntimeError("TEI reranker http://tei:8080/rerank returned HTTP 500")
+            with pytest.raises(RuntimeError, match="HTTP 500"):
+                reranker._call_api("q", ["t"])
+
+
+class TestChunkedReranking:
+    """Chunked reranking when fused pool exceeds max_batch_size."""
+
+    def test_chunks_pool_when_exceeds_max_batch_size(self) -> None:
+        """When fused pool > max_batch_size, postprocess_nodes is called multiple times."""
+        loader = MockPatternLoader(
+            filter_by_domain_result=[{"name": "supervisor-worker", "category": "multi_agent"}],
+            get_by_name_result=REACT,
+        )
+        reranker_config = MagicMock(
+            base_url="http://localhost:8080",
+            timeout=30.0,
+            max_batch_size=20,
+        )
+        retriever = HybridPatternRetriever(
+            dense_retriever=_DummyRetriever(),
+            bm25_retriever=_DummyRetriever(),
+            pattern_loader=loader,
+            reranker_config=reranker_config,
+        )
+        retriever._dense_retriever = MagicMock()
+        retriever._bm25_retriever = MagicMock()
+
+        # Build a fused pool of 50 unique nodes (exceeds max_batch_size=20)
+        fused_nodes = [
+            NodeWithScore(
+                node=TextNode(text=f"slug-{i}", metadata={"slug": f"slug-{i}"}),
+                score=0.5,
+            )
+            for i in range(50)
+        ]
+        # Both legs return the same 50 nodes; fusion dedupes to 50 unique
+        retriever._dense_retriever.retrieve.return_value = fused_nodes
+        retriever._bm25_retriever.retrieve.return_value = fused_nodes
+
+        recorded_chunks: list[int] = []
+
+        class _ChunkRecordingReranker:
+            top_n = 1
+
+            def postprocess_nodes(self, nodes, query_bundle=None):
+                recorded_chunks.append(len(nodes))
+                # Return nodes sorted by text descending so ordering differs from fusion order
+                return sorted(nodes, key=lambda n: n.node.text, reverse=True)
+
+        with patch(
+            "src.patterns.retriever.SafeTEIReranker",
+            return_value=_ChunkRecordingReranker(),
+        ):
+            result = retriever.retrieve(
+                user_domain="multi-agent-systems",
+                normalized_domain="multi-agent-systems",
+            )
+
+        # Should be split into ceil(50/20) = 3 chunks: 20, 20, 10
+        assert recorded_chunks == [20, 20, 10], f"Expected [20, 20, 10], got {recorded_chunks}"
+        # Result should still contain the pattern
+        assert len(result.patterns) == 1
+
+    def test_single_chunk_when_pool_within_max_batch_size(self) -> None:
+        """When fused pool <= max_batch_size, only one postprocess_nodes call is made."""
+        loader = MockPatternLoader(
+            filter_by_domain_result=[{"name": "supervisor-worker", "category": "multi_agent"}],
+            get_by_name_result=REACT,
+        )
+        reranker_config = MagicMock(
+            base_url="http://localhost:8080",
+            timeout=30.0,
+            max_batch_size=48,
+        )
+        retriever = HybridPatternRetriever(
+            dense_retriever=_DummyRetriever(),
+            bm25_retriever=_DummyRetriever(),
+            pattern_loader=loader,
+            reranker_config=reranker_config,
+        )
+        retriever._dense_retriever = MagicMock()
+        retriever._bm25_retriever = MagicMock()
+
+        fused_nodes = [
+            NodeWithScore(
+                node=TextNode(text=f"slug-{i}", metadata={"slug": f"slug-{i}"}),
+                score=0.5,
+            )
+            for i in range(10)
+        ]
+        retriever._dense_retriever.retrieve.return_value = fused_nodes
+        retriever._bm25_retriever.retrieve.return_value = []
+
+        call_count = 0
+
+        class _CountingReranker:
+            top_n = 1
+
+            def postprocess_nodes(self, nodes, query_bundle=None):
+                nonlocal call_count
+                call_count += 1
+                return nodes
+
+        with patch(
+            "src.patterns.retriever.SafeTEIReranker",
+            return_value=_CountingReranker(),
+        ):
+            result = retriever.retrieve(
+                user_domain="multi-agent-systems",
+                normalized_domain="multi-agent-systems",
+            )
+
+        assert call_count == 1, f"Expected 1 call, got {call_count}"
+        assert len(result.patterns) == 1
+
+
+class TestRerankerConfigMaxBatchSize:
+    """RerankerInnerConfig validates max_batch_size bounds."""
+
+    def test_rejects_zero_max_batch_size(self) -> None:
+        from pydantic import ValidationError
+
+        from src.config import RerankerInnerConfig
+
+        with pytest.raises(ValidationError):
+            RerankerInnerConfig(base_url="http://localhost:8080", max_batch_size=0)
+
+    def test_rejects_negative_max_batch_size(self) -> None:
+        from pydantic import ValidationError
+
+        from src.config import RerankerInnerConfig
+
+        with pytest.raises(ValidationError):
+            RerankerInnerConfig(base_url="http://localhost:8080", max_batch_size=-1)
+
+    def test_rejects_excessive_max_batch_size(self) -> None:
+        from pydantic import ValidationError
+
+        from src.config import RerankerInnerConfig
+
+        with pytest.raises(ValidationError):
+            RerankerInnerConfig(base_url="http://localhost:8080", max_batch_size=1025)
+
+    def test_accepts_default_max_batch_size(self) -> None:
+        from src.config import RerankerInnerConfig
+
+        cfg = RerankerInnerConfig(base_url="http://localhost:8080")
+        assert cfg.max_batch_size == 48

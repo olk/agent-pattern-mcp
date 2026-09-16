@@ -1,0 +1,85 @@
+{
+  "name": "episodic-memory",
+  "category": "memory",
+  "topology": "single-agent-loop",
+  "context": "Agents that should improve across tasks: records of past executions (goal, actions, outcome, lesson) are stored and retrieved to guide new attempts.",
+  "benefits": [
+    "Cross-task learning without fine-tuning",
+    "Grounds replays in real outcomes",
+    "Complements reflexion-style loops"
+  ],
+  "tradeoffs": [
+    "Retrieval quality bounds usefulness",
+    "Storage growth over time",
+    "Stale lessons mislead"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 8,
+    "latency": 8,
+    "output_quality": 8,
+    "observability": 8,
+    "safety": 6,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "trial-and-error-learning",
+    "long-horizon-tasks",
+    "autonomous-task-execution",
+    "code-generation"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks"
+  ],
+  "use_cases": [
+    "Coding agent remembering prior bug fixes",
+    "Ops agent runbooks from past incidents",
+    "Research agent recalling prior findings"
+  ],
+  "avoid_when": [
+    "The domain changes so fast the past misleads",
+    "Strict privacy retention applies",
+    "Episodic data cannot be stored or retained (e.g., strict data residency)"
+  ],
+  "component_types": [
+    "Episode Store",
+    "Episode Encoder (embeddings)",
+    "Retrieval Index",
+    "Lesson Extractor",
+    "Reflection Synthesizer",
+    "Importance Scorer"
+  ],
+  "technology_stack": [
+    "Vector databases",
+    "SQLite plus FAISS",
+    "LlamaIndex memory modules"
+  ],
+  "anti_patterns": [
+    "Storing failures without lessons",
+    "Unbounded growth",
+    "Retrieving by recency only",
+    "No reflection mechanism (ablation proves it eliminates emergent behaviors)"
+  ],
+  "migration_from": [
+    "reflexion"
+  ],
+  "migration_to": [
+    "semantic-memory",
+    "agentic-rag"
+  ],
+  "design_principles": [
+    "One lesson per episode",
+    "Index by task similarity",
+    "Apply TTLs to lessons",
+    "Reflection threshold-based triggers (cumulative importance exceeds threshold)",
+    "score = recency×w1 + relevance×w2 + importance×w3"
+  ],
+  "best_practices": [
+    "Validate lessons periodically",
+    "Deduplicate near-identical episodes",
+    "Include outcome labels"
+  ],
+  "references": [
+    "Park et al., Generative Agents: Interactive Simulacra of Human Behavior, 2023 — https://arxiv.org/abs/2304.03442"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "name": "storm",
+  "category": "research_synthesis",
+  "topology": "pipeline",
+  "context": "Research-report writing that needs breadth: the system generates an outline, simulates multiple expert perspectives, produces per-section questions, retrieves answers, and synthesizes a cited report.",
+  "benefits": [
+    "Multi-perspective coverage",
+    "Source-backed claims",
+    "Outline-first structured process",
+    "Transparent methodology"
+  ],
+  "tradeoffs": [
+    "Many LLM and retrieval calls",
+    "High latency and cost",
+    "Pipeline complexity"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 3,
+    "latency": 2,
+    "output_quality": 9,
+    "observability": 8,
+    "safety": 7,
+    "simplicity": 3
+  },
+  "suitable_domains": [
+    "research-reports",
+    "exploratory-research",
+    "rag-applications",
+    "scientific-research"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads",
+    "customer-support"
+  ],
+  "use_cases": [
+    "Wikipedia-style article drafting",
+    "Technology landscape report",
+    "Literature review",
+    "Competitive analysis"
+  ],
+  "avoid_when": [
+    "Quick factual answers are enough",
+    "No retrieval sources exist",
+    "The run is budget-capped"
+  ],
+  "component_types": [
+    "Outline Planner",
+    "Perspective Simulator",
+    "Question Generator",
+    "Retrieval Tools",
+    "Section Synthesizer",
+    "Citation Compiler",
+    "Article Polishing Module"
+  ],
+  "technology_stack": [
+    "agent-patterns STORM",
+    "Search and academic retrieval tools",
+    "DSPy"
+  ],
+  "anti_patterns": [
+    "Single-perspective synthesis",
+    "Sections written without retrieval",
+    "Citations added after the fact"
+  ],
+  "migration_from": [
+    "plan-and-solve"
+  ],
+  "migration_to": [
+    "agentic-rag",
+    "graph-orchestration"
+  ],
+  "design_principles": [
+    "Outline before writing",
+    "One perspective per question set",
+    "Every claim traceable to a source"
+  ],
+  "best_practices": [
+    "Deduplicate overlapping questions",
+    "Cap perspectives at three to five",
+    "Verify citation coverage before the final pass",
+    "Use cheaper models for question simulation, powerful models for article generation"
+  ],
+  "references": [
+    "Shao et al., Assisting in Writing Wikipedia-like Articles From Scratch with Large Language Models, 2024 — https://arxiv.org/abs/2402.14207",
+    "Co-STORM (EMNLP 2024) — dynamic mind map, human-in-the-loop collaboration"
+  ]
+}

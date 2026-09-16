@@ -1,0 +1,184 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "agent-pattern-schema",
+  "title": "AgentPattern",
+  "description": "Schema for AI agent pattern definitions",
+  "type": "object",
+  "required": [
+    "name",
+    "category",
+    "topology",
+    "context",
+    "benefits",
+    "tradeoffs",
+    "quality_attributes"
+  ],
+  "definitions": {
+    "agentDomain": {
+      "type": "string",
+      "enum": [
+        "api-automation",
+        "autonomous-task-execution",
+        "code-generation",
+        "complex-reasoning",
+        "content-generation",
+        "conversational-assistants",
+        "cost-sensitive-workloads",
+        "customer-support",
+        "cybersecurity",
+        "data-analysis",
+        "database-operations",
+        "devops",
+        "document-processing",
+        "e-commerce",
+        "education",
+        "enterprise-search",
+        "exploratory-research",
+        "gui-computer-use",
+        "high-stakes-outputs",
+        "it-service-management",
+        "latency-sensitive-tasks",
+        "legal-research",
+        "long-horizon-tasks",
+        "multi-agent-systems",
+        "multimodal",
+        "parallel-data-gathering",
+        "personal-productivity",
+        "rag-applications",
+        "regulated-domains",
+        "research-reports",
+        "scientific-research",
+        "software-testing",
+        "tool-use-tasks",
+        "trial-and-error-learning",
+        "web-automation",
+        "workflow-automation"
+      ],
+      "description": "AI agent domain for pattern suitability filtering"
+    }
+  },
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Pattern name (kebab-case)"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "reasoning",
+        "tool_use",
+        "planning",
+        "reflection",
+        "research_synthesis",
+        "multi_agent",
+        "memory",
+        "retrieval",
+        "safety_control",
+        "observability"
+      ],
+      "description": "Agent pattern category"
+    },
+    "topology": {
+      "type": "string",
+      "enum": [
+        "evaluator-loop",
+        "graph-orchestrated",
+        "hierarchical",
+        "parallel-fan-out",
+        "pipeline",
+        "plan-execute",
+        "single-agent-loop",
+        "swarm"
+      ],
+      "description": "Execution topology this pattern prescribes (AgentTopology)"
+    },
+    "context": {
+      "type": "string",
+      "description": "Problem context describing when this pattern is applicable"
+    },
+    "benefits": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of benefits this pattern provides"
+    },
+    "tradeoffs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of tradeoffs and disadvantages"
+    },
+    "quality_attributes": {
+      "type": "object",
+      "properties": {
+        "reliability": { "type": "number", "minimum": 1, "maximum": 10 },
+        "cost_efficiency": { "type": "number", "minimum": 1, "maximum": 10 },
+        "latency": { "type": "number", "minimum": 1, "maximum": 10 },
+        "output_quality": { "type": "number", "minimum": 1, "maximum": 10 },
+        "observability": { "type": "number", "minimum": 1, "maximum": 10 },
+        "safety": { "type": "number", "minimum": 1, "maximum": 10 },
+        "simplicity": { "type": "number", "minimum": 1, "maximum": 10 }
+      },
+      "additionalProperties": { "type": "number", "minimum": 1, "maximum": 10 }
+    },
+    "suitable_domains": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/agentDomain" },
+      "description": "Domains where this pattern works well"
+    },
+    "unsuitable_domains": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/agentDomain" },
+      "description": "Domains where this pattern should be avoided"
+    },
+    "use_cases": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Specific use case examples"
+    },
+    "avoid_when": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Situations when this pattern should be avoided"
+    },
+    "component_types": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Key component types involved in this pattern"
+    },
+    "technology_stack": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Technologies commonly used with this pattern"
+    },
+    "anti_patterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Common anti-patterns to avoid"
+    },
+    "migration_from": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Patterns commonly migrated from"
+    },
+    "migration_to": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Patterns commonly migrated to"
+    },
+    "design_principles": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Core design principles for this pattern"
+    },
+    "best_practices": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Recommended best practices"
+    },
+    "references": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Canonical citations (paper/blog) — one string per reference, e.g. 'Authors, Title, Year — https://url'"
+    }
+  }
+}

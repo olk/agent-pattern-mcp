@@ -1,0 +1,86 @@
+{
+  "name": "corrective-rag",
+  "category": "retrieval",
+  "topology": "evaluator-loop",
+  "context": "RAG pipelines that must self-heal: retrieved documents are evaluated for quality and relevance; weak sets trigger re-retrieval or web search before generation.",
+  "benefits": [
+    "Recovers from bad retrievals",
+    "Mixes local corpus and web fallback",
+    "Measurable relevance gating"
+  ],
+  "tradeoffs": [
+    "Extra evaluation pass",
+    "Latency grows on failures",
+    "Evaluator calibration needed"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 6,
+    "latency": 6,
+    "output_quality": 8,
+    "observability": 8,
+    "safety": 7,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "rag-applications",
+    "research-reports",
+    "high-stakes-outputs",
+    "legal-research"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads"
+  ],
+  "use_cases": [
+    "Support answers verified against the knowledge base",
+    "Legal research with web fallback",
+    "Compliance question answering"
+  ],
+  "avoid_when": [
+    "Bulk low-cost question answering",
+    "The corpus is already high-precision",
+    "Latency-sensitive use cases where reranking overhead is prohibitive"
+  ],
+  "component_types": [
+    "Retrieval Evaluator",
+    "Retry Reformulate Handler",
+    "Web-Search Fallback",
+    "Knowledge Filter"
+  ],
+  "technology_stack": [
+    "LangGraph CRAG implementations",
+    "Cross-encoder evaluators",
+    "Web search tools"
+  ],
+  "anti_patterns": [
+    "Generating despite low scores",
+    "Always falling back to the web",
+    "No score thresholds",
+    "Grading after generation (defeats purpose)",
+    "No fallback index (re-runs same failed search)"
+  ],
+  "migration_from": [
+    "naive-rag"
+  ],
+  "migration_to": [
+    "self-rag",
+    "agentic-rag"
+  ],
+  "design_principles": [
+    "Grade before generation",
+    "Fallback ladder: re-retrieve, then web, then refuse",
+    "Tune thresholds on evals"
+  ],
+  "best_practices": [
+    "Calibrate the evaluator on labeled pairs",
+    "Cache grades",
+    "Log fallback reasons",
+    "Tune thresholds on golden failure set",
+    "Prefer authoritative web sources (Wikipedia)"
+  ],
+  "references": [
+    "Yan et al., Corrective Retrieval Augmented Generation, 2024 — https://arxiv.org/abs/2401.15884",
+    "Gao et al., Retrieval-Augmented Generation for Large Language Models: A Survey, 2024 — https://arxiv.org/abs/2312.10997"
+  ]
+}

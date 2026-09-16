@@ -1,0 +1,85 @@
+{
+  "name": "tool-agent-registry",
+  "category": "tool_use",
+  "topology": "single-agent-loop",
+  "context": "Agent systems where multiple tools or subagents must be discovered, selected, and invoked dynamically at runtime. A registry maintains a queryable catalogue of available capabilities — with metadata on cost, latency, and quality — so the agent can programmatically pick the right tool or subagent for a task rather than relying on hardcoded tool lists.",
+  "benefits": [
+    "Enables runtime tool discovery without redeploying the agent",
+    "Metadata (cost, latency, reliability) allows agents to make informed trade-offs",
+    "Supports dynamic registration of new tools or agents without restarting the system",
+    "Decouples tool producers from tool consumers — tools can evolve independently"
+  ],
+  "tradeoffs": [
+    "Registry must be kept in sync with actual tool availability",
+    "Adding a registry layer introduces latency on first tool selection",
+    "Registry metadata can become stale — tools may degrade without updating their entries",
+    "Increased system complexity for what a static tool list achieves simply"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 8,
+    "latency": 8,
+    "output_quality": 7,
+    "observability": 8,
+    "safety": 8,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "multi-agent-systems",
+    "tool-use-tasks",
+    "rag-applications",
+    "autonomous-task-execution",
+    "database-operations"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks"
+  ],
+  "use_cases": [
+    "Dynamic routing: an agent queries the registry for tools matching a task description",
+    "Multi-agent systems: workers discover available subagents and their capabilities at runtime",
+    "Tool versioning: new tool versions are registered alongside old ones; agents pick versions they trust",
+    "Cost-aware selection: agents filter tools by budget constraints stored in registry metadata"
+  ],
+  "avoid_when": [
+    "The toolset is fixed and known at design time",
+    "Latency requirements are so tight that registry lookup adds unacceptable overhead",
+    "All tools are guaranteed to be available and the agent has no choice to make"
+  ],
+  "component_types": [
+    "Registry Database",
+    "Tool Metadata Store",
+    "Discovery Query Interface",
+    "Registration API"
+  ],
+  "technology_stack": [
+    "MCP tool registry",
+    "Dynamic dispatch table",
+    "Service mesh agent discovery",
+    "Vector similarity search over tool descriptions"
+  ],
+  "anti_patterns": [
+    "Registry that is never updated — metadata diverges from actual tool behavior",
+    "Agents that always pick the cheapest or fastest tool regardless of task fit",
+    "No fallback when the registry is unavailable — the agent cannot proceed"
+  ],
+  "migration_from": [
+    "react"
+  ],
+  "migration_to": [
+    "agentic-rag"
+  ],
+  "design_principles": [
+    "Tool entries must include freshness metadata (last_updated) to detect stale entries",
+    "The registry must be durable and available at the same reliability level as the agent",
+    "Tool selection must have a defined fallback when the preferred tool is unavailable"
+  ],
+  "best_practices": [
+    "Include capability, cost, latency, and reliability metadata per tool entry",
+    "Version tool entries so agents can pin to known-good versions",
+    "Periodically health-check registered tools and mark degraded entries"
+  ],
+  "references": [
+    "Model Context Protocol (MCP), Anthropic, 2024 — https://modelcontextprotocol.io",
+    "Agent Patterns Catalog, Tool-Agent Registry pattern — https://www.agentpatternscatalog.org/patterns/tool-agent-registry/"
+  ]
+}

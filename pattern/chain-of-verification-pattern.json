@@ -1,0 +1,91 @@
+{
+  "name": "chain-of-verification",
+  "category": "reflection",
+  "topology": "evaluator-loop",
+  "context": "Hallucination-prone factual tasks: after answering, the model drafts verification questions, answers them independently, and revises the final answer when contradictions appear.",
+  "benefits": [
+    "Measurable hallucination reduction",
+    "Verification decoupled from generation context",
+    "No external tools required"
+  ],
+  "tradeoffs": [
+    "Three or more LLM passes",
+    "Verification answers can also hallucinate",
+    "Adds latency"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 4,
+    "latency": 4,
+    "output_quality": 9,
+    "observability": 8,
+    "safety": 8,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "research-reports",
+    "rag-applications",
+    "regulated-domains",
+    "high-stakes-outputs",
+    "scientific-research",
+    "cybersecurity",
+    "legal-research"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads",
+    "conversational-assistants"
+  ],
+  "use_cases": [
+    "Factual long-form answers",
+    "Medical or legal summaries",
+    "Knowledge-base entries",
+    "Exam-style question answering"
+  ],
+  "avoid_when": [
+    "Creative generation",
+    "Tight latency budgets",
+    "Answers are trivially verifiable"
+  ],
+  "component_types": [
+    "Answer Generator",
+    "Verification Question Generator",
+    "Independent Verifier",
+    "Revision Applier"
+  ],
+  "technology_stack": [
+    "LLM pipelines",
+    "agent-patterns prompt overrides",
+    "Fact-checking tool integrations"
+  ],
+  "anti_patterns": [
+    "Verifying within the same contaminated context",
+    "Skipping the revision step",
+    "Leading verification questions",
+    "Verification prompt seeing the baseline draft (model will reaffirm hallucinations)"
+  ],
+  "migration_from": [
+    "reflection"
+  ],
+  "migration_to": [
+    "self-rag",
+    "verifier-critic"
+  ],
+  "design_principles": [
+    "Answer verification questions separately",
+    "Revise only on contradiction",
+    "Keep questions atomic",
+    "Hide baseline from verification prompts"
+  ],
+  "best_practices": [
+    "Pair with retrieval for verification",
+    "Limit to a handful of verification questions",
+    "Expose the contradiction list",
+    "Use structured JSON output for questions with claim-question mapping",
+    "Verification answers must include UNKNOWN when evidence is missing",
+    "Cap verification questions to 5-7, parallelize factored calls"
+  ],
+  "references": [
+    "Dhuliawala et al., Chain-of-Verification Reduces Hallucination in Large Language Models, 2023 — https://arxiv.org/abs/2309.11495"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "name": "query-rewriting",
+  "category": "retrieval",
+  "topology": "pipeline",
+  "context": "Retrieval quality is gated by query formulation: user questions are reformulated, decomposed, or expanded (HyDE, multi-query) before hitting indexes.",
+  "benefits": [
+    "Large recall gains for vague queries",
+    "Enables multi-hop via decomposition",
+    "Cheap pre-processing step"
+  ],
+  "tradeoffs": [
+    "Extra LLM pass",
+    "Rewrites can drift from user intent",
+    "Latency on every query"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 8,
+    "latency": 7,
+    "output_quality": 8,
+    "observability": 7,
+    "safety": 7,
+    "simplicity": 8
+  },
+  "suitable_domains": [
+    "rag-applications",
+    "customer-support",
+    "research-reports",
+    "enterprise-search"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads"
+  ],
+  "use_cases": [
+    "Support paraphrase to knowledge-base language",
+    "Decompose comparison questions",
+    "HyDE for niche documents",
+    "Multilingual rewriting"
+  ],
+  "avoid_when": [
+    "Queries are already keyword-perfect",
+    "Zero-latency tolerance applies",
+    "User queries are already well-formed and semantically precise"
+  ],
+  "component_types": [
+    "Query Rewriter",
+    "Query Router",
+    "Decomposition Planner",
+    "Expansion Generator",
+    "Step-back Retriever",
+    "Result Merger"
+  ],
+  "technology_stack": [
+    "LlamaIndex query transforms",
+    "LangChain multi-query retrievers",
+    "HyDE prompts"
+  ],
+  "anti_patterns": [
+    "Rewrites that lose constraints",
+    "Unbounded query fan-out",
+    "No union dedup of results",
+    "HyDE hallucinations on niche domains (legal, biomedical, internal jargon)"
+  ],
+  "migration_from": [
+    "naive-rag"
+  ],
+  "migration_to": [
+    "hybrid-rerank",
+    "agentic-rag"
+  ],
+  "design_principles": [
+    "Preserve intent, change form",
+    "Decompose comparisons",
+    "Merge results with dedup",
+    "Route before transform",
+    "Cache deterministic rewrites"
+  ],
+  "best_practices": [
+    "A/B test rewrites on eval sets",
+    "Cap expansions at three to five",
+    "Keep the original query in the mix",
+    "Measure recall@k and MRR before/after on labeled eval set",
+    "Use query classifier to selectively apply transformations"
+  ],
+  "references": [
+    "Ma et al., Query Rewriting for Retrieval-Augmented Large Language Models, EMNLP 2023 — https://arxiv.org/abs/2305.14283"
+  ]
+}

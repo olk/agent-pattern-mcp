@@ -1,0 +1,93 @@
+{
+  "name": "reflection",
+  "category": "reflection",
+  "topology": "single-agent-loop",
+  "context": "High-quality generation tasks where a first draft benefits from an explicit critique pass; the same or a second LLM reviews the draft against the goal and a refined version is produced.",
+  "benefits": [
+    "Large quality gains on writing and coding",
+    "Catches errors and omissions",
+    "Simple two-role loop",
+    "No tools needed"
+  ],
+  "tradeoffs": [
+    "Two to three times the token cost",
+    "Diminishing returns after two to three cycles",
+    "Latency roughly doubles",
+    "Most tasks plateau at 2 iterations; 3 is hard maximum. Iteration 4 can cause regression"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 5,
+    "latency": 5,
+    "output_quality": 9,
+    "observability": 7,
+    "safety": 6,
+    "simplicity": 9
+  },
+  "suitable_domains": [
+    "content-generation",
+    "code-generation",
+    "high-stakes-outputs",
+    "education"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads",
+    "conversational-assistants"
+  ],
+  "use_cases": [
+    "Technical blog post writing",
+    "Product description polish",
+    "Investor email drafting",
+    "CSV parser with error handling"
+  ],
+  "avoid_when": [
+    "Simple queries",
+    "Speed is critical",
+    "The first attempt is usually sufficient"
+  ],
+  "component_types": [
+    "Generator",
+    "Critic",
+    "Revision Applier",
+    "Cycle Controller"
+  ],
+  "technology_stack": [
+    "agent-patterns ReflectionAgent (documentation and reflection roles)",
+    "LangGraph"
+  ],
+  "anti_patterns": [
+    "Unbounded reflection cycles",
+    "Critic without explicit criteria",
+    "Regenerating from scratch each cycle",
+    "Output regression: iteration N+1 is worse than iteration N - track score deltas and revert",
+    "Actor and critic seeing each other's chain of reasoning (anchoring bias)"
+  ],
+  "migration_from": [
+    "chain-of-thought"
+  ],
+  "migration_to": [
+    "reflexion",
+    "evaluator-optimizer",
+    "verifier-critic"
+  ],
+  "design_principles": [
+    "Critique against explicit criteria",
+    "Revise rather than regenerate",
+    "Cap cycles at one or two",
+    "Use deterministic halt token (e.g., NO_DEFECTS or DONE) for explicit loop termination",
+    "Use separate prompts and conversation contexts for actor and critic to prevent anchoring bias"
+  ],
+  "best_practices": [
+    "Use a different model or temperature for the critic",
+    "Apply rubric-based critique",
+    "Stop early on a quality threshold",
+    "Consider using a smaller/cheaper model (e.g., Haiku-class) for the critic role",
+    "Apply rubric-based critique across defined dimensions: accuracy, completeness, clarity, relevance, safety",
+    "Enter revision branch only when critic returns concrete defects; outputs passing on first critique should proceed directly to final output"
+  ],
+  "references": [
+    "Madaan et al., Self-Refine: Iterative Refinement with Self-Feedback, NeurIPS 2023 — https://arxiv.org/abs/2303.17651",
+    "Shinn et al., Reflexion (arxiv:2303.11366) - extends reflection with persistent episodic memory"
+  ]
+}

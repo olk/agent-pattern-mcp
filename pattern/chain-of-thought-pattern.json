@@ -1,0 +1,87 @@
+{
+  "name": "chain-of-thought",
+  "category": "reasoning",
+  "topology": "single-agent-loop",
+  "context": "Tasks where the model must reason through multiple intermediate steps before producing a final answer; foundational prompt-level scaffolding for all structured reasoning patterns.",
+  "benefits": [
+    "Improves accuracy on multi-step problems",
+    "Makes the reasoning trace inspectable and auditable",
+    "No extra tools or LLM calls required",
+    "Composes with every other agent pattern"
+  ],
+  "tradeoffs": [
+    "Longer outputs increase token cost",
+    "Chains can be plausible but wrong",
+    "Gains shrink on trivial tasks",
+    "Can decrease accuracy on easy questions by introducing plausible-but-wrong reasoning variability"
+  ],
+  "quality_attributes": {
+    "reliability": 7,
+    "cost_efficiency": 7,
+    "latency": 6,
+    "output_quality": 7,
+    "observability": 8,
+    "safety": 5,
+    "simplicity": 10
+  },
+  "suitable_domains": [
+    "complex-reasoning",
+    "content-generation",
+    "code-generation",
+    "data-analysis"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads"
+  ],
+  "use_cases": [
+    "Math word problems",
+    "Multi-hop question answering",
+    "Code change impact analysis",
+    "Step-by-step debugging plans"
+  ],
+  "avoid_when": [
+    "Answer is trivially retrievable",
+    "Latency budget forbids long generations",
+    "Strict output-length limits apply"
+  ],
+  "component_types": [
+    "Reasoning Prompt Scaffold",
+    "Answer Synthesizer",
+    "Trace Logger"
+  ],
+  "technology_stack": [
+    "Any LLM API",
+    "agent-patterns custom instructions",
+    "LangChain prompt templates"
+  ],
+  "anti_patterns": [
+    "Zero-shot prompting on multi-step problems",
+    "Hiding the reasoning chain from logs",
+    "Inconsistent chain structure across calls",
+    "Adding explicit CoT to reasoning models on simple tasks causes overthinking and wastes tokens"
+  ],
+  "migration_from": [],
+  "migration_to": [
+    "self-discovery",
+    "lats",
+    "plan-and-solve"
+  ],
+  "design_principles": [
+    "Externalize intermediate steps before the answer",
+    "Validate steps, not only conclusions",
+    "Keep chain structure consistent across calls"
+  ],
+  "best_practices": [
+    "Provide few-shot examples of good chains",
+    "Log full traces for observability",
+    "Combine with structured-output for machine-readable steps",
+    "Use self-consistency (k=5, majority vote) for high-stakes math/logic; vote on answers not traces",
+    "Separate reasoning in dedicated field (e.g., reasoning + answer schema) for parseable audit traces"
+  ],
+  "references": [
+    "Wei et al., Chain-of-Thought Prompting Elicits Reasoning in Large Language Models, 2022 — https://arxiv.org/abs/2201.11903",
+    "PromptBench 2025 study (arxiv 2506.07142)",
+    "CoT/ToT/GoT taxonomy (arxiv 2401.14295)"
+  ]
+}

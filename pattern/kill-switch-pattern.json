@@ -1,0 +1,97 @@
+{
+  "name": "kill-switch",
+  "category": "safety_control",
+  "topology": "single-agent-loop",
+  "context": "Deployed agents need an out-of-band control plane to halt, pause, or drain running instances without redeploying code.",
+  "benefits": [
+    "Instant incident response",
+    "No code change required",
+    "Supports pause versus terminate semantics",
+    "Enables canary rollbacks"
+  ],
+  "tradeoffs": [
+    "Operational infrastructure required",
+    "Misuse can drop in-flight work",
+    "Needs idempotent cleanup design"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 8,
+    "latency": 9,
+    "output_quality": 5,
+    "observability": 10,
+    "safety": 10,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "autonomous-task-execution",
+    "api-automation",
+    "multi-agent-systems",
+    "long-horizon-tasks",
+    "devops",
+    "cybersecurity",
+    "gui-computer-use"
+  ],
+  "unsuitable_domains": [
+    "conversational-assistants"
+  ],
+  "use_cases": [
+    "Halt agent fleet during an incident",
+    "Pause during data corruption investigation",
+    "Drain before a model swap",
+    "Emergency stop for a coding agent",
+    "Isolate a specific tenant's agent without affecting others",
+    "Enter read-only degraded mode (block write actions while allowing reads)"
+  ],
+  "avoid_when": [
+    "Stateless short-lived requests (overkill)",
+    "No on-call process exists to operate it",
+    "Fully automated environments where human intervention is unavailable"
+  ],
+  "component_types": [
+    "Control Signal Channel",
+    "Instance Registry",
+    "State Persister",
+    "Cleanup Executor",
+    "Policy Enforcement Layer",
+    "Kill Signal Registry"
+  ],
+  "technology_stack": [
+    "Feature flags",
+    "Redis pub/sub signals",
+    "Kubernetes job control",
+    "Admin APIs"
+  ],
+  "anti_patterns": [
+    "A switch that requires redeploying",
+    "Halting without persisting state",
+    "No authorization on the switch itself",
+    "In-band stop hook that relies on agent checking it voluntarily",
+    "Kill state cached for minutes instead of seconds (renders switch useless in emergencies)"
+  ],
+  "migration_from": [
+    "step-budget"
+  ],
+  "migration_to": [
+    "human-in-the-loop",
+    "structured-output"
+  ],
+  "design_principles": [
+    "The switch must be independent of the agent runtime",
+    "Least-privilege access",
+    "Always persist state on pause",
+    "Kill switch must be enforced by runtime, not model volition",
+    "In-flight actions must complete or rollback; kill switch blocks new actions only"
+  ],
+  "best_practices": [
+    "Drill the switch regularly",
+    "Audit switch usage",
+    "Wire switch events to alerting",
+    "Conduct scheduled kill drills in staging at least quarterly",
+    "Verify kill propagation completes within target latency (≤5 seconds)"
+  ],
+  "references": [
+    "Anthropic, Claude Exit Conditions, 2024 — https://docs.anthropic.com/en/docs/build-with-claude/exit-conditions",
+    "Agent Patterns Catalog, Kill Switch pattern — https://www.agentpatternscatalog.org/patterns/kill-switch/"
+  ]
+}

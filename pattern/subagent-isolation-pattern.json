@@ -1,0 +1,97 @@
+{
+  "name": "subagent-isolation",
+  "category": "multi_agent",
+  "topology": "hierarchical",
+  "context": "Multi-agent systems where parallel subagents operate in independent workspaces to prevent file-level conflicts and enable safe concurrent execution. Each subagent works in its own isolated context — writes do not collide, and the orchestrator synthesizes results from distilled summaries rather than retaining full subagent context.",
+  "benefits": [
+    "Eliminates file-level write conflicts in concurrent agent execution",
+    "Prevents context pollution between independent subagent reasoning traces",
+    "Enables true parallelism without coordination locks",
+    "Orchestrator can selectively recall full evidence from any subagent run on demand"
+  ],
+  "tradeoffs": [
+    "Subagents cannot coordinate mid-flight on tightly coupled findings",
+    "Synthesis quality depends on the quality of subagent summary distillation",
+    "Isolation boundaries require careful workspace provisioning",
+    "Debugging requires querying across isolated run contexts"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 7,
+    "latency": 8,
+    "output_quality": 7,
+    "observability": 8,
+    "safety": 9,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "multi-agent-systems",
+    "code-generation",
+    "parallel-data-gathering",
+    "long-horizon-tasks",
+    "document-processing"
+  ],
+  "unsuitable_domains": [
+    "cost-sensitive-workloads",
+    "latency-sensitive-tasks"
+  ],
+  "use_cases": [
+    "Incident investigation: three agents dig logs, attempt reproduction, and check history concurrently",
+    "Code migration: agents modifying different files of the same codebase simultaneously",
+    "Research synthesis: agents exploring different source categories in parallel",
+    "Batch document processing: agents handling disjoint document sets concurrently"
+  ],
+  "avoid_when": [
+    "Subtasks must react to each other's findings in real time",
+    "All work must share a single context window",
+    "Workspace provisioning overhead exceeds the parallelism gain"
+  ],
+  "component_types": [
+    "Orchestrator Agent",
+    "Isolated Subagent",
+    "Workspace Manager",
+    "Cross-Run Recall",
+    "Profile Manager",
+    "Failure Handler"
+  ],
+  "technology_stack": [
+    "Git worktree isolation",
+    "Nimbus run isolation",
+    "LangGraph subgraphs",
+    "MCP sandbox isolation"
+  ],
+  "anti_patterns": [
+    "Using isolation when tasks share mutable state — leads to silent inconsistencies",
+    "Returning only distilled summaries with no way to access full subagent evidence",
+    "Failing to link subagent runs back to the orchestrator for traceability",
+    "Unbounded parallel spawns without concurrency caps causing cost spikes",
+    "Returning free-text instead of schema artifacts that cannot be parsed",
+    "Subagent inherits parent history causing context bloat"
+  ],
+  "migration_from": [
+    "orchestrator-workers"
+  ],
+  "migration_to": [
+    "graph-orchestration"
+  ],
+  "design_principles": [
+    "Each subagent workspace must be independently durable — no shared filesystem",
+    "Subagent findings must be written as structured observations before returning",
+    "The orchestrator must be able to query across all linked subagent runs on demand",
+    "Each subagent must enforce independent runtime budgets: max_tokens_in, max_tokens_out, max_steps, wall_clock_timeout",
+    "Cap parallel subagent spawns with a concurrency limit; queue excess work with backpressure"
+  ],
+  "best_practices": [
+    "Use run IDs to link each subagent execution back to the orchestrator session",
+    "Write observations as structured facts (not just a text summary) for queryable recall",
+    "Test that cross-run queries correctly combine evidence from all subagents",
+    "Define a typed result envelope (Pydantic model or JSON Schema) for subagent returns with required fields: verdict, findings[], citations[], uncertainty_level, status_code",
+    "Return structured failure artifacts on error with fields: error_code, retryable (boolean), user_message",
+    "Propagate trace_id from parent; assign unique run_id per child with span events: child_spawned, child_completed, child_failed",
+    "Use idempotent spawn keys (parent_run_id + subtask_id) so resume does not duplicate expensive operations"
+  ],
+  "references": [
+    "Huang et al., AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation, 2023 — https://arxiv.org/abs/2308.08155",
+    "Agent Patterns Catalog, Subagent Isolation pattern — https://www.agentpatternscatalog.org/patterns/subagent-isolation/"
+  ]
+}

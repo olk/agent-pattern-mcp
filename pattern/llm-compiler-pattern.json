@@ -1,0 +1,94 @@
+{
+  "name": "llm-compiler",
+  "category": "tool_use",
+  "topology": "parallel-fan-out",
+  "context": "Workloads with many independent tool calls; a planner compiles the request into a DAG of function calls that execute in parallel where dependencies allow.",
+  "benefits": [
+    "Major latency reduction via parallelism",
+    "Explicit dependency graph",
+    "Cost scales with DAG size, not conversation rounds",
+    "Well suited to multi-source data gathering"
+  ],
+  "tradeoffs": [
+    "Planning overhead on every request",
+    "Weak when dependencies emerge mid-execution",
+    "Complex failure handling",
+    "Requires a parallel-capable runtime"
+  ],
+  "quality_attributes": {
+    "reliability": 7,
+    "cost_efficiency": 7,
+    "latency": 9,
+    "output_quality": 8,
+    "observability": 7,
+    "safety": 5,
+    "simplicity": 4
+  },
+  "suitable_domains": [
+    "parallel-data-gathering",
+    "data-analysis",
+    "research-reports",
+    "api-automation",
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads",
+    "workflow-automation"
+  ],
+  "unsuitable_domains": [
+    "trial-and-error-learning",
+    "conversational-assistants",
+    "high-stakes-outputs"
+  ],
+  "use_cases": [
+    "Weather in five cities compared",
+    "Fan-out enrichment of records",
+    "Multi-source market snapshots",
+    "Batch price checks"
+  ],
+  "avoid_when": [
+    "Tools must run sequentially",
+    "Runtime dependencies are unknown",
+    "A single tool suffices"
+  ],
+  "component_types": [
+    "Planner (Function Calling)",
+    "Task Fetching Unit",
+    "Executor",
+    "Join Reducer",
+    "Optional Replanner for iterative tasks"
+  ],
+  "technology_stack": [
+    "agent-patterns LLMCompiler",
+    "LangGraph",
+    "asyncio or thread executors",
+    "OpenAI parallel function calling"
+  ],
+  "anti_patterns": [
+    "Simulating parallelism by polling",
+    "Join without timeout",
+    "Retry storms on failing nodes",
+    "Dependency cycles in DAG",
+    "Unbounded concurrency causing rate limits"
+  ],
+  "migration_from": [
+    "react"
+  ],
+  "migration_to": [
+    "orchestrator-workers",
+    "graph-orchestration",
+    "rewoo"
+  ],
+  "design_principles": [
+    "Declare dependencies explicitly",
+    "Join with timeouts",
+    "Keep the DAG acyclic and shallow"
+  ],
+  "best_practices": [
+    "Batch independent calls",
+    "Cache repeated subgraphs",
+    "Log per-node timings",
+    "Streaming mode: Planner streams DAG asynchronously to hide latency (up to 1.3x improvement)"
+  ],
+  "references": [
+    "Kim et al., An LLM Compiler for Parallel Function Calling, 2024 — https://arxiv.org/abs/2312.04511"
+  ]
+}

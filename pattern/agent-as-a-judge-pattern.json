@@ -1,0 +1,88 @@
+{
+  "name": "agent-as-a-judge",
+  "category": "reflection",
+  "topology": "evaluator-loop",
+  "context": "Agent systems where the quality of a trajectory (all steps, tool calls, intermediate states) must be evaluated before the final response is accepted. A dedicated judge agent — distinct from the generating agent — reviews the full trajectory, scores it against criteria, and determines whether to accept, revise, or retry the response. Unlike simple output scoring, the judge has full trajectory context including reasoning traces and tool interaction histories.",
+  "benefits": [
+    "Trajectory-level evaluation catches errors invisible to output-only scoring",
+    "Can judge both correctness and style/safety simultaneously",
+    "Enables automated quality gates in production pipelines",
+    "Judge reasoning trace provides explainable quality assessments"
+  ],
+  "tradeoffs": [
+    "Extra LLM call per evaluation round (significant cost overhead)",
+    "Judge quality depends on judge model capability",
+    "Latency increases with each evaluation round",
+    "Judge may exhibit bias toward the generating model's style"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 4,
+    "latency": 5,
+    "output_quality": 9,
+    "observability": 9,
+    "safety": 8,
+    "simplicity": 5
+  },
+  "suitable_domains": [
+    "high-stakes-outputs",
+    "regulated-domains",
+    "research-reports",
+    "code-generation",
+    "content-generation",
+    "scientific-research",
+    "software-testing"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads",
+    "customer-support"
+  ],
+  "use_cases": [
+    "Automated code review with quality gates",
+    "Legal document generation with compliance verification",
+    "Medical report generation with clinical accuracy check",
+    "Customer-facing content with policy compliance"
+  ],
+  "avoid_when": [
+    "Simple tasks where generation quality is already sufficient",
+    "Latency-sensitive real-time interactions",
+    "Cost-constrained high-volume inference"
+  ],
+  "component_types": [
+    "Generating Agent",
+    "Judge Agent",
+    "Trajectory Logger",
+    "Score Threshold Gate",
+    "Retry Controller"
+  ],
+  "technology_stack": [
+    "LangGraph",
+    "agent-patterns JudgeAgent",
+    "LangSmith evaluation APIs"
+  ],
+  "anti_patterns": [
+    "Using the same model as both generator and judge (bias)",
+    "Judge-only scoring without actionable revision paths",
+    "No score threshold — accepting all outputs regardless"
+  ],
+  "migration_from": [
+    "evaluator-optimizer",
+    "chain-of-verification"
+  ],
+  "migration_to": [],
+  "design_principles": [
+    "Judge and generator should be from different model families to reduce bias",
+    "Define explicit score thresholds per quality dimension",
+    "Log the judge's reasoning trace alongside scores for auditability"
+  ],
+  "best_practices": [
+    "Calibrate judge on a golden dataset before production use",
+    "Set per-dimension thresholds (e.g., safety must score >= 8)",
+    "Limit retry rounds to prevent infinite revision loops"
+  ],
+  "references": [
+    "Zhuge et al., Agent-as-a-Judge: Evaluating Agents with Agents, 2024 — https://arxiv.org/abs/2410.10934",
+    "Zheng et al., Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena, NeurIPS 2023 — https://arxiv.org/abs/2306.05685"
+  ]
+}

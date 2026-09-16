@@ -1,0 +1,100 @@
+{
+  "name": "lats",
+  "category": "reasoning",
+  "topology": "plan-execute",
+  "context": "Hard exploration tasks where a single reasoning path is not enough; the agent performs tree search over reasoning and action trajectories with environment feedback and self-reflection.",
+  "benefits": [
+    "Explores multiple solution paths",
+    "Unifies reasoning, acting, and planning",
+    "Recovers from bad branches via backtracking",
+    "Strong results on hard benchmarks"
+  ],
+  "tradeoffs": [
+    "Highest cost and latency among single-agent patterns",
+    "Needs an environment or evaluator for feedback",
+    "Implementation complexity",
+    "1 + N LLM calls per iteration (Expand=1, Evaluate=N)",
+    "5-20x cost vs ReAct"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 3,
+    "latency": 3,
+    "output_quality": 9,
+    "observability": 6,
+    "safety": 5,
+    "simplicity": 4
+  },
+  "suitable_domains": [
+    "complex-reasoning",
+    "code-generation",
+    "exploratory-research",
+    "trial-and-error-learning",
+    "web-automation"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads",
+    "customer-support"
+  ],
+  "use_cases": [
+    "Algorithmic coding with test feedback",
+    "Web navigation tasks",
+    "Puzzle solving",
+    "Design space exploration"
+  ],
+  "avoid_when": [
+    "Budget-limited runs",
+    "No reliable feedback signal",
+    "Simple tasks"
+  ],
+  "component_types": [
+    "Search Tree",
+    "Selection (UCB formula: Q(node) + c × √(ln(parent_visits) / node_visits))",
+    "Expansion",
+    "Evaluation",
+    "Simulation",
+    "Backpropagation",
+    "Reflection Node",
+    "Trajectory Memory"
+  ],
+  "technology_stack": [
+    "agent-patterns LATS",
+    "LangGraph (examples/lats)",
+    "llama_index (agent.lats.LATSAgentWorker)",
+    "lapisrocks/LanguageAgentTreeSearch",
+    "MCTS-style search libraries"
+  ],
+  "anti_patterns": [
+    "Exploring too wide without depth",
+    "Missing rollback on failure",
+    "No node budget",
+    "Using same temperature for expansion and evaluation"
+  ],
+  "migration_from": [
+    "react",
+    "chain-of-thought"
+  ],
+  "migration_to": [
+    "reflexion",
+    "multi-agent-debate"
+  ],
+  "design_principles": [
+    "Prune with value estimates",
+    "Reflect on failures before re-expansion",
+    "Cap the total node budget",
+    "exploration_constant (c=1.4 for UCB)",
+    "temperature: 0.1-0.3 for evaluation, 0.7-1.0 for expansion"
+  ],
+  "best_practices": [
+    "Deduplicate states",
+    "Store trajectories for reuse",
+    "Parallelize leaf evaluation",
+    "exploration_weight tuning (2.0=exploration, 0.5=exploitation)",
+    "early stopping criteria",
+    "diverse state generation"
+  ],
+  "references": [
+    "Zhou et al., Language Agent Tree Search Unifies Reasoning, Acting, and Planning in Language Models, 2023 — https://arxiv.org/abs/2310.04406"
+  ]
+}

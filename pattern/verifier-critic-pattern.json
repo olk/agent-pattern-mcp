@@ -1,0 +1,97 @@
+{
+  "name": "verifier-critic",
+  "category": "multi_agent",
+  "topology": "evaluator-loop",
+  "context": "Production pipelines where generated output must meet a rubric: a critic agent scores and annotates the generator's output and gates release until criteria pass.",
+  "benefits": [
+    "Catches hallucinations and policy violations",
+    "Rubric-driven and measurable",
+    "Cheaper than full debate",
+    "Composable with any generator"
+  ],
+  "tradeoffs": [
+    "Doubles inference on the verified subset",
+    "Rubric maintenance burden",
+    "Critic false positives block good output"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 6,
+    "latency": 5,
+    "output_quality": 9,
+    "observability": 9,
+    "safety": 9,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "high-stakes-outputs",
+    "regulated-domains",
+    "content-generation",
+    "code-generation",
+    "cybersecurity",
+    "software-testing"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads"
+  ],
+  "use_cases": [
+    "Legal draft gating",
+    "Medical summary checks",
+    "Code security review",
+    "Marketing claim verification"
+  ],
+  "avoid_when": [
+    "Bulk low-cost content",
+    "Quality is purely subjective",
+    "No rubric agreement exists"
+  ],
+  "component_types": [
+    "Generator",
+    "Critic Agent",
+    "Rubric Store",
+    "Gate Release Decision",
+    "Revision Loop",
+    "Deterministic Validator",
+    "Calibration Dataset"
+  ],
+  "technology_stack": [
+    "LangGraph",
+    "Custom rubric prompts",
+    "Evaluation frameworks (promptfoo, LangSmith)"
+  ],
+  "anti_patterns": [
+    "Critic without a rubric",
+    "Silent auto-pass",
+    "Critiquing style instead of substance",
+    "Judge without calibration against human labels",
+    "Rubric without anchored examples per score level",
+    "Forcing binary labels when evidence is insufficient"
+  ],
+  "migration_from": [
+    "evaluator-optimizer"
+  ],
+  "migration_to": [
+    "multi-agent-debate",
+    "human-in-the-loop"
+  ],
+  "design_principles": [
+    "Version the rubric",
+    "Score per criterion",
+    "Gate with explicit thresholds",
+    "Use boolean/categorical labels over numerical scores for consistency",
+    "Version rubric and pin judge model to explicit version"
+  ],
+  "best_practices": [
+    "Verify by sampling at scale",
+    "Feed critic failures back into generator prompts",
+    "Watch for rubric drift",
+    "Run deterministic checks before judge evaluation",
+    "Calibrate judge against human experts targeting 0.80+ Spearman correlation",
+    "Use different model family for judge to avoid self-preference bias"
+  ],
+  "references": [
+    "Lightman et al., Let's Verify Step by Step, 2023 — https://arxiv.org/abs/2305.20050",
+    "Agent Patterns Catalog, Verifier-Critic pattern — https://www.agentpatternscatalog.org/patterns/verifier-critic/"
+  ]
+}

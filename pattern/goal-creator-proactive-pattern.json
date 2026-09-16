@@ -1,0 +1,86 @@
+{
+  "name": "goal-creator-proactive",
+  "category": "planning",
+  "topology": "single-agent-loop",
+  "context": "Agent systems where the agent infers goals proactively from context — not from an explicit user request but from environmental signals, historical patterns, or implicit cues. The agent acts as a proactive assistant, anticipating what the user needs before being asked, based on situation awareness and learned user preferences.",
+  "benefits": [
+    "Reduces friction for the user by anticipating needs without explicit prompting",
+    "Enables agents to take initiative in ambient intelligence scenarios",
+    "Can surface goals the user did not know they had",
+    "Improves user experience by reducing the number of explicit commands needed"
+  ],
+  "tradeoffs": [
+    "Risk of acting on misinferred goals — acting without confirmation can be disruptive",
+    "Proactive inference requires access to contextual signals (calendar, history, sensors)",
+    "False positives waste resources on unnecessary actions",
+    "Users may feel surveilled if the inference feels opaque"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 7,
+    "latency": 7,
+    "output_quality": 9,
+    "observability": 7,
+    "safety": 8,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "conversational-assistants",
+    "autonomous-task-execution",
+    "exploratory-research",
+    "long-horizon-tasks",
+    "education",
+    "personal-productivity"
+  ],
+  "unsuitable_domains": [
+    "regulated-domains",
+    "high-stakes-outputs"
+  ],
+  "use_cases": [
+    "Calendar agent: infers from meeting notes that a follow-up task was created and proactively schedules it",
+    "Research assistant: notices the user has been reading papers on topic X and surfaces related work",
+    "DevOps agent: detects an unusual traffic pattern and proposes a scaling action before being asked",
+    "Personal assistant: infers from email tone that a customer is frustrated and suggests an主动道歉"
+  ],
+  "avoid_when": [
+    "The domain requires explicit user authorization before any action",
+    "Inference signals are sparse or unreliable — the agent would act on noise",
+    "User privacy constraints prohibit the contextual data needed for inference"
+  ],
+  "component_types": [
+    "Context Monitor",
+    "Inference Engine",
+    "Hypothesis Ranker",
+    "Confirmation Gate"
+  ],
+  "technology_stack": [
+    "Long-term memory systems (semantic-memory, episodic-memory)",
+    "User preference models",
+    "Calendar and context integrations",
+    "Human-in-the-loop approval workflows"
+  ],
+  "anti_patterns": [
+    "Acting on inferred goals without confirmation in high-stakes domains",
+    "Proposing actions the user has previously declined",
+    "Inferring goals from a single ambiguous signal without corroboration"
+  ],
+  "migration_from": [
+    "goal-creator-passive"
+  ],
+  "migration_to": [
+    "storm"
+  ],
+  "design_principles": [
+    "Proactive recommendations must be confirmable before irreversible actions are taken",
+    "The inference chain should be explainable — the agent should be able to say why it inferred this goal",
+    "Users must be able to opt out of proactive inference without losing core functionality"
+  ],
+  "best_practices": [
+    "Start with low-stakes, easily revocable proactive suggestions",
+    "Require confirmation for any action that has external side effects",
+    "Track user feedback on proactive suggestions to improve inference over time"
+  ],
+  "references": [
+    "Lu et al., Agent Design Pattern Catalogue, 2024 (arXiv:2405.10467) — https://arxiv.org/abs/2405.10467"
+  ]
+}

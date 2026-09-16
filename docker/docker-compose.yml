@@ -1,0 +1,135 @@
+# Development Compose for local use with `make docker-up`.
+#
+# Dev variant (distinct from the systemd/production stack at
+# systemd/docker-compose.yml and /etc/agent-pattern-mcp/):
+#   - Has `build:` sections — builds images from source on `make docker-up --build`.
+#   - Uses service DNS (pattern-tei / pattern-tei-rerank) — no network_mode needed.
+#   - Config is read from ${HOME}/.config/agent-pattern-mcp/ (mounted at /app/config).
+#   - TEI sidecars use unique container names (agent-pattern-tei*) so the dev
+#     stack can run concurrently with the systemd stack and/or the shared
+#     tei-infra stack without container-name conflicts.
+#   - Default host port is 8061 (systemd uses 8051) so dev and prod can coexist.
+#
+# Usage:
+#   cp docker/.env.docker docker/.env   # fill in MINIMAXAI_API_KEY first
+#   make docker-up                      # or: docker compose -f docker/docker-compose.yml up -d --build
+
+name: agent-pattern-mcp-dev
+
+services:
+  agent-pattern-mcp:
+    image: ${MCP_IMAGE:-agent-pattern-mcp:latest}
+    container_name: agent-pattern-mcp
+    environment:
+      - CONFIG_PATH=/app/config/config.json
+
+      - GENERATOR_PROVIDER=minimax
+      - GENERATOR_MODEL=minimax/MiniMax-M2.7
+      - GENERATOR_BASE_URL=https://api.minimax.io/v1
+      - GENERATOR_API_KEY=${MINIMAXAI_API_KEY}
+      - GENERATOR_TEMPERATURE=0.1
+      - GENERATOR_TOP_P=1.0
+      - GENERATOR_TOP_K=20
+
+      - EMBEDDER_PROVIDER=tei
+      - EMBEDDER_BASE_URL=http://pattern-tei-embed:8080/v1
+      - EMBEDDER_BATCH_SIZE=8
+      - EMBEDDER_API_KEY=not-needed
+
+      - PATTERN_DIRECTORY=./pattern
+
+      - RETRIEVAL_BM25_TOP_K=20
+      - RETRIEVAL_DENSE_TOP_K=20
+      - RETRIEVAL_TOP_K_PATTERNS=5
+      - RETRIEVAL_DENSE_WEIGHT=${RETRIEVAL_DENSE_WEIGHT:-0.7}
+      - RETRIEVAL_BM25_WEIGHT=${RETRIEVAL_BM25_WEIGHT:-0.3}
+      - RETRIEVAL_MIN_FUSION_SCORE=0.015
+      - RETRIEVAL_RERANK_TOP_N=10
+      # The deployed model emits JS-style unquoted keys in the free-form
+      # input_schema/output_schema dict fields, which fails JSON parsing
+      # (json_invalid). The lean wire schema omits the top-level contract
+      # lists entirely; agents keep their tool-name lists. Set false to
+      # restore full contract output once the model behaves.
+      - RETRIEVAL_USE_LEAN_WIRE_SCHEMA=true
+      - RETRIEVAL_TOPOLOGY_SCORE_THRESHOLD=50.0
+      - RETRIEVAL_ANALYSIS_BLEND_WEIGHT=0.7
+      - RETRIEVAL_FUSION_BLEND_WEIGHT=0.3
+      - RETRIEVAL_WEIGHT_SMOOTHING_ALPHA=0.7
+      - RETRIEVAL_VERBOSE_TIMING=false
+
+      - RERANKER_BASE_URL=http://pattern-tei-rerank:8080
+      - RERANKER_TIMEOUT=30
+
+      # Server-side reasoning MCPs (Plan v5) — embedded in the image at
+      # build time; defaults below. Override commands as JSON lists to point
+      # elsewhere (e.g. npx) or set REASONING_ENABLED=false to opt out.
+      - REASONING_ENABLED=true
+      - REASONING_SPAWN_TIMEOUT_SECONDS=10
+      - REASONING_STEP_TIMEOUT_SECONDS=20
+      - REASONING_MAX_TOTAL_STEPS=8
+      - REASONING_QUIET_STDERR=true
+      # Hardened (2dc664e): the server fails on startup when the reasoning
+      # tools are unreachable instead of continuing with degraded
+      # functionality. Set to false to restore degraded-startup behaviour.
+      - REASONING_FAIL_FAST=true
+
+      - TASKS_HEARTBEAT_ENABLED=true
+      - TASKS_HEARTBEAT_INTERVAL_SECONDS=30
+      - TRANSPORT=streamable-http
+      - HOST=0.0.0.0
+      - PORT=8051
+      - LOGGING_LEVEL=INFO
+      - LOGGING_FORMAT=json
+      - LITELLM_LOG_LEVEL=WARNING
+
+    depends_on:
+      pattern-tei-embed:
+        condition: service_healthy
+      pattern-tei-rerank:
+        condition: service_healthy
+    ports:
+      - "${MCP_HOST_PORT:-8061}:8051"
+    volumes:
+      - ../config:/app/config
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "python", "-m", "src.main", "--health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  pattern-tei-embed:
+    image: ${TEI_IMAGE:-pattern-tei-embed:latest}
+    container_name: agent-pattern-tei
+    restart: unless-stopped
+    environment:
+      - HF_HUB_OFFLINE=1
+      - HUGGINGFACE_HUB_CACHE=/data
+      - MAX_CONCURRENT_REQUESTS=32
+      - MAX_BATCH_TOKENS=8192
+      - MAX_CLIENT_BATCH_SIZE=32
+      - AUTO_TRUNCATE=true
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+  pattern-tei-rerank:
+    image: ${TEI_RERANK_IMAGE:-pattern-tei-rerank:latest}
+    container_name: agent-pattern-tei-rerank
+    restart: unless-stopped
+    environment:
+      - HF_HUB_OFFLINE=1
+      - HUGGINGFACE_HUB_CACHE=/data
+      - MAX_CONCURRENT_REQUESTS=64
+      - MAX_CLIENT_BATCH_SIZE=48
+      - AUTO_TRUNCATE=true
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s

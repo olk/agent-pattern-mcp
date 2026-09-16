@@ -1,0 +1,100 @@
+{
+  "name": "routing",
+  "category": "planning",
+  "topology": "single-agent-loop",
+  "context": "Heterogeneous inputs where one prompt cannot serve all: a classifier routes each input to the most suitable downstream handler, prompt, or agent.",
+  "benefits": [
+    "Separation of concerns",
+    "Per-route optimization",
+    "Cheaper than one large prompt",
+    "Enables specialized guardrails per route"
+  ],
+  "tradeoffs": [
+    "Router errors propagate downstream",
+    "Route maintenance overhead",
+    "Cold-start on new categories"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 9,
+    "latency": 9,
+    "output_quality": 7,
+    "observability": 8,
+    "safety": 8,
+    "simplicity": 9
+  },
+  "suitable_domains": [
+    "customer-support",
+    "conversational-assistants",
+    "regulated-domains",
+    "content-generation",
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads",
+    "it-service-management",
+    "e-commerce",
+    "personal-productivity"
+  ],
+  "unsuitable_domains": [
+    "exploratory-research"
+  ],
+  "use_cases": [
+    "Support ticket triage",
+    "Prompt selection by language or topic",
+    "PII versus public query separation",
+    "Model tier selection by complexity"
+  ],
+  "avoid_when": [
+    "Few, similar categories",
+    "Route targets differ only trivially",
+    "The task has only one feasible execution path"
+  ],
+  "component_types": [
+    "Input Classifier",
+    "Route Registry",
+    "Handlers",
+    "Fallback Handler",
+    "Confidence Threshold Monitor",
+    "Encoder Version Tracker"
+  ],
+  "technology_stack": [
+    "LLM zero-shot classification",
+    "Embedding classifiers",
+    "LangGraph conditional edges",
+    "Redis/LangCache",
+    "FAISS",
+    "Qdrant",
+    "Pinecone",
+    "Kong/LiteLLM gateway"
+  ],
+  "anti_patterns": [
+    "Overlapping route definitions",
+    "Silent fallback swallowing inputs",
+    "Classifier prompt drift",
+    "Using global threshold instead of per-route thresholds"
+  ],
+  "migration_from": [
+    "prompt-chaining"
+  ],
+  "migration_to": [
+    "supervisor-worker",
+    "graph-orchestration",
+    "plan-and-solve",
+    "self-discovery"
+  ],
+  "design_principles": [
+    "Define routes from data",
+    "Always keep a fallback",
+    "Monitor route distribution drift"
+  ],
+  "best_practices": [
+    "Log route plus confidence",
+    "Audit labels periodically",
+    "Version route definitions",
+    "Calibrate thresholds periodically on fresh samples",
+    "Use hybrid coarse-to-fine routing for complex classification",
+    "Pin embedding versions and track route distribution drift"
+  ],
+  "references": [
+    "Anthropic, Building Effective Agents: Routing workflow, Dec 2024 — https://www.anthropic.com/engineering/building-effective-agents"
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "name": "rewoo",
+  "category": "planning",
+  "topology": "plan-execute",
+  "context": "Cost-conscious tool workflows: all tool calls are planned upfront in one pass as a plan of expressions, then executed without interleaved LLM reasoning.",
+  "benefits": [
+    "Fewer LLM calls (single planner pass)",
+    "Deterministic execution phase",
+    "Lower cost",
+    "Reproducible traces"
+  ],
+  "tradeoffs": [
+    "Brittle when observations invalidate later plan steps",
+    "No adaptive tool choice",
+    "Solver quality depends on plan coverage"
+  ],
+  "quality_attributes": {
+    "reliability": 7,
+    "cost_efficiency": 9,
+    "latency": 8,
+    "output_quality": 7,
+    "observability": 8,
+    "safety": 6,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "cost-sensitive-workloads",
+    "tool-use-tasks",
+    "api-automation",
+    "data-analysis",
+    "scientific-research",
+    "personal-productivity",
+    "gui-computer-use"
+  ],
+  "unsuitable_domains": [
+    "exploratory-research",
+    "trial-and-error-learning"
+  ],
+  "use_cases": [
+    "Scheduled data pulls",
+    "Batch enrichment pipelines",
+    "Report generation from known sources",
+    "ETL-style lookups"
+  ],
+  "avoid_when": [
+    "Task shape is unknown upfront",
+    "Tool failures are common",
+    "Mid-run adaptation is required"
+  ],
+  "component_types": [
+    "Planner (expression graph)",
+    "Tool Executor",
+    "Substitute Solver",
+    "Optional specialized Solver LLM (smaller/faster model for final synthesis)"
+  ],
+  "technology_stack": [
+    "agent-patterns ReWOO",
+    "LangGraph",
+    "Any function-calling runtime",
+    "NVIDIA NeMo Agent Toolkit",
+    "IBM Granite"
+  ],
+  "anti_patterns": [
+    "Re-planning inside the loop (that is ReAct again)",
+    "Missing variable substitution checks",
+    "Dependency on observation quality: plan execution fails silently when tool outputs are ambiguous",
+    "Planner-executor split adds latency for tasks where fast reactivity is needed",
+    "Dependency cycles in DAG",
+    "Unbounded concurrency causing rate limits"
+  ],
+  "migration_from": [
+    "react"
+  ],
+  "migration_to": [
+    "llm-compiler",
+    "plan-and-solve"
+  ],
+  "design_principles": [
+    "Plan once, execute twice (tool pass, then solve pass)",
+    "Validate plan variables",
+    "Keep tools idempotent",
+    "Annotate estimated cost per step for DAG optimization"
+  ],
+  "best_practices": [
+    "Dry-run plan validation",
+    "Use explicit variable syntax (#E1..#En)",
+    "Fall back to ReAct on solver failure",
+    "Execute independent tool calls in parallel using topological sort",
+    "Validate #E references with linter before execution (check cycles, resolution, tool existence)",
+    "Trigger re-plan when observation quality is surprising"
+  ],
+  "references": [
+    "Xu et al., ReWOO: Decoupling Reasoning from Observations, 2023 — https://arxiv.org/abs/2305.18323"
+  ]
+}

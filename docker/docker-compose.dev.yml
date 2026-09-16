@@ -1,0 +1,27 @@
+# docker-compose.dev.yml — local development overrides
+#
+# Relaxed healthcheck timing for TEI containers when running on modest hardware
+# (laptops, VMs, CI runners). The defaults (30s interval, 5 retries, 5s timeout,
+# 120s start_period) are too tight for cold-start TEI images on slow machines.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up pattern-tei-embed pattern-tei-rerank
+
+version: "3.9"
+
+services:
+  pattern-tei-embed:
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  pattern-tei-rerank:
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s

@@ -1,0 +1,90 @@
+{
+  "name": "decision-log",
+  "category": "observability",
+  "topology": "single-agent-loop",
+  "context": "Agent systems that must explain or audit why a particular action was taken after the fact. Action-only logs leave reviewers unable to reconstruct the agent's reasoning — the decision log persists the agent's reasoning trace alongside its actions so that post-hoc review, debugging, or compliance auditing can trace any output back to the specific decision that produced it.",
+  "benefits": [
+    "Enables post-hoc explanation of agent behavior for debugging and compliance",
+    "Distinguishes a bad decision from a bad outcome — critical for incident analysis",
+    "Supports audit trails required in regulated industries",
+    "Provides evidence for dispute resolution and human review"
+  ],
+  "tradeoffs": [
+    "Storage and privacy implications for retaining full reasoning traces",
+    "Logging every decision adds latency to the agent loop",
+    "Reasoning logs without a review process become shelfware",
+    "Large reasoning traces can dominate storage costs"
+  ],
+  "quality_attributes": {
+    "reliability": 7,
+    "cost_efficiency": 8,
+    "latency": 8,
+    "output_quality": 7,
+    "observability": 10,
+    "safety": 9,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "regulated-domains",
+    "high-stakes-outputs",
+    "autonomous-task-execution",
+    "multi-agent-systems",
+    "legal-research"
+  ],
+  "unsuitable_domains": [
+    "cost-sensitive-workloads"
+  ],
+  "use_cases": [
+    "Compliance audit: reconstruct why an agent approved or rejected a loan application",
+    "Incident response: trace a production failure back to the specific tool call and reasoning step",
+    "Customer dispute: show exactly what information the agent based its response on",
+    "Performance review: analyze decision patterns to identify systematic biases"
+  ],
+  "avoid_when": [
+    "No requirement to explain or audit agent decisions",
+    "Privacy constraints prohibit retaining reasoning traces",
+    "The agent loop is so fast that logging adds meaningful overhead"
+  ],
+  "component_types": [
+    "Decision Logger",
+    "Reasoning Trace Recorder",
+    "Audit Trail Index",
+    "Post-Hoc Query Interface",
+    "Confidence Scorer",
+    "PII Redaction Processor"
+  ],
+  "technology_stack": [
+    "Structured logging (JSON)",
+    "Append-only ledger (Continuity Ledger)",
+    "Vector DB for reasoning trace retrieval",
+    "OpenTelemetry tracing"
+  ],
+  "anti_patterns": [
+    "Logging actions without corresponding reasoning — leaves no explanation",
+    "Rewriting reasoning logs after the fact — destroys auditability",
+    "Retaining logs without any review process or query mechanism",
+    "Head-based/random sampling discards traces you most need (errors, slow calls)"
+  ],
+  "migration_from": [
+    "conversational-memory"
+  ],
+  "migration_to": [
+    "agent-resumption"
+  ],
+  "design_principles": [
+    "Every consequential action must have a corresponding decision-log entry",
+    "Logs must be append-only — the agent cannot rewrite its own history",
+    "The log entry must include the specific context (evidence, constraints, alternatives considered) that led to the decision"
+  ],
+  "best_practices": [
+    "Link each action record to the specific reasoning step that caused it",
+    "Distinguish key decisions from routine steps — not every token needs a log entry",
+    "Index logs by request ID and decision type for efficient post-hoc retrieval",
+    "Use tail-based sampling: retain errors, high latency, guardrail triggers",
+    "Attach evaluation scores (faithfulness, groundedness, relevance) to each span at capture time"
+  ],
+  "references": [
+    "OpenTelemetry GenAI Semantic Conventions, 2025 — https://opentelemetry.io/docs/specs/semconv/gen-ai/",
+    "Agent Patterns Catalog, Decision Log pattern — https://www.agentpatternscatalog.org/patterns/decision-log/"
+  ]
+}

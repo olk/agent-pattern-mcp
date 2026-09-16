@@ -1,0 +1,94 @@
+{
+  "name": "plan-and-solve",
+  "category": "planning",
+  "topology": "plan-execute",
+  "context": "Multi-step tasks with clear structure: a planner produces an explicit ordered plan, then an executor walks the plan step by step and aggregates the results.",
+  "benefits": [
+    "Structured decomposition",
+    "Inspectable plan artifact",
+    "Cheaper executor model possible",
+    "Clear progress tracking"
+  ],
+  "tradeoffs": [
+    "No tool use in the base form",
+    "The plan may be suboptimal",
+    "Weak recovery when reality drifts from the plan"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 8,
+    "latency": 6,
+    "output_quality": 7,
+    "observability": 8,
+    "safety": 6,
+    "simplicity": 8
+  },
+  "suitable_domains": [
+    "content-generation",
+    "research-reports",
+    "code-generation",
+    "data-analysis",
+    "education"
+  ],
+  "unsuitable_domains": [
+    "tool-use-tasks",
+    "trial-and-error-learning"
+  ],
+  "use_cases": [
+    "Marketing strategy draft",
+    "Competitive landscape analysis",
+    "Database schema design",
+    "Comprehensive guide writing"
+  ],
+  "avoid_when": [
+    "Task requires tools (use ReAct)",
+    "Iterative exploration is needed",
+    "Steps are unclear upfront"
+  ],
+  "component_types": [
+    "Planner",
+    "Step Executor",
+    "State Tracker",
+    "Result Aggregator",
+    "Replanner"
+  ],
+  "technology_stack": [
+    "agent-patterns PlanAndSolveAgent",
+    "Role-based llm_configs (planning, execution, documentation)",
+    "LangGraph"
+  ],
+  "anti_patterns": [
+    "Plans without tracked step outputs",
+    "Never re-planning",
+    "Monolithic plan-as-prompt",
+    "Executor without step context isolation",
+    "Replanner ignores past_step summaries"
+  ],
+  "migration_from": [
+    "chain-of-thought",
+    "prompt-chaining"
+  ],
+  "migration_to": [
+    "rewoo",
+    "llm-compiler",
+    "graph-orchestration"
+  ],
+  "design_principles": [
+    "Separate the planning role from the execution role",
+    "Make each step produce a typed artifact",
+    "Aggregate explicitly",
+    "Cap plan length (recommended: 8-15 steps maximum)",
+    "Allow re-plan checkpoints after each step"
+  ],
+  "best_practices": [
+    "Strong model plans, cheap model executes",
+    "Cap plan length (recommended: 8-15 steps maximum)",
+    "Allow re-plan checkpoints after each step",
+    "Summarize executor outputs before passing to replanner",
+    "Implement step-level retry on failure",
+    "Support variable references between steps for dependent tasks"
+  ],
+  "references": [
+    "Wang et al., Plan-and-Solve Prompting: Improving Zero-Shot Chain-of-Thought Reasoning, 2023 — https://arxiv.org/abs/2305.04091"
+  ]
+}

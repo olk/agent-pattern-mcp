@@ -1,0 +1,92 @@
+{
+  "name": "evaluator-optimizer",
+  "category": "reflection",
+  "topology": "evaluator-loop",
+  "context": "Tightly coupled generate-and-evaluate loop between two LLM roles: one produces output, the other scores it against clear criteria and returns actionable feedback until convergence.",
+  "benefits": [
+    "Measurable quality loop",
+    "Roles can differ in model strength",
+    "Natural fit for translation and writing refinement"
+  ],
+  "tradeoffs": [
+    "Doubles inference on the verified subset",
+    "Needs evaluable criteria",
+    "Risk of preference ping-pong"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 5,
+    "latency": 5,
+    "output_quality": 9,
+    "observability": 8,
+    "safety": 7,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "high-stakes-outputs",
+    "content-generation",
+    "regulated-domains",
+    "trial-and-error-learning",
+    "education"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads"
+  ],
+  "use_cases": [
+    "Literary translation polish",
+    "Legal clause drafting",
+    "Search query rewriting",
+    "Code review loops"
+  ],
+  "avoid_when": [
+    "Criteria are vague",
+    "Time-critical responses",
+    "A single pass suffices"
+  ],
+  "component_types": [
+    "Generator",
+    "Evaluator",
+    "Hybrid Evaluator (deterministic + LLM)",
+    "Feedback Channel",
+    "Convergence Check"
+  ],
+  "technology_stack": [
+    "LangGraph conditional loop",
+    "agent-patterns role configs",
+    "LiteLLM model mixing"
+  ],
+  "anti_patterns": [
+    "No convergence cap",
+    "Evaluator softer than the rubric",
+    "Feedback without concrete pointers",
+    "Same model/prompt family for both roles colludes on bad outputs (self-ratification)",
+    "Plateau guard missing - infinite loops on unresolvable feedback"
+  ],
+  "migration_from": [
+    "reflection"
+  ],
+  "migration_to": [
+    "verifier-critic",
+    "multi-agent-debate"
+  ],
+  "design_principles": [
+    "Feedback must reference concrete spans",
+    "Stop on threshold or budget",
+    "Asymmetric models are acceptable",
+    "Use smallest capable model for evaluation (cost optimization)",
+    "Make each criterion binary (pass/fail), not numeric (1-10), for unambiguous targets"
+  ],
+  "best_practices": [
+    "Put the rubric in the evaluator prompt",
+    "Use delta-based feedback",
+    "Log the score trajectory",
+    "Calibrate evaluator against human experts targeting 0.80+ Spearman correlation",
+    "Cap iterations at 3-5 rounds; most tasks plateau within 2-3",
+    "Run evaluator without seeing generator's reasoning trace to prevent priming"
+  ],
+  "references": [
+    "Wu et al., AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation, 2023 — https://arxiv.org/abs/2308.08155",
+    "Agent Patterns Catalog, Evaluator-Optimizer pattern — https://www.agentpatternscatalog.org/patterns/evaluator-optimizer/"
+  ]
+}

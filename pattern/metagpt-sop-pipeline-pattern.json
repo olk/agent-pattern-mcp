@@ -1,0 +1,88 @@
+{
+  "name": "metagpt-sop-pipeline",
+  "category": "multi_agent",
+  "topology": "pipeline",
+  "context": "Multi-agent systems that mimic software team SOPs by assigning agents to sequential pipeline stages (e.g., requirements → architecture → coding → testing → review). Unlike role-play (autonomous dialogue) or supervisor-worker (dynamic delegation), SOP-pipeline agents execute fixed role-based stages in order. Each stage has a defined output artifact that feeds the next stage, providing structure, predictability, and auditability.",
+  "benefits": [
+    "Structured pipeline provides predictable latency and cost",
+    "Each stage has clear input/output contracts",
+    "Role assignments are explicit and auditable",
+    "Failure isolation — one stage failure doesn't corrupt the whole pipeline"
+  ],
+  "tradeoffs": [
+    "Fixed pipeline cannot adapt to unexpected task structure",
+    "Sequential execution limits parallelism",
+    "Requires careful SOP design for each task type",
+    "Not suitable for exploratory or open-ended tasks"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 6,
+    "latency": 5,
+    "output_quality": 8,
+    "observability": 9,
+    "safety": 7,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "code-generation",
+    "research-reports",
+    "content-generation",
+    "multi-agent-systems",
+    "workflow-automation"
+  ],
+  "unsuitable_domains": [
+    "exploratory-research",
+    "customer-support",
+    "latency-sensitive-tasks"
+  ],
+  "use_cases": [
+    "Automated code generation with code-review pipeline",
+    "Research report writing with structured authoring stages",
+    "Data analysis pipeline with ingest-transform-report stages",
+    "Document processing with parse-validate-enrich stages"
+  ],
+  "avoid_when": [
+    "Tasks require dynamic branching or conditional execution",
+    "Latency-sensitive single-turn requests",
+    "Exploratory tasks without a defined end state"
+  ],
+  "component_types": [
+    "Stage Specifier",
+    "Role Agent",
+    "Stage Output Schema",
+    "Pipeline Orchestrator",
+    "Stage Gate"
+  ],
+  "technology_stack": [
+    "MetaGPT",
+    "LangGraph pipeline",
+    "agent-patterns SOPAgent"
+  ],
+  "anti_patterns": [
+    "Defining too many stages (pipeline bloat)",
+    "No schema validation between stages",
+    "Relying on free-text stage outputs that downstream stages must parse"
+  ],
+  "migration_from": [
+    "camel-role-play",
+    "prompt-chaining"
+  ],
+  "migration_to": [
+    "orchestrator-workers",
+    "swarm"
+  ],
+  "design_principles": [
+    "Define minimal stages — only those necessary for the task type",
+    "Each stage output must have a machine-readable schema",
+    "Include a gate/validation step between every two stages"
+  ],
+  "best_practices": [
+    "Limit each stage to a single well-defined role",
+    "Validate stage outputs against a schema before passing to the next stage",
+    "Log each stage's input, output, and execution time for cost attribution"
+  ],
+  "references": [
+    "Hong et al., MetaGPT: Meta Programming for A Multi-Agent Collaborative Framework, 2023 — https://arxiv.org/abs/2308.00352"
+  ]
+}

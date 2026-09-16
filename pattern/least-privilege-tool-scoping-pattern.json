@@ -1,0 +1,88 @@
+{
+  "name": "least-privilege-tool-scoping",
+  "category": "safety_control",
+  "topology": "single-agent-loop",
+  "context": "Agent systems with broad tool access where each task or user request should only be able to invoke the minimal subset of tools necessary to complete that request. Rather than granting an agent full tool access and relying on prompting to discourage misuse, tool scoping dynamically restricts the available tool catalog based on the current task context, user permissions, or request scope. A capability model evaluates each incoming request and provisions only the tools needed.",
+  "benefits": [
+    "Reduces blast radius of prompt injection or prompt misunderstanding",
+    "Enables multi-tenant agent deployments with per-user tool restrictions",
+    "Auditable which tools were available for a given request",
+    "Complies with least-privilege security principles"
+  ],
+  "tradeoffs": [
+    "Requires a tool scoping policy engine and task classification",
+    "Mis-scoping can break legitimate tool usage",
+    "Adds latency at tool-selection time",
+    "Tool capability definitions must be maintained as the tool catalog evolves"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 6,
+    "latency": 7,
+    "output_quality": 7,
+    "observability": 9,
+    "safety": 10,
+    "simplicity": 5
+  },
+  "suitable_domains": [
+    "regulated-domains",
+    "api-automation",
+    "multi-agent-systems",
+    "customer-support",
+    "cybersecurity"
+  ],
+  "unsuitable_domains": [
+    "exploratory-research",
+    "autonomous-task-execution"
+  ],
+  "use_cases": [
+    "Multi-tenant SaaS agents where each tenant has different API permissions",
+    "Enterprise assistants that must not have access to executive-level tools for regular users",
+    "Customer support agents scoped to read-only CRM tools",
+    "Development agents with read-only repository access for junior developers"
+  ],
+  "avoid_when": [
+    "Single-user single-purpose agent with fixed tool access",
+    "Latency-critical real-time applications",
+    "Tasks genuinely require full tool access for every request"
+  ],
+  "component_types": [
+    "Scope Policy Engine",
+    "Task Classifier",
+    "Tool Allowlist Generator",
+    "Capability Claim",
+    "Audit Logger"
+  ],
+  "technology_stack": [
+    "MCP tool servers with per-tool permissions",
+    "OPA policy engine",
+    "agent-patterns LeastPrivilege"
+  ],
+  "anti_patterns": [
+    "Overly broad scopes that defeat the purpose of restriction",
+    "Static scopes that never adapt to task context",
+    "No audit trail for which tools were provisioned per request"
+  ],
+  "migration_from": [
+    "guardrails",
+    "structured-output"
+  ],
+  "migration_to": [
+    "dual-llm-quarantine",
+    "control-flow-integrity"
+  ],
+  "design_principles": [
+    "Default-deny: tools are unavailable unless explicitly provisioned",
+    "Scope to the minimum set needed for the current request",
+    "Audit log every tool provisioning decision"
+  ],
+  "best_practices": [
+    "Define tool capabilities as first-class policy objects",
+    "Classify tasks by risk level and provision scopes accordingly",
+    "Re-evaluate scope on each new user request, not just at session start"
+  ],
+  "references": [
+    "Anthropic, Anthropic Tool Use Best Practices, 2024 — https://docs.anthropic.com/en/docs/build-with-claude/tool-use-best-practices",
+    "Agent Patterns Catalog, Least-Privilege Tool Scoping pattern — https://www.agentpatternscatalog.org/patterns/least-privilege-tool-scoping/"
+  ]
+}

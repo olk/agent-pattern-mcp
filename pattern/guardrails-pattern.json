@@ -1,0 +1,94 @@
+{
+  "name": "guardrails",
+  "category": "safety_control",
+  "topology": "single-agent-loop",
+  "context": "Any agent exposed to untrusted input or producing user-facing output: validation layers check prompts, completions, and tool payloads against safety policies such as PII, injection, toxicity, and scope.",
+  "benefits": [
+    "Consistent policy enforcement",
+    "Blocks prompt-injection artifacts",
+    "PII redaction before logging or storage",
+    "Independent of model behavior"
+  ],
+  "tradeoffs": [
+    "False positives reject legitimate requests",
+    "Latency added per check",
+    "Policy maintenance burden"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 7,
+    "latency": 7,
+    "output_quality": 7,
+    "observability": 9,
+    "safety": 10,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "regulated-domains",
+    "customer-support",
+    "conversational-assistants",
+    "high-stakes-outputs",
+    "cybersecurity",
+    "gui-computer-use"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks"
+  ],
+  "use_cases": [
+    "PII redaction before logging",
+    "Prompt-injection screening of retrieved documents",
+    "Toxicity filters on outputs",
+    "Topic-scope restriction for support bots"
+  ],
+  "avoid_when": [
+    "Heavy check chains double latency on hot paths",
+    "Checks cannot fail safely",
+    "The input is fully trusted and latency is the dominant constraint"
+  ],
+  "component_types": [
+    "Input Validator",
+    "Output Validator",
+    "Policy Engine",
+    "Redaction Transformer",
+    "Violation Handler",
+    "Hook Point Mapper"
+  ],
+  "technology_stack": [
+    "NeMo Guardrails",
+    "Lakera prompt-injection detectors",
+    "Presidio PII",
+    "Custom validators",
+    "Guardrails AI",
+    "OpenAI Moderation API",
+    "Llama Guard 3",
+    "AWS ApplyGuardrail"
+  ],
+  "anti_patterns": [
+    "Policy only in the system prompt",
+    "Silently failing open",
+    "Blocking without user feedback"
+  ],
+  "migration_from": [
+    "routing"
+  ],
+  "migration_to": [
+    "human-in-the-loop",
+    "kill-switch"
+  ],
+  "design_principles": [
+    "Decide fail-open versus fail-closed explicitly per policy",
+    "Validate every boundary crossing (input, tool result, output)",
+    "Central policy versioning"
+  ],
+  "best_practices": [
+    "Combine with step-budget for defense in depth",
+    "Log all violations with categories",
+    "Canary policy updates",
+    "Enforce structured output schemas (JSON/YAML) to prevent injection via generated content",
+    "Run tool executions in sandboxed environments with minimal privileges",
+    "Apply least-privilege permissions scoped to current task"
+  ],
+  "references": [
+    "Beurer-Kellner et al., Design Patterns for Securing LLM Agents against Prompt Injections, 2025 — https://arxiv.org/abs/2506.08837"
+  ]
+}

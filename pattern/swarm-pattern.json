@@ -1,0 +1,93 @@
+{
+  "name": "swarm",
+  "category": "multi_agent",
+  "topology": "swarm",
+  "context": "Peer-to-peer agent collectives with no supervisor: agents post to and read from a shared blackboard or message bus and self-organize opportunistically.",
+  "benefits": [
+    "No single point of control",
+    "Agents join and leave dynamically",
+    "Parallel opportunistic work",
+    "Resilient to individual agent failure"
+  ],
+  "tradeoffs": [
+    "Emergent, hard-to-predict behavior",
+    "Debugging is difficult",
+    "Duplicated work",
+    "Weakest fit for deterministic SLAs; avoid on critical production paths"
+  ],
+  "quality_attributes": {
+    "reliability": 6,
+    "cost_efficiency": 5,
+    "latency": 6,
+    "output_quality": 7,
+    "observability": 4,
+    "safety": 5,
+    "simplicity": 4
+  },
+  "suitable_domains": [
+    "exploratory-research",
+    "multi-agent-systems",
+    "parallel-data-gathering"
+  ],
+  "unsuitable_domains": [
+    "regulated-domains",
+    "high-stakes-outputs",
+    "latency-sensitive-tasks"
+  ],
+  "use_cases": [
+    "Research swarm on shared notes",
+    "Open-source triage bots",
+    "Brainstorming collectives",
+    "Agent-society simulations"
+  ],
+  "avoid_when": [
+    "Deterministic business workflows are required",
+    "Auditability is mandatory",
+    "The team is small and fixed (use supervisor-worker)"
+  ],
+  "component_types": [
+    "Shared Blackboard or Bus",
+    "Peer Agents",
+    "Signal and Subscription Registry",
+    "Convergence Detector",
+    "Quality Verification Gate"
+  ],
+  "technology_stack": [
+    "OpenAI swarm reference",
+    "AutoGen group chat",
+    "Redis pub/sub blackboards",
+    "Kafka"
+  ],
+  "anti_patterns": [
+    "Agents messaging each other directly, bypassing the board",
+    "Unbounded posting loops",
+    "No convergence detection",
+    "Pure decentralization without a Lead Agent or quality verification on coordination-heavy tasks"
+  ],
+  "migration_from": [
+    "graph-orchestration"
+  ],
+  "migration_to": [
+    "graph-orchestration",
+    "supervisor-worker",
+    "orchestrator-workers",
+    "multi-agent-debate"
+  ],
+  "design_principles": [
+    "All coordination flows through the shared medium",
+    "Condition-action agents",
+    "Explicit convergence criterion"
+  ],
+  "best_practices": [
+    "Cap message rates",
+    "Tag provenance on every post",
+    "Snapshot board state periodically",
+    "Implement multi-layer convergence detection (per-agent stuck detection + global termination)",
+    "Emit trace spans per agent per task with swarm_run_id correlation",
+    "Set per-agent token budgets to prevent runaway costs"
+  ],
+  "references": [
+    "OpenAI, Swarm: An Experimental Framework for Multi-Agent Orchestration (GitHub), 2024 — https://github.com/openai/swarm",
+    "OpenAI, Agents SDK Documentation, 2025 — https://github.com/openai/openai-agents-python"
+  ]
+}

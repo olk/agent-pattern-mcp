@@ -1,0 +1,605 @@
+# Copyright (c) 2026 Oliver Kowalke
+# SPDX-License-Identifier: MIT
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+"""
+# FR-14: The system SHALL provide a load_config function that accepts an optional config_path parameter and loads configuration from JSON file
+# FR-271: By default, the system SHALL look for config.json at ~/.config/agent-pattern-mcp/config.json
+# FR-272: The system SHALL support a CONFIG_PATH environment variable
+# IC-7: load_config function SHALL accept optional config_path parameter
+# IC-43: By default, the system SHALL look for config.json at ~/.config/agent-pattern-mcp/config.json
+# IC-44: The system SHALL support a CONFIG_PATH environment variable
+
+Configuration loading from JSON file with environment variable expansion.
+
+# FR-8: The server SHALL use a JSON configuration file (config.json) for all settings.
+# Environment variables are embedded in config.json using {env:VAR:-default} syntax.
+# IC-6: Configuration SHALL use JSON format with {env:...} env-var expansion
+
+# FR-15: The system SHALL verify the configuration file exists before attempting to read it
+# and raise FileNotFoundError if the file does not exist
+# IC-9: FileNotFoundError SHALL be raised if configuration file does not exist
+# E-10: ERR_010 - Configuration file not found (HTTP 404, severity: critical)
+"""
+
+import json
+import logging
+import os
+from typing import Any, ClassVar, Literal
+
+from dotenv import load_dotenv
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+
+from src.config_expansion import expand_env_in_obj
+from src.reasoning.config import ReasoningConfig
+
+# Error codes for logging
+ERROR_CONFIG_NOT_FOUND = "ERR_010"
+ERROR_INVALID_CONFIG = "INVALID_CONFIG"
+
+logger = logging.getLogger(__name__)
+
+
+class GeneratorInnerConfig(BaseModel):
+    """Generator per-provider configuration."""
+
+    model: str
+    base_url: str = ""
+    api_key: str | None = None
+    temperature: float = 0.1
+    top_p: float = 1.0
+    top_k: int = 20
+    stream: bool = Field(
+        default=False,
+        description="Enable streaming responses for improved time-to-first-byte",
+    )
+
+
+class GeneratorConfig(BaseModel):
+    """Generator (LLM) provider configuration.
+
+    A single instance exists at ``ServerConfig.generator``. All LLM roles
+    (planning, generation, reflection) share this one configuration:
+    provider, model, base_url, api_key, temperature, top_p, top_k, stream.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str
+    config: GeneratorInnerConfig
+
+
+class EmbedderInnerConfig(BaseModel):
+    """Embedder per-provider configuration."""
+
+    base_url: str = ""
+    api_key: str | None = None
+    embed_batch_size: int = 16
+    query_instruction: str = ""
+    text_instruction: str = ""
+    max_embedder_tokens: int = 3000
+
+
+class EmbedderConfig(BaseModel):
+    """Embedder provider configuration."""
+
+    provider: str
+    config: EmbedderInnerConfig
+
+
+class RerankerInnerConfig(BaseModel):
+    """Reranker per-provider configuration (TEI-backed)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    base_url: str = ""
+    timeout: float = Field(default=30.0, gt=0)
+    max_batch_size: int = Field(
+        default=48,
+        ge=1,
+        le=256,
+        description="Max batch size for TEI reranker (type: int | None, env: MAX_CLIENT_BATCH_SIZE)",
+    )
+
+
+class RerankerConfig(BaseModel):
+    """Reranker provider configuration — connection and post-fusion slug-cut settings.
+
+    Contains the TEI-backed cross-encoder connection settings (base_url, timeout)
+    and the reranking stage parameter (`rerank_top_n`).  The slug-cut
+    strategy (Vespa-style reciprocal-rank blend) is locked: see
+    ``docs/retrieval-fusion-modes.md`` for the rationale.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    config: RerankerInnerConfig = Field(
+        default_factory=lambda: RerankerInnerConfig(base_url="http://pattern-tei-rerank:8080")
+    )
+    rerank_top_n: int = Field(
+        default=10, ge=1, le=100,
+        description=(
+            "Max candidates kept AFTER cross-encoder reranking. Bounds the slug "
+            "pool fed to pattern resolution and matched_domains reporting. "
+            "Reranker scoring itself remains lossless."
+        ),
+    )
+
+
+PATTERN_CONTEXT_LIMITS: dict[str, int] = {
+    "benefits": 3,
+    "tradeoffs": 3,
+    "best_practices": 3,
+    "component_types": 5,
+    "technology_stack": 5,
+    "anti_patterns": 3,
+    "suitable_domains": 5,
+}
+
+# Maximum blend value the min_fusion_score gate can observe:
+# RR(fused_rank=1) + RR(ce_rank=1) = 2/(1+60-1) = 2/60.  Keep the
+# denominator in sync with ``RRF_K`` in src/patterns/retriever.py.
+RANK_FUSION_BLEND_MAX = 2.0 / 60.0
+
+
+class RetrievalConfig(BaseModel):
+    """Retrieval tuning configuration for hybrid BM25 + dense fusion.
+
+    Stage-1 (recall) caps: bm25_top_k / dense_top_k accept 0,
+    which means "full corpus" (lossless recall). Any value >=1 caps each leg to
+    that many candidates. Selection of the final pattern set happens AFTER
+    requirements-aware scoring in the analyze phase (see top_k_patterns and
+    topology_score_threshold).
+
+    .. note::
+        Three fields (analysis_blend_weight, fusion_blend_weight,
+        weight_smoothing_alpha) had their defaults changed in PR-A. Operators
+        who need pre-PR behaviour can pin::
+
+            analysis_blend_weight=1.0
+            fusion_blend_weight=0.0
+            weight_smoothing_alpha=1.0
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    bm25_top_k: int = Field(default=0, ge=0, le=1000)
+    dense_top_k: int = Field(default=0, ge=0, le=1000)
+    dense_weight: float = Field(
+        default=0.7, gt=0.0, le=1.0,
+        description=(
+            "Stage-1 fusion weight on the dense leg. Pairs with bm25_weight; "
+            "must sum to 1.0 (±1e-3, validated). Upstream QueryFusionRetriever "
+            "re-normalizes internally as a safety net."
+        ),
+    )
+    bm25_weight: float = Field(
+        default=0.3, gt=0.0, le=1.0,
+        description="Stage-1 fusion weight on the BM25 leg. See dense_weight.",
+    )
+    top_k_patterns: int = Field(default=5, ge=1, le=100)
+    min_fusion_score: float = Field(
+        default=0.0, ge=0.0, le=RANK_FUSION_BLEND_MAX,
+        description=(
+            "Relevance floor on the best fused score for the recall set "
+            "(0.0 disables — the default, since the blend scale is tiny "
+            "and most recall sets sit at 0.5-0.9 of the blend range). "
+            "Stage-1 fusion is locked to relative_score; the CE stage uses "
+            "the Vespa-style reciprocal-rank blend "
+            "``RR(fused_rank) + RR(ce_rank)`` with k=60, whose reported "
+            "values lie in [0, 2/60] ≈ [0, 0.0333].  This is a per-query "
+            "floor, NOT absolute relevance — see docs/retrieval-fusion-modes.md. "
+            "A `ServerConfig` validator rejects values above the blend "
+            "maximum (e.g. a leftover 0.25 from an older config.json)."
+        )
+    )
+    min_quality_score: float = Field(
+        default=50.0, ge=0.0, le=100.0,
+        description=(
+            "Early-stop threshold for the design loop on the 0-100 quality "
+            "scale. Below this, the loop runs to max_tries. Above this, "
+            "stops after the first attempt that meets it. 100.0 disables "
+            "the early stop."
+        ),
+    )
+    max_tries: int = Field(default=2, ge=1, le=10)
+    use_lean_wire_schema: bool = Field(
+        default=False,
+        description=(
+            "If True, generate() uses a lean response schema (AgentSystemDesignResponseWire) "
+            "that omits patterns and top-level contract lists. Saves ~15KB schema + 1-3K output "
+            "tokens per call. Default False for backward compatibility with existing tests."
+        ),
+    )
+    topology_score_threshold: float = Field(
+        default=50.0, ge=0.0, le=100.0,
+        description="Minimum deterministic analysis_score (0-100) required for "
+                    "the top-scoring pattern's name to be used as "
+                    "recommended_topology; below this, falls back to "
+                    "react.",
+    )
+    analysis_blend_weight: float = Field(
+        default=0.7, ge=0.0, le=1.0,
+        description=(
+            "Weight on analysis_score in the blended selection score (0.0-1.0). "
+            "Default 0.7. BREAKING default change from prior implicit value 1.0. "
+            "Set to 1.0 (with fusion_blend_weight=0.0) to restore pre-change behaviour."
+        ),
+    )
+    fusion_blend_weight: float = Field(
+        default=0.3, ge=0.0, le=1.0,
+        description=(
+            "Weight on min-max-normalized fusion_score in the blended selection "
+            "score (0.0-1.0). Default 0.3. BREAKING default change from prior "
+            "implicit value 0.0. Set to 0.0 to restore pre-change behaviour."
+        ),
+    )
+    weight_smoothing_alpha: float = Field(
+        default=0.7, ge=0.0, le=1.0,
+        description=(
+            "Convex smoothing for RequirementWeights: w' = alpha*w + (1-alpha)*(1/n). "
+            "Default 0.7. BREAKING default change from prior implicit value 1.0 "
+            "(no smoothing). Set to 1.0 to restore raw LLM weights."
+        ),
+    )
+    verbose_timing: bool = Field(
+        default=False,
+        description=(
+            "When True, _timed_phase logs at INFO instead of DEBUG, enabling "
+            "phase-duration observability without changing the global logging level. "
+            "Off by default to preserve hot-path performance."
+        ),
+    )
+    pattern_context_limits: dict[str, int] = Field(default_factory=lambda: PATTERN_CONTEXT_LIMITS.copy())
+
+    @model_validator(mode="after")
+    def _check_score_blend_weights(self) -> "RetrievalConfig":
+        s = self.analysis_blend_weight + self.fusion_blend_weight
+        if abs(s - 1.0) > 1e-3:
+            raise ValueError(
+                f"analysis_blend_weight + fusion_blend_weight must sum to 1.0, got {s}"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _check_leg_weights_sum_to_one(self) -> "RetrievalConfig":
+        s = self.dense_weight + self.bm25_weight
+        if abs(s - 1.0) > 1e-3:
+            raise ValueError(
+                f"dense_weight + bm25_weight must sum to 1.0 (±1e-3), got {s}"
+            )
+        if min(self.dense_weight, self.bm25_weight) < 0.05:
+            logger.warning(
+                "Extreme stage-1 fusion leg weights (dense=%.3f, bm25=%.3f); "
+                "one retrieval leg is effectively disabled",
+                self.dense_weight,
+                self.bm25_weight,
+            )
+        return self
+
+
+class ValidationConfig(BaseModel):
+    """
+    Validation settings for self-healing retry loop.
+
+    max_retries: Maximum number of self-healing retry attempts on validation failure.
+                  Each retry sends a corrected prompt with validation error details.
+    retry_on_fail: If False, disable self-healing retries (raise on first validation failure).
+    """
+
+    max_retries: int = Field(default=3, ge=0, le=10)
+    retry_on_fail: bool = True
+
+
+class TasksConfig(BaseModel):
+    """Heartbeat configuration for long-running tools.
+
+    Implements Fix 2 of the long-running-tool timeout fix: a parallel coroutine
+    emits progress notifications at regular intervals during a tool's execution,
+    keeping client idle timers alive.
+
+    FR-XXX: Heartbeat settings SHALL be configurable via config.json.
+    """
+
+    heartbeat_enabled: bool = Field(
+        default=True,
+        description="Emit progress notifications from a parallel coroutine during long tool calls. "
+                    "Keeps client HTTP/stdio idle timers alive; works for every client.",
+    )
+    heartbeat_interval_seconds: int = Field(
+        default=30,
+        ge=5,
+        le=600,
+        description="Heartbeat emit interval in seconds. Must be shorter than the "
+                    "client's idle timeout (5 minutes for HTTP transport).",
+    )
+
+
+class ServerConfig(BaseModel):
+    """
+    # E-13: INVALID_CONFIG - Config structure invalid (HTTP 400, severity: warn)
+
+    Pydantic model for validating configuration structure.
+
+    # FR-8: JSON configuration file for all settings
+    # IC-6: Configuration SHALL use JSON format with {env:...} env-var expansion
+    """
+
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_removed_llm_sections(cls, data: Any) -> Any:
+        """Reject legacy planner/reflector sections with actionable error (strict rejection).
+
+        Legacy configs that also carry a nested ``retrieval.reranker`` block
+        get an equally actionable reranker error from ``_check_reranker_configured``.
+        """
+        if not isinstance(data, dict):
+            return data
+
+        removed = [k for k in ("planner", "reflector") if k in data]
+        if removed:
+            raise ValueError(
+                f"Config contains removed LLM section(s): {', '.join(removed)}. "
+                "All LLM roles (planning/generation/reflection) now share the "
+                "single 'generator' section. Delete these blocks from config.json "
+                "and configure GENERATOR_* environment variables instead."
+            )
+        return data
+
+    generator: GeneratorConfig
+
+    embedder: EmbedderConfig
+
+    # Reranker: TEI-backed cross-encoder connection and post-fusion slug-cut settings.
+    reranker: RerankerConfig = Field(
+        default_factory=lambda: RerankerConfig(
+            config=RerankerInnerConfig(base_url="http://pattern-tei-rerank:8080"),
+            rerank_top_n=10,
+        )
+    )
+
+    # Retrieval tuning: hybrid BM25 + dense fusion parameters.
+    retrieval: RetrievalConfig | None = None
+
+    # Pattern directory: PatternLoader reads *-pattern.json files from here.
+    # Default: ~/.config/agent-pattern-mcp/pattern
+    pattern_directory: str = "~/.config/agent-pattern-mcp/pattern"
+
+    # CPARA-16: Logging level (DEBUG|INFO|WARNING|ERROR|CRITICAL)
+    logging_level: str = "INFO"
+
+    # CPARA-17: Logging format (json|text)
+    logging_format: str = "json"
+
+    # Log level applied to the LiteLLM SDK and its transport loggers (litellm,
+    # LiteLLM, httpcore, httpx, openai, aiosqlite, asyncio) so DEBUG-level root
+    # operation does not flood the log with prompt bodies and HTTP frames.
+    litellm_log_level: str = "WARNING"
+
+    # Validation: self-healing retry loop settings for LLM structured generation
+    validation: ValidationConfig = Field(default_factory=lambda: ValidationConfig())
+
+    @model_validator(mode="after")
+    def _check_fusion_floor_scale(self) -> "ServerConfig":
+        """Defense-in-depth: a min_fusion_score above the blend maximum
+        guarantees 100% fallback to react.
+
+        With the slug-cut strategy locked to the Vespa-style reciprocal-
+        rank blend ``RR(fused_rank) + RR(ce_rank)`` (max 2/60), a
+        ``min_fusion_score`` greater than ``RANK_FUSION_BLEND_MAX`` cannot
+        ever be satisfied.  The field validator (``le=...``) catches the
+        common case; this catches cases where the operator sets an
+        out-of-range floor through a config.json that survived the
+        pydantic fail-fast path (e.g. when an older config file with a
+        stale 0.25 floor loads).
+        """
+        effective_floor = self.retrieval.min_fusion_score if self.retrieval else 0.0
+        if effective_floor > RANK_FUSION_BLEND_MAX:
+            raise ValueError(
+                f"retrieval.min_fusion_score ({effective_floor}) exceeds the "
+                f"theoretical maximum blend value "
+                f"({RANK_FUSION_BLEND_MAX:.4f}); every query would fall back to "
+                "react. Lower the floor to 0.0 (or ≤ 0.033)."
+            )
+        return self
+
+    # Heartbeat settings for long-running tools
+    tasks: TasksConfig = Field(default_factory=lambda: TasksConfig())
+
+    # Reasoning MCP integration: shannonthinking + code-reasoning scratchpads
+    reasoning: ReasoningConfig = Field(default_factory=lambda: ReasoningConfig())
+
+    # Transport mode: "stdio" for local, "streamable-http" for HTTP
+    transport: str = "streamable-http"
+
+    # Server bind host for HTTP transport
+    host: str = "0.0.0.0"
+
+    # Server bind port for HTTP transport
+    port: int = 8051
+
+    @field_validator("litellm_log_level")
+    @classmethod
+    def _validate_litellm_log_level(cls, v: str) -> str:
+        valid = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        v_up = v.upper().strip()
+        if v_up not in valid:
+            raise ValueError(
+                f"litellm_log_level must be one of {sorted(valid)}, got {v!r}"
+            )
+        return v_up
+
+    @model_validator(mode="after")
+    def _check_reranker_configured(self) -> "ServerConfig":
+        if (
+            self.reranker is None
+            or self.reranker.config is None
+            or not self.reranker.config.base_url.strip()
+        ):
+            raise ValueError(
+                "Reranking is mandatory; `reranker.config.base_url` "
+                "must be a non-empty URL. Set RERANKER_BASE_URL and ensure the "
+                "deployed config.json contains the `reranker` block "
+                "(an outdated config file copied from an older image may omit it)."
+            )
+        return self
+
+
+class ConfigManager:
+    """
+    Configuration Manager for loading JSON config with env-var expansion.
+
+    # FR-14: load_config function accepts optional config_path parameter
+
+    # IC-7: load_config function SHALL accept optional config_path parameter
+    """
+
+    # FR-271/IC-43: Default config path is ~/.config/agent-pattern-mcp/config.json
+    DEFAULT_CONFIG_PATH: str = "~/.config/agent-pattern-mcp/config.json"
+
+    # Class variable for caching loaded configuration
+    _config: ClassVar[dict[str, Any] | None] = None
+
+    # Track which path was used for caching
+    _config_path: ClassVar[str | None] = None
+
+    @classmethod
+    def load_config(cls, config_path: str | None = None) -> dict[str, Any]:
+        """
+        Load configuration from JSON file with {env:VAR:-default} expansion.
+
+        # FR-14: The system SHALL provide a load_config function that accepts
+        an optional config_path parameter and loads configuration from JSON file
+        # FR-271: By default, the system SHALL look for config.json at ~/.config/agent-pattern-mcp/config.json
+        # FR-272: The system SHALL support a CONFIG_PATH environment variable
+
+        # IC-7: load_config function SHALL accept optional config_path parameter
+        # IC-43: By default, the system SHALL look for config.json at ~/.config/agent-pattern-mcp/config.json
+        # IC-44: The system SHALL support a CONFIG_PATH environment variable
+
+        Configuration path resolution order:
+        1. CONFIG_PATH environment variable (highest priority)
+        2. config_path parameter (if provided)
+        3. DEFAULT_CONFIG_PATH (~/.config/agent-pattern-mcp/config.json)
+
+        Environment variable expansion:
+        - {env:VAR}           → value of VAR from environ, or "" if unset
+        - {env:VAR:-default}  → value of VAR, or "default" if unset
+
+        # FR-15: The system SHALL verify the configuration file exists before attempting to read it
+        # and raise FileNotFoundError if the file does not exist
+        # IC-9: FileNotFoundError SHALL be raised if configuration file does not exist
+        # E-10: ERR_010 - Configuration file not found (HTTP 404, severity: critical)
+
+        Args:
+            config_path: Optional path to configuration file. If not provided,
+                        uses CONFIG_PATH env var or default path.
+
+        Returns:
+            dict: Parsed, expanded, and validated configuration dictionary.
+
+        Raises:
+            FileNotFoundError: If configuration file does not exist at path.
+            ValidationError: If configuration structure is invalid.
+        """
+        if cls._config is not None:
+            return cls._config
+
+        load_dotenv()
+
+        if os.environ.get("CONFIG_PATH"):
+            resolved_path = os.environ["CONFIG_PATH"]
+            logger.debug(f"Using CONFIG_PATH env var: {resolved_path}")
+        elif config_path:
+            resolved_path = config_path
+            logger.debug(f"Using config_path parameter: {resolved_path}")
+        else:
+            resolved_path = cls.DEFAULT_CONFIG_PATH
+            logger.debug(f"Using default config path: {resolved_path}")
+
+        expanded_path = os.path.expanduser(resolved_path)
+        abs_path = os.path.abspath(expanded_path)
+
+        if not os.path.exists(expanded_path):
+            logger.error(
+                "Configuration file not found",
+                extra={
+                    "config_path": abs_path,
+                    "error_code": ERROR_CONFIG_NOT_FOUND
+                }
+            )
+            raise FileNotFoundError(
+                f"Configuration file not found at path: {abs_path}"
+            )
+
+        try:
+            with open(expanded_path, encoding="utf-8") as f:
+                raw_config = json.load(f)
+        except json.JSONDecodeError as e:
+            logger.error(
+                "Invalid JSON in configuration file",
+                extra={
+                    "config_path": abs_path,
+                    "error_code": ERROR_INVALID_CONFIG,
+                    "json_error": str(e)
+                }
+            )
+            raise ValueError(f"Invalid JSON configuration: {e}")
+
+        expanded_config = expand_env_in_obj(raw_config)
+
+        try:
+            validated_config = ServerConfig.model_validate(expanded_config)
+        except ValidationError as e:
+            logger.error(
+                "Configuration structure invalid",
+                extra={
+                    "config_path": abs_path,
+                    "error_code": ERROR_INVALID_CONFIG,
+                    "validation_error": str(e)
+                }
+            )
+            raise
+
+        cls._config = validated_config.model_dump()
+        cls._config_path = abs_path
+
+        logger.info(
+            "Configuration loaded successfully",
+            extra={"config_path": cls._config_path}
+        )
+
+        return cls._config
+
+    @classmethod
+    def clear_cache(cls) -> None:
+        """
+        Clear the cached configuration.
+
+        Useful for testing or when configuration file changes.
+
+        Returns:
+            None
+        """
+        cls._config = None
+        cls._config_path = None
+        logger.debug("Configuration cache cleared")

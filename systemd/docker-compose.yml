@@ -1,0 +1,100 @@
+# Production Compose for systemd deployment.
+#
+# This file is a deployment variant of docker/docker-compose.yml:
+#   - No `build:` sections (images must be pre-built from the dev compose
+#     via `make docker-build-all` before enabling the service).
+#   - Absolute paths everywhere (no ${HOME}, no relative `build.context`).
+#   - The systemd unit injects COMPOSE_PROJECT_NAME=apmcp-systemd so this
+#     stack is distinct from the dev compose (different project label, no
+#     container_name collisions).
+#   - TEI sidecars are NOT defined here — they live in the shared
+#     `pattern-tei-infra` stack (~/Projekte/Python/tei-infra/).  This
+#     stack joins the `pattern-tei-shared` external network to reach them by DNS.
+#     Prerequisite: `systemctl enable --now pattern-tei-infra.service`.
+#
+# Installed at: /etc/agent-pattern-mcp/docker-compose.yml
+
+services:
+  agent-pattern-mcp:
+    image: ${MCP_IMAGE:-agent-pattern-mcp:latest}
+    container_name: agent-pattern-mcp
+    networks: [pattern-tei-shared]
+    environment:
+      - CONFIG_PATH=/app/config/config.json
+
+      - GENERATOR_PROVIDER=minimax
+      - GENERATOR_MODEL=minimax/MiniMax-M2.7
+      - GENERATOR_BASE_URL=https://api.minimax.io/v1
+      - GENERATOR_API_KEY=${MINIMAXAI_API_KEY}
+      - GENERATOR_TEMPERATURE=0.1
+      - GENERATOR_TOP_P=1.0
+      - GENERATOR_TOP_K=20
+
+      - EMBEDDER_PROVIDER=tei
+      - EMBEDDER_BASE_URL=http://pattern-tei-embed:8080/v1
+      - EMBEDDER_BATCH_SIZE=8
+      - EMBEDDER_API_KEY=not-needed
+
+      - PATTERN_DIRECTORY=./pattern
+
+      - RETRIEVAL_BM25_TOP_K=20
+      - RETRIEVAL_DENSE_TOP_K=20
+      - RETRIEVAL_TOP_K_PATTERNS=5
+      - RETRIEVAL_DENSE_WEIGHT=${RETRIEVAL_DENSE_WEIGHT:-0.7}
+      - RETRIEVAL_BM25_WEIGHT=${RETRIEVAL_BM25_WEIGHT:-0.3}
+      - RETRIEVAL_MIN_FUSION_SCORE=0.015
+      - RETRIEVAL_RERANK_TOP_N=10
+      # The deployed model emits JS-style unquoted keys in the free-form
+      # input_schema/output_schema dict fields, which fails JSON parsing
+      # (json_invalid). The lean wire schema omits the top-level contract
+      # lists entirely; agents keep their tool-name lists. Set false to
+      # restore full contract output once the model behaves.
+      - RETRIEVAL_USE_LEAN_WIRE_SCHEMA=true
+      - RETRIEVAL_TOPOLOGY_SCORE_THRESHOLD=50.0
+      - RETRIEVAL_ANALYSIS_BLEND_WEIGHT=0.7
+      - RETRIEVAL_FUSION_BLEND_WEIGHT=0.3
+      - RETRIEVAL_WEIGHT_SMOOTHING_ALPHA=0.7
+      - RETRIEVAL_VERBOSE_TIMING=false
+
+      - RERANKER_BASE_URL=http://pattern-tei-rerank:8080
+      - RERANKER_TIMEOUT=30
+
+      # Server-side reasoning MCPs (Plan v5) — embedded in the image at
+      # build time; defaults below. Override commands as JSON lists to point
+      # elsewhere (e.g. npx) or set REASONING_ENABLED=false to opt out.
+      - REASONING_ENABLED=true
+      - REASONING_SPAWN_TIMEOUT_SECONDS=10
+      - REASONING_STEP_TIMEOUT_SECONDS=20
+      - REASONING_MAX_TOTAL_STEPS=8
+      - REASONING_QUIET_STDERR=true
+      # Hardened (2dc664e): the server fails on startup when the reasoning
+      # tools are unreachable instead of continuing with degraded
+      # functionality. Set to false to restore degraded-startup behaviour.
+      - REASONING_FAIL_FAST=true
+
+      - TASKS_HEARTBEAT_ENABLED=true
+      - TASKS_HEARTBEAT_INTERVAL_SECONDS=30
+      - TRANSPORT=streamable-http
+      - HOST=0.0.0.0
+      - PORT=8051
+      - LOGGING_LEVEL=INFO
+      - LOGGING_FORMAT=json
+      - LITELLM_LOG_LEVEL=WARNING
+
+    depends_on: []
+
+    ports:
+      - "${MCP_HOST_PORT:-8051}:8051"
+    volumes:
+      - /etc/agent-pattern-mcp/config:/app/config
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "python", "-m", "src.main", "--health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  pattern-tei-shared:
+    external: true

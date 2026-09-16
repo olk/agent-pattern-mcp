@@ -1,0 +1,91 @@
+{
+  "name": "agentic-rag",
+  "category": "retrieval",
+  "topology": "single-agent-loop",
+  "context": "Research-grade retrieval where the query process itself is agentic: the agent plans searches, chooses sources, retrieves iteratively, reflects on gaps, and re-queries.",
+  "benefits": [
+    "Handles multi-hop and vague queries",
+    "Source-aware planning",
+    "Self-corrects retrieval",
+    "Synthesizes across sources"
+  ],
+  "tradeoffs": [
+    "Many LLM and retrieval rounds",
+    "High latency and cost",
+    "Implementation complexity"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 4,
+    "latency": 4,
+    "output_quality": 9,
+    "observability": 8,
+    "safety": 7,
+    "simplicity": 3
+  },
+  "suitable_domains": [
+    "rag-applications",
+    "research-reports",
+    "exploratory-research",
+    "complex-reasoning",
+    "multimodal",
+    "enterprise-search"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads"
+  ],
+  "use_cases": [
+    "Literature review",
+    "Market research",
+    "Technical due diligence",
+    "Multi-source fact checks"
+  ],
+  "avoid_when": [
+    "A simple lookup suffices",
+    "Budgets are tight",
+    "The agent has no retrieval tooling available"
+  ],
+  "component_types": [
+    "Query Planner",
+    "Source Router",
+    "Query Classifier",
+    "Iterative Retriever",
+    "Gap Reflector",
+    "Synthesizer"
+  ],
+  "technology_stack": [
+    "LlamaIndex agents",
+    "LangGraph",
+    "Search plus database tool mix"
+  ],
+  "anti_patterns": [
+    "One-shot retrieval labeled agentic",
+    "Unbounded re-query loops",
+    "Ignoring source credibility",
+    "Retrieval thrash (oscillating strategies)",
+    "Context window saturation"
+  ],
+  "migration_from": [
+    "naive-rag",
+    "storm"
+  ],
+  "migration_to": [
+    "graph-orchestration"
+  ],
+  "design_principles": [
+    "Plan queries before retrieving",
+    "Reflect on coverage gaps",
+    "Bound iterations"
+  ],
+  "best_practices": [
+    "Limit retrieval rounds to three or four",
+    "Score source credibility",
+    "Log the query plan",
+    "Use confidence threshold (0.75) for retrieval quality gating",
+    "Minimum improvement delta (0.08) for continuing iterations"
+  ],
+  "references": [
+    "Gao et al., Retrieval-Augmented Generation for Large Language Models: A Survey, 2024 — https://arxiv.org/abs/2312.10997"
+  ]
+}

@@ -1,0 +1,162 @@
+# Copyright (c) 2026 Oliver Kowalke
+# SPDX-License-Identifier: MIT
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+"""
+cancel_agent_design tool — cancel a running submit_agent_design_job job.
+
+Sets the job status to 'cancelled'. The background asyncio task checks
+is_cancelled() before each stage and exits promptly when it sees the flag.
+"""
+
+import asyncio
+import logging
+from typing import Annotated, Any
+
+from pydantic import Field
+
+from fastmcp import Context
+from fastmcp.exceptions import ToolError
+from fastmcp.tools import tool
+from mcp.types import ToolAnnotations
+
+from src.pipeline import CancellationToken
+from src.errors import JobStateError
+from src.tools.jobs import JobStatus, JobsStore
+
+logger = logging.getLogger(__name__)
+
+
+class CancelAgentDesignTool:
+    def __init__(
+        self,
+        *,
+        job_tasks: dict[str, tuple[asyncio.Task[None], CancellationToken]] | None = None,
+    ) -> None:
+        self._job_tasks: dict[str, tuple[asyncio.Task[None], CancellationToken]] = (
+            job_tasks if job_tasks is not None else {}
+        )
+
+    async def _terminal_race_response(
+        self,
+        store: JobsStore,
+        job_id: str,
+        fallback_status: str,
+        task: asyncio.Task[None] | None,
+    ) -> dict[str, Any]:
+        """W0-1: the guarded set_cancelled was rejected because the job went
+        terminal between the status check and the setter — report the honest
+        current status instead of a successful cancel."""
+        job_now = await store.get_job(job_id)
+        status_now = str(job_now["status"]) if job_now is not None else fallback_status
+        response: dict[str, Any] = {
+            "job_id": job_id,
+            "status": status_now,
+            "cancelled": False,
+            "message": f"Job is already {status_now}; cannot cancel.",
+        }
+        if task is not None:
+            response["task_was_running"] = not task.done()
+        return response
+
+    @tool(
+        name="cancel_agent_design",
+        description=(
+            "Cancel a running background agent system design job started via submit_agent_design_job. "
+            "The background task checks the cancellation flag between pipeline stages "
+            "and exits at the next stage boundary. Cancellation is best-effort and may "
+            "take up to one LLM call to take effect. Only use with a job_id from "
+            "submit_agent_design_job; jobs already completed, failed, or cancelled "
+            "cannot be cancelled again."
+        ),
+        tags={"agent", "design"},
+        annotations=ToolAnnotations(
+            title="Cancel Agent Design Job",
+            read_only_hint=False,
+            destructive_hint=True,
+            idempotent_hint=False,
+            open_world_hint=False,
+        ),
+    )
+    async def cancel(
+        self,
+        job_id: Annotated[str, Field(description="Job ID returned by submit_agent_design_job")],
+        ctx: Context | None = None,
+    ) -> dict[str, Any]:
+        store = await JobsStore.get_instance()
+        job = await store.get_job(job_id)
+
+        if job is None:
+            raise ToolError(f"ERR_404: Job {job_id!r} not found.")
+
+        status = job["status"]
+        if status in {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}:
+            return {
+                "job_id": job_id,
+                "status": status,
+                "cancelled": False,
+                "message": f"Job is already {status}; cannot cancel.",
+            }
+
+        entry = self._job_tasks.get(job_id)
+        if entry is None:
+            try:
+                await store.set_cancelled(job_id)
+            except JobStateError:
+                return await self._terminal_race_response(store, job_id, status, None)
+            logger.info("Job %s cancelled (no live task found — DB flag set only)", job_id)
+            return {
+                "job_id": job_id,
+                "status": JobStatus.CANCELLED,
+                "cancelled": True,
+                "task_was_running": False,
+                "message": (
+                    f"Job {job_id} marked as cancelled. "
+                    "No live asyncio.Task found (server restart? DB flag set only.)"
+                ),
+            }
+
+        task, token = entry
+        token.cancel()
+        task.cancel()
+
+        try:
+            await store.set_cancelled(job_id)
+        except JobStateError:
+            return await self._terminal_race_response(store, job_id, status, task)
+        logger.info("Job %s cancelled", job_id)
+
+        return {
+            "job_id": job_id,
+            "status": JobStatus.CANCELLED,
+            "cancelled": True,
+            "task_was_running": not task.done(),
+            "message": (
+                f"Job {job_id} cancelled. "
+                "The background task will exit at its next cancellation checkpoint."
+            ),
+        }
+
+
+def cancel_agent_design_tool(
+    *,
+    job_tasks: dict[str, tuple[asyncio.Task[None], CancellationToken]] | None = None,
+) -> CancelAgentDesignTool:
+    return CancelAgentDesignTool(job_tasks=job_tasks)

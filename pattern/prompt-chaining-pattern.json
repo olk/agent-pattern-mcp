@@ -1,0 +1,92 @@
+{
+  "name": "prompt-chaining",
+  "category": "planning",
+  "topology": "pipeline",
+  "context": "Fixed, well-understood workflows decomposed into sequential LLM steps, each transforming the previous output with a gate check before the next step runs.",
+  "benefits": [
+    "Simplest composable workflow",
+    "Debuggable per-step gates",
+    "Predictable cost",
+    "Easy stepwise improvement"
+  ],
+  "tradeoffs": [
+    "No adaptivity",
+    "Latency grows linearly",
+    "Breaks when input distribution shifts"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 8,
+    "latency": 5,
+    "output_quality": 7,
+    "observability": 9,
+    "safety": 7,
+    "simplicity": 10
+  },
+  "suitable_domains": [
+    "content-generation",
+    "code-generation",
+    "regulated-domains",
+    "education"
+  ],
+  "unsuitable_domains": [
+    "tool-use-tasks",
+    "exploratory-research"
+  ],
+  "use_cases": [
+    "Generate, grade, refine marketing copy",
+    "Extract, validate, format data",
+    "Outline, draft, edit an article",
+    "Translate then review"
+  ],
+  "avoid_when": [
+    "Steps are unknown at design time",
+    "Per-input branching is needed (use routing)",
+    "Steps must be executed conditionally based on intermediate output"
+  ],
+  "component_types": [
+    "Step Prompt (with model size specification)",
+    "Output Gate Validator",
+    "Context Pass-through (with schema definition)",
+    "Chain Handoff Spec"
+  ],
+  "technology_stack": [
+    "Any LLM API",
+    "LangChain LCEL",
+    "agent-patterns prompt overrides"
+  ],
+  "anti_patterns": [
+    "Skipping gate checks",
+    "One giant multi-responsibility prompt",
+    "No per-step evaluation"
+  ],
+  "migration_from": [
+    "chain-of-thought"
+  ],
+  "migration_to": [
+    "routing",
+    "plan-and-solve",
+    "evaluator-optimizer"
+  ],
+  "design_principles": [
+    "One responsibility per step",
+    "Gate every transition",
+    "Keep step contracts typed",
+    "Define explicit handoff schema per step boundary",
+    "Validate parsed output before passing to next step",
+    "Use model mixing: reasoning model for complex steps, cheap model for extraction"
+  ],
+  "best_practices": [
+    "Add an eval per step",
+    "Retry with feedback on gate failure",
+    "Cache stable intermediate results",
+    "Trace every hop: capture model, prompt id, input/output tokens, latency, cost",
+    "Use reasoning model only for steps requiring deep reasoning; cheap models for extraction/formatting",
+    "Split chain when: multiple reasoning modes needed, mid-workflow inspection required, different models/temps per stage"
+  ],
+  "references": [
+    "Wu et al., AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation, 2023 — https://arxiv.org/abs/2308.08155",
+    "Agent Patterns Catalog, Prompt Chaining pattern — https://www.agentpatternscatalog.org/patterns/prompt-chaining/",
+    "Anthropic, Building Effective Agents, 2024 — https://www.anthropic.com/engineering/building-effective-agents"
+  ]
+}

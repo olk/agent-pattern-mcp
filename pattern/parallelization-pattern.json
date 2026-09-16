@@ -1,0 +1,101 @@
+{
+  "name": "parallelization",
+  "category": "planning",
+  "topology": "parallel-fan-out",
+  "context": "Tasks where independent LLM calls can run concurrently to reduce wall-clock time, or where multiple independent attempts provide higher confidence through diversity. Useful when the task can be cleanly split into subtasks that do not depend on each other's outputs, or when the same task benefits from multiple independent perspectives.",
+  "benefits": [
+    "Reduces wall-clock latency by running independent calls concurrently",
+    "Catches outliers and errors through majority-voting across attempts",
+    "Enables focused, single-purpose prompts per worker for better quality",
+    "Scales throughput linearly with independent subtasks"
+  ],
+  "tradeoffs": [
+    "Adds coordination overhead for result aggregation",
+    "Redundant work when tasks share intermediate results",
+    "Increased total token cost vs. sequential single-pass when tasks overlap",
+    "Cannot handle inherently sequential dependencies"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 7,
+    "latency": 8,
+    "output_quality": 8,
+    "observability": 8,
+    "safety": 7,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "parallel-data-gathering",
+    "multi-agent-systems",
+    "content-generation",
+    "data-analysis",
+    "code-generation",
+    "latency-sensitive-tasks",
+    "document-processing",
+    "e-commerce",
+    "software-testing"
+  ],
+  "unsuitable_domains": [
+    "long-horizon-tasks",
+    "high-stakes-outputs"
+  ],
+  "use_cases": [
+    "Sectioning: parallel document processing where each section is independent",
+    "Sectioning: running guardrails on input while the main LLM processes content",
+    "Voting: multiple model instances reviewing the same code for different vulnerability classes",
+    "Voting: sentiment analysis with different perspectives to catch outliers"
+  ],
+  "avoid_when": [
+    "Subtasks have data dependencies requiring sequential execution",
+    "Cost is the primary constraint and quality tolerance is high",
+    "Task outputs are expensive to produce redundantly"
+  ],
+  "component_types": [
+    "Fan-Out Coordinator",
+    "Worker LLM",
+    "Result Aggregator",
+    "Voting Mechanism",
+    "Failure Handler",
+    "Dead Letter Queue",
+    "Retry Logic"
+  ],
+  "technology_stack": [
+    "asyncio.gather",
+    "asyncio.Semaphore",
+    "Promise.allSettled",
+    "LangGraph parallel nodes",
+    "Claude Agent SDK fan-out",
+    "CrewAI crew parallel",
+    "exponential-backoff with jitter"
+  ],
+  "anti_patterns": [
+    "Running all workers on the same input with identical prompts (no diversity gain)",
+    "Failing to handle worker timeouts gracefully",
+    "Aggregating results without checking for consensus",
+    "No result schema validation in aggregator",
+    "Shared output keys causing race conditions"
+  ],
+  "migration_from": [
+    "prompt-chaining"
+  ],
+  "migration_to": [
+    "llm-compiler"
+  ],
+  "design_principles": [
+    "Workers must be stateless — no shared mutable state between workers",
+    "Aggregation must be deterministic or use explicit voting logic",
+    "Fan-out is only worthwhile when wall-clock savings exceed coordination overhead"
+  ],
+  "best_practices": [
+    "Set explicit per-worker timeouts and aggregate partial results on timeout",
+    "Use diverse system prompts or model variants for voting to maximize coverage",
+    "Validate that tasks are truly independent before choosing this pattern",
+    "Use Promise.allSettled over Promise.all so one failure does not crash entire run",
+    "Use Semaphore sized to requests-per-minute with exponential backoff for 429s",
+    "Validate result schema in aggregator parent, not child workers",
+    "Cap parallel subagent spawns with concurrency limit; queue excess with backpressure"
+  ],
+  "references": [
+    "Anthropic, Building Effective Agents: Parallelization workflow, Dec 2024 — https://www.anthropic.com/engineering/building-effective-agents"
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "name": "self-discovery",
+  "category": "reasoning",
+  "topology": "plan-execute",
+  "context": "Novel problems where no single fixed reasoning strategy works; the agent discovers and composes its own reasoning structure from a catalogue of modules before solving.",
+  "benefits": [
+    "Adapts strategy per problem",
+    "Explicit two-phase structure (select then apply)",
+    "Outperforms fixed chains on diverse benchmarks",
+    "Remains a single-agent pattern",
+    "Discovered structures transfer across model families (10-40x cheaper than per-model ensembles)"
+  ],
+  "tradeoffs": [
+    "Extra selection phase adds cost",
+    "Module catalogue must be curated",
+    "Harder to debug than fixed chains",
+    "10-40x more efficient than CoT-Self-Consistency"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 6,
+    "latency": 6,
+    "output_quality": 8,
+    "observability": 7,
+    "safety": 5,
+    "simplicity": 7
+  },
+  "suitable_domains": [
+    "complex-reasoning",
+    "code-generation",
+    "data-analysis",
+    "research-reports",
+    "scientific-research"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads",
+    "conversational-assistants"
+  ],
+  "use_cases": [
+    "Olympiad-style math problems",
+    "Logic puzzles",
+    "Algorithm design",
+    "Comparative analysis"
+  ],
+  "avoid_when": [
+    "Task family is homogeneous (use a fixed chain)",
+    "Latency budget is tight",
+    "The task structure is known at design time and unlikely to change"
+  ],
+  "component_types": [
+    "Module Catalogue",
+    "Selector (SELECT meta-action)",
+    "Adapter (ADAPT meta-action)",
+    "Implementer (IMPLEMENT meta-action)",
+    "Structure Validator",
+    "Reasoning Executor",
+    "Answer Synthesizer"
+  ],
+  "technology_stack": [
+    "agent-patterns SelfDiscoveryAgent",
+    "LangGraph state graph",
+    "LiteLLM"
+  ],
+  "anti_patterns": [
+    "Unbounded module catalogue growth",
+    "Skipping the selection phase",
+    "Overlapping module purposes",
+    "No fallback when structure discovery produces invalid output"
+  ],
+  "migration_from": [
+    "chain-of-thought"
+  ],
+  "migration_to": [
+    "lats",
+    "plan-and-solve"
+  ],
+  "design_principles": [
+    "Separate strategy selection from execution",
+    "Keep modules orthogonal",
+    "Cache selected structures per task type"
+  ],
+  "best_practices": [
+    "Log which modules were chosen",
+    "Validate the structure before execution",
+    "Maintain 30-40 diverse reasoning modules for comprehensive coverage",
+    "Validate structure quality (87.5% accuracy means ~12.5% bad structures need catching)"
+  ],
+  "references": [
+    "Zhou et al., Self-Discover: Large Language Models Self-Compose Reasoning Structures, 2024 — https://arxiv.org/abs/2402.03620"
+  ]
+}

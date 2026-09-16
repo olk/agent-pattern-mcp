@@ -1,0 +1,82 @@
+{
+  "name": "self-rag",
+  "category": "retrieval",
+  "topology": "evaluator-loop",
+  "context": "Retrieval decisions made by the model itself: the agent reflects on whether retrieval is needed per claim, critiques retrieved passages, and cites what it used.",
+  "benefits": [
+    "Retrieves only when needed (cost)",
+    "Self-citation improves auditability",
+    "Adaptive per-segment retrieval"
+  ],
+  "tradeoffs": [
+    "Reflection tokens add overhead",
+    "Critique quality varies",
+    "Subtle implementation"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 7,
+    "latency": 6,
+    "output_quality": 8,
+    "observability": 8,
+    "safety": 8,
+    "simplicity": 5
+  },
+  "suitable_domains": [
+    "rag-applications",
+    "high-stakes-outputs",
+    "regulated-domains",
+    "legal-research"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "cost-sensitive-workloads"
+  ],
+  "use_cases": [
+    "Citation-required answers",
+    "Mixed parametric and retrieval question answering",
+    "Long-form grounded writing"
+  ],
+  "avoid_when": [
+    "Every claim needs retrieval (just retrieve always)",
+    "Latency budgets are tight"
+  ],
+  "component_types": [
+    "Retrieval Need Detector",
+    "Passage Critic",
+    "Citation Tracker",
+    "Reflection Tokens"
+  ],
+  "technology_stack": [
+    "Self-RAG-style pipelines",
+    "Prompted or fine-tuned critics",
+    "LlamaIndex"
+  ],
+  "anti_patterns": [
+    "Retrieving always or never",
+    "Citations that cannot be verified",
+    "Ignoring the critique downstream",
+    "Context overload from accumulating too much internal reasoning"
+  ],
+  "migration_from": [
+    "naive-rag"
+  ],
+  "migration_to": [
+    "corrective-rag",
+    "chain-of-verification"
+  ],
+  "design_principles": [
+    "Decide retrieval per claim",
+    "Critique support explicitly",
+    "Cite what you use"
+  ],
+  "best_practices": [
+    "Spot-check citations automatically",
+    "Calibrate the need detector",
+    "Log decisions per segment",
+    "Summarize or archive old reasoning steps; implement recency constraints"
+  ],
+  "references": [
+    "Asai et al., Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection, 2024 — https://arxiv.org/abs/2310.11511"
+  ]
+}

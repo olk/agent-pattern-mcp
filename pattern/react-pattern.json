@@ -1,0 +1,102 @@
+{
+  "name": "react",
+  "category": "tool_use",
+  "topology": "single-agent-loop",
+  "context": "Tasks requiring interleaved reasoning and external tool or API calls where each action depends on the previous observation.",
+  "benefits": [
+    "Dynamic tool selection per step",
+    "Grounds reasoning in fresh observations, reducing hallucination",
+    "Natural, inspectable reasoning trace",
+    "Simple to implement"
+  ],
+  "tradeoffs": [
+    "Sequential tool execution (no parallelism)",
+    "More LLM calls than plan-first patterns such as REWOO",
+    "Can loop without careful iteration control"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 6,
+    "latency": 5,
+    "output_quality": 8,
+    "observability": 9,
+    "safety": 6,
+    "simplicity": 9
+  },
+  "suitable_domains": [
+    "tool-use-tasks",
+    "api-automation",
+    "data-analysis",
+    "customer-support",
+    "autonomous-task-execution",
+    "database-operations",
+    "gui-computer-use"
+  ],
+  "unsuitable_domains": [
+    "cost-sensitive-workloads",
+    "parallel-data-gathering"
+  ],
+  "use_cases": [
+    "Weather and local events lookup",
+    "Stock price plus percent-change calculation",
+    "Literature search and summarization",
+    "CRM lookups during support chats"
+  ],
+  "avoid_when": [
+    "No tools needed",
+    "Parallel execution is more efficient",
+    "Cost is the primary concern"
+  ],
+  "component_types": [
+    "Thought Generator",
+    "Tool Selector",
+    "Tool Executor",
+    "Observation Buffer",
+    "Stopping Condition",
+    "Tool Timeout Handler",
+    "Observation Sanitizer"
+  ],
+  "technology_stack": [
+    "agent-patterns ReActAgent",
+    "LangGraph",
+    "OpenAI function calling",
+    "MCP tool servers",
+    "AsyncPostgresSaver",
+    "RedisSaver",
+    "LangSmith"
+  ],
+  "anti_patterns": [
+    "Unbounded iteration",
+    "Vague tool descriptions",
+    "Accumulating all observations in context forever",
+    "Trusting tool observations without sanitization (prompt injection vector)",
+    "No per-tool timeout definitions",
+    "Loading all tools into prompt when >10 tools (retrieval vector scoring preferred)"
+  ],
+  "migration_from": [
+    "prompt-chaining"
+  ],
+  "migration_to": [
+    "rewoo",
+    "llm-compiler",
+    "reflexion"
+  ],
+  "design_principles": [
+    "One thought, one action, one observation per step",
+    "Document tools for the model, not for humans",
+    "Enforce a hard iteration cap",
+    "Sanitize all tool observations before reasoning"
+  ],
+  "best_practices": [
+    "Cap iterations (e.g., 5)",
+    "Truncate stale observations",
+    "Provide structured tool schemas",
+    "Use return-focused tool docstrings (describe output, not just parameters)",
+    "Use tool retrieval for >10 tools (vector store selecting top 3-5 relevant per query)",
+    "Set per-tool timeouts (e.g., 5s search, 10s DB)",
+    "Sanitize all tool observations before reasoning"
+  ],
+  "references": [
+    "Yao et al., ReAct: Synergizing Reasoning and Acting in Language Models, 2023 — https://arxiv.org/abs/2210.03629"
+  ]
+}
