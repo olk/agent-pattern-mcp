@@ -1,8 +1,10 @@
 # agent-pattern-mcp
 
-MCP server that provides AI agent pattern expertise: generate, analyze, and evaluate agent system designs against a curated catalog of 61 agent patterns (ReAct, supervisor-worker, reflexion, self-RAG, LLMCompiler, and more).
+[![CI](https://img.shields.io/github/actions/workflow/status/olk/architecture-pattern-mcp/ci.yml?branch=main)](https://github.com/olk/architecture-pattern-mcp/actions)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Built with [FastMCP](https://gofastmcp.com), [LlamaIndex](https://llamaindex.ai) workflows, and hybrid BM25 + dense retrieval with mandatory TEI cross-encoder reranking.
+MCP server that provides AI agent pattern expertise: generate, analyze, and evaluate agent system designs against a curated catalog of 61 agent patterns (ReAct, supervisor-worker, reflexion, self-RAG, LLMCompiler, and more).
 
 ## Table of Contents
 

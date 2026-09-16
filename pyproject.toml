@@ -1,6 +1,6 @@
 [project]
 name = "agent-pattern-mcp"
-version = "1.0.0"
+version = "1.0.1"
 requires-python = ">=3.12"
 description = "MCP server providing AI agent pattern expertise: generate, analyze, and evaluate agent system designs"
 license = { text = "MIT" }
@@ -25,7 +25,7 @@ dependencies = [
     "llama-index-embeddings-litellm>=0.5.0,<0.6",
     "llama-index-retrievers-bm25>=0.7.1,<0.8",
     "pydantic>=2.12.0",
-    "python-dotenv>=1.0.0",
+    "python-dotenv>=1.0.1",
     "llama-index-postprocessor-tei-rerank>=0.5.0,<0.6",
     "faiss-cpu>=1.14.3",
     "llama-index-vector-stores-faiss>=0.7.0",
@@ -36,7 +36,7 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["hatchling>=1.0.0"]
+requires = ["hatchling>=1.0.1"]
 build-backend = "hatchling.build"
 
 [project.optional-dependencies]

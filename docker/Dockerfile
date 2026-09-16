@@ -118,7 +118,7 @@ CMD ["/app/.venv/bin/python", "-m", "src.main"]
 
 LABEL org.opencontainers.image.title="agent-pattern-mcp" \
       org.opencontainers.image.description="MCP server providing AI agent pattern expertise with embedded structured reasoning" \
-      org.opencontainers.image.version="1.0.0" \
+      org.opencontainers.image.version="1.0.1" \
       org.opencontainers.image.authors="Oliver Kowalke" \
       org.opencontainers.image.source="https://github.com/olk/agent-pattern-mcp" \
       org.opencontainers.image.licenses="MIT" \

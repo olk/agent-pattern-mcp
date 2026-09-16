@@ -774,8 +774,13 @@ class MCPAgentPatternServer:
                 "Must be one of: 'stdio', 'streamable-http'. "
                 "Note: 'sse' was deprecated in FastMCP 2.3 and is no longer supported."
             )
-        await self._mcp.run_async(
-            transport=transport,  # type: ignore[arg-type]
-            host=self._config.host,
-            port=self._config.port,
-        )
+        if transport == "stdio":
+            # stdio binds no socket: fastmcp forwards run_async kwargs to
+            # run_stdio_async(), which accepts neither host nor port.
+            await self._mcp.run_async(transport="stdio")
+        else:
+            await self._mcp.run_async(
+                transport=transport,  # type: ignore[arg-type]
+                host=self._config.host,
+                port=self._config.port,
+            )
