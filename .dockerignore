@@ -1,0 +1,15 @@
+.git
+.venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.mutants
+mutants
+tests
+verify
+docs
+examples
+systemd
+.github
+.skills
