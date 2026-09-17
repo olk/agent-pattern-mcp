@@ -122,4 +122,5 @@ LABEL org.opencontainers.image.title="agent-pattern-mcp" \
       org.opencontainers.image.authors="Oliver Kowalke" \
       org.opencontainers.image.source="https://github.com/olk/agent-pattern-mcp" \
       org.opencontainers.image.licenses="MIT" \
-      io.agent-pattern-mcp.reasoning-mcps="shannon,code-reasoning"
+      io.agent-pattern-mcp.reasoning-mcps="shannon,code-reasoning" \
+      io.modelcontextprotocol.server.name="io.github.olk/agent-pattern-mcp"
