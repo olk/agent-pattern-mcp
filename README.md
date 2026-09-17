@@ -255,7 +255,7 @@ See `config/config.json` for the full annotated example. Key sections:
 - **retrieval** — hybrid BM25 + dense fusion tuning: top-k caps, fusion mode (`simple` / `reciprocal_rerank`), reranker settings, quality thresholds, blend weights, topology score threshold.
 - **validation** — self-healing retry loop settings (max_retries, retry_on_fail).
 - **tasks** — heartbeat settings for long-running tools: `heartbeat_enabled` and `heartbeat_interval_seconds`.
-- **pattern_directory** — where `*-pattern.json` files are loaded from.
+- **pattern_directory** — where `*-pattern.json` files are loaded from. Defaults to `~/.config/agent-pattern-mcp/pattern` for local runs; the Docker image sets `PATTERN_DIRECTORY=/app/pattern`, the baked 61-pattern catalog.
 
 ### Generator LLM (LlamaIndex LiteLLM)
 

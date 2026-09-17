@@ -101,11 +101,17 @@ RUN node --version && \
     test -f /usr/local/lib/node_modules/@mettamatt/code-reasoning/dist/index.js && \
     echo "Reasoning MCPs embedded: shannon + code-reasoning"
 
+# PATTERN_DIRECTORY: the catalog is baked at /app/pattern (COPY above). Without
+# this the config.json default (~/.config/agent-pattern-mcp/pattern) resolves
+# under HOME=/home/mcpuser, which does not exist in the image: the server starts
+# with 0 patterns and, because an empty catalog skips retrieval warmup entirely,
+# it does so silently. Mirrors the server.json env default (/app/pattern).
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app/src" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    CONFIG_PATH=/app/config/config.json
+    CONFIG_PATH=/app/config/config.json \
+    PATTERN_DIRECTORY=/app/pattern
 
 USER 1000:1000
 

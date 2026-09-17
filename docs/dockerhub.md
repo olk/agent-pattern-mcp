@@ -381,6 +381,8 @@ chmod 600 .env
 |---|---|
 | `401 Unauthorized` from LLM | Check `GENERATOR_API_KEY` in `.env`; verify the key is active |
 | Tools not visible in the client | Verify the client URL matches `http://localhost:8061/mcp` (note the `/mcp` path); check `docker compose logs agent-pattern-mcp` |
+| Pattern catalog empty (`list_agent_patterns` returns nothing, log shows `Patterns directory does not exist`) | The image bakes the catalog at `/app/pattern` and sets `PATTERN_DIRECTORY` to it; if you override the variable, point it at a directory that actually contains `*-pattern.json` files (a bind mount must exist inside the container) |
+| Startup fails with `OpenAIException - Missing credentials` (not a generator problem) | The embedder client requires an API key even against keyless TEI — set `EMBEDDER_API_KEY=not-needed`. The compose quick start sets this; a bare `docker run` must pass it (`-e EMBEDDER_API_KEY=not-needed`) |
 | TEI connection errors / startup fails fast | Ensure both sidecar containers are healthy (`docker compose ps`); verify `pattern-tei-embed` and `pattern-tei-rerank` resolve on the shared network; override `EMBEDDER_BASE_URL` / `RERANKER_BASE_URL` if your network differs |
 | Startup exits with reasoning errors | The embedded reasoning MCPs could not be spawned; check `docker compose logs`, or set `REASONING_ENABLED=false` to run degraded |
 | Port 8061 already in use | `MCP_HOST_PORT=8062 docker compose up -d`, then update your client URL |
