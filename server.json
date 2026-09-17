@@ -7,11 +7,11 @@
     "url": "https://github.com/olk/agent-pattern-mcp",
     "source": "github"
   },
-  "version": "1.0.2",
+  "version": "1.0.3",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "docker.io/olkowa/agent-pattern-mcp:1.0.2",
+      "identifier": "docker.io/olkowa/agent-pattern-mcp:1.0.3",
       "transport": {
         "type": "stdio"
       },

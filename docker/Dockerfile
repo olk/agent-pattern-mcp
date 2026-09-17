@@ -124,7 +124,7 @@ CMD ["--transport", "streamable-http"]
 
 LABEL org.opencontainers.image.title="agent-pattern-mcp" \
       org.opencontainers.image.description="MCP server providing AI agent pattern expertise with embedded structured reasoning" \
-      org.opencontainers.image.version="1.0.2" \
+      org.opencontainers.image.version="1.0.3" \
       org.opencontainers.image.authors="Oliver Kowalke" \
       org.opencontainers.image.source="https://github.com/olk/agent-pattern-mcp" \
       org.opencontainers.image.licenses="MIT" \

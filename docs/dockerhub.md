@@ -190,7 +190,7 @@ run pulls ~2.2 GB of image layers (~5 GB on disk); the TEI embedder needs
 MCP server **up to ~40 s** after that. `docker compose ps` shows all three
 services `Up` / `healthy`.
 
-> **Reproducibility tip:** pin versions with `TAG=1.0.2` (MCP server) and
+> **Reproducibility tip:** pin versions with `TAG=1.0.3` (MCP server) and
 > `TEI_TAG=1.1.1` (sidecars). The heredoc reads `${TAG:-latest}` and
 > `${TEI_TAG:-latest}` so any tag on Docker Hub is honored.
 
@@ -362,7 +362,7 @@ docker compose logs -f agent-pattern-mcp
 docker compose down
 
 # Pin a specific version
-TAG=1.0.2 docker compose up -d
+TAG=1.0.3 docker compose up -d
 ```
 
 On Linux with a shared host, restrict your `.env` file:
