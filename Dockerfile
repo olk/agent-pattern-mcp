@@ -45,7 +45,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Source + pattern assets — copied after deps so a src/ edit does not bust
 # the dependency cache layer.
 COPY src/ ./src/
-COPY ./pattern/*.json ./pattern/
+COPY pattern/*.json ./pattern/
 COPY config/config.json ./config/config.json
 
 # ---- Reasoning MCPs build stage ---------------------------------------------

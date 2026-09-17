@@ -23,7 +23,7 @@ name: agent-pattern-mcp-dev
 services:
   agent-pattern-mcp:
     image: ${MCP_IMAGE:-agent-pattern-mcp:latest}
-    container_name: agent-pattern-mcp
+    container_name: agent-pattern-mcp-dev
     environment:
       - CONFIG_PATH=/app/config/config.json
 
