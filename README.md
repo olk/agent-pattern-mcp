@@ -1,8 +1,12 @@
+<!-- mcp-name: io.github.olk/agent-pattern-mcp -->
+
 # agent-pattern-mcp
 
-[![CI](https://img.shields.io/github/actions/workflow/status/olk/architecture-pattern-mcp/ci.yml?branch=main)](https://github.com/olk/architecture-pattern-mcp/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/olk/agent-pattern-mcp/ci.yml?branch=main)](https://github.com/olk/agent-pattern-mcp/actions)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![M8ven Live Monitored](https://m8ven.ai/badge/mcp/olk-mem0-mcp-3lk8pc)](https://m8ven.ai/mcp/olk-mem0-mcp-3lk8pc)
+[![M8ven Score](https://m8ven.ai/badge/mcp/olk/architecture-pattern-mcp)](https://m8ven.ai/mcp/olk/architecture-pattern-mcp)
 
 MCP server that provides AI agent pattern expertise: generate, analyze, and evaluate agent system designs against a curated catalog of 61 agent patterns (ReAct, supervisor-worker, reflexion, self-RAG, LLMCompiler, and more).
 
@@ -417,9 +421,7 @@ make client
 
 ## Verification Program
 
-The repo carries a layered verification program (ported from
-architecture-pattern-mcp; see [docs/verification.md](docs/verification.md) and
-[docs/testing-strategies.md](docs/testing-strategies.md)):
+The repo carries a layered verification program (see [docs/verification.md](docs/verification.md) and [docs/testing-strategies.md](docs/testing-strategies.md)):
 
 | Layer | What it proves | Entry point |
 |---|---|---|
