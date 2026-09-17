@@ -212,7 +212,7 @@ Each `pattern/*-pattern.json` file contains: `name`, `category`, `topology`, `co
 
 ```bash
 # Build the image
-docker build --target production -f docker/Dockerfile -t agent-pattern-mcp:latest .
+docker build --target production -f Dockerfile -t agent-pattern-mcp:latest .
 
 # Run with your API key
 docker run -p 8061:8051 --env-file .env agent-pattern-mcp:latest
