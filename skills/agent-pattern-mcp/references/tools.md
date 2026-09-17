@@ -1,289 +1,333 @@
-# Tool Reference
+# Tool reference — agent-pattern MCP server
 
-All nine tools exposed by the agent-pattern-mcp server. Parameter types are Pydantic-validated; descriptions are verbatim from the server's `inputSchema`.
+OMP-native reference for the `agent-pattern` server. The deadline policy that decides
+which entry point to use, and the domain/topology vocabulary, live in `SKILL.md`; this
+file carries the per-tool parameter and output detail.
 
----
+## How to call a tool
 
-## Group 1 — LLM Pipeline Tools
+```text
+write  xd://mcp__agent_pattern_<tool>     JSON args object → result
+read   xd://mcp__agent_pattern_<tool>     device doc + live input schema
+```
+
+- Device names come from the server name lowercased with `-` → `_`; `agent-pattern` owns `mcp__agent_pattern_*`.
+- Args and results are JSON. On a schema mismatch the error echoes the schema — fix the JSON and retry the same device.
+- Server-side failures surface as `MCP error: <message>` tool text; the codes below identify the class.
+- Every call is bounded by OMP's MCP deadline (`OMP_MCP_TIMEOUT_MS` → per-server `timeout` → 30 s). Measured against `http://localhost:8051/mcp` with the default deadline: the job-trio calls return in ≤ 50 ms, while a single LLM tool ran past the deadline and was aborted:
+
+```text
+MCP failure
+server: agent-pattern
+tool: analyze_agent_system
+transport: http
+stage: receive
+failure: timeout
+retryable: no
+message: Request timeout after 30000ms
+next: Check server health or increase the MCP timeout; the request outcome is unknown.
+```
+
+  A timeout does not prove the server stopped — the outcome is unknown, so raise `agent-pattern`'s `timeout` (or `OMP_MCP_TIMEOUT_MS`) before retrying any LLM tool.
+
+### Error codes
+
+| Code | Meaning | Tools |
+|------|---------|-------|
+| `ERR_001` | `requirements` / `criteria` / `domain` failed printable-text validation | analyze, generate, design, evaluate, submit |
+| `ERR_004` | supplied design lacks `overview` or `agents` | evaluate |
+| `ERR_009` | LLM provider error (credentials, quota, upstream failure) | analyze, generate, design, evaluate |
+| `ERR_012` | supplied design failed strict schema validation | evaluate |
+| `ERR_404` | unknown `job_id` | get_agent_design_status, cancel |
+
+## Group 1 — LLM pipeline tools
 
 ### `analyze_agent_system`
 
-Analyses requirements and domain → recommended topology, top-k patterns, quality-attribute weights, and matched domain slugs. Does NOT produce a full design.
+Derives topology + pattern recommendations. Does not produce a design.
 
-```python
-analyze_agent_system(
-    requirements: str,      # 1–100000 chars printable text
-    domain: str,            # 1–200 chars; e.g. "code-generation", "research-reports"
-) -> dict
+```ts
+{
+  requirements: string;  // 1-100000 chars, visible text
+  domain: string;        // 1-200 chars
+}
 ```
 
-**Key output fields:**
-- `recommended_topology`: AgentTopology value (e.g. `"hierarchical"`, `"single-agent-loop"`) — the topology of the top-scored pattern
-- `recommended_pattern_name`: name of the top-scored pattern that drove the recommendation (e.g. `"react"`)
-- `alternative_topologies`: runner-up topologies, deduplicated per topology; each entry is `{pattern_name, topology, score}`
-- `quality_metrics`: {reliability, cost_efficiency, latency, output_quality, observability, safety, simplicity} — weights 0–1
-- `matched_domains`: top BM25+FAISS retrieval results with fusion scores
+Latency: one LLM round trip; on this host it exceeded the default deadline (aborted at 30.04 s). Not idempotent.
 
-Long-running (LLM call). Not idempotent.
+Output (flat object):
 
----
+| Field | Content |
+|-------|---------|
+| `strengths`, `weaknesses`, `recommendations` | LLM assessment of the requirement set |
+| `recommended_topology` | `AgentTopology` value of the top-scored pattern |
+| `recommended_pattern_name` | pattern that drove the recommendation (`""` when nothing scored) |
+| `selected_patterns` | top-k patterns with their scores and metadata |
+| `quality_metrics` | `{reliability, cost_efficiency, latency, output_quality, observability, safety}`, each 0–10 |
+| `matched_domains` | top domain slugs with fusion scores |
+| `is_fallback` | `true` when no real domain match was found and `react` was substituted |
 
 ### `generate_agent_system`
 
-Generates a full agent system design using the specified topology and selected patterns. Requires a topology — use `analyze_agent_system` first to get recommendations, or pass `override_topology` to `design_agent_system` instead.
-
-```python
-generate_agent_system(
-    requirements: str,          # 1–100000 chars
-    topology: str,             # agent topology name, e.g. "hierarchical", "pipeline", "swarm"
-    domain: str,               # 1–200 chars
-    selected_patterns: list[str] | None = None,  # pattern names, e.g. ["react", "human-in-the-loop"]
-) -> dict
+```ts
+{
+  requirements: string;
+  topology: string;                 // AgentTopology value
+  domain: string;
+  selected_patterns?: string[] | null;  // exact pattern names, e.g. ["react", "human-in-the-loop"]
+}
 ```
 
-**Note:** `selected_patterns` is optional. When omitted the server auto-selects top-k patterns based on domain retrieval. Pass explicit pattern names to force inclusion of specific patterns (e.g. `["human-in-the-loop"]` for approval-gated workflows).
+Skips the analyse leg: use it when topology and patterns are already known. Omit
+`selected_patterns` to let domain retrieval pick them. Latency: one LLM round trip, with the
+same abort risk under the default deadline as `analyze_agent_system`. Not idempotent.
 
-**Key output fields:**
-- `design.overview.topology`: confirmed topology used
-- `design.agents`: list of {id, name, role, description, responsibilities, tools, memory, technology_stack}
-- `design.relationships`: list of {source, target, type, description}
-- `design.tool_contracts`, `design.shared_state_models`, `design.message_contracts`
-
-Long-running (LLM call). Not idempotent.
-
----
+Output: `design.overview.topology`, `design.agents[]`, `design.relationships[]`,
+`design.quality_attributes`, and the contract lists — see [Design dict shape](#design-dict-shape).
 
 ### `evaluate_agent_system`
 
-Scores an existing agent system design against specified criteria and domain via pattern benchmarking. Annotated `readOnlyHint=True` (server state is unchanged) but still triggers an LLM call and is long-running.
-
-```python
-evaluate_agent_system(
-    agent_system: dict,     # Agent system design as dictionary
-    criteria: str,           # 1–100000 chars; evaluation focus, e.g. "reliability, safety"
-    domain: str,            # 1–200 chars
-) -> dict
-```
-
-**Expected `agent_system` dict shape:**
-```python
+```ts
 {
-  "overview": {"topology": "...", "category": "...", "principles": [...], "constraints": [...]},
-  "agents": [{"id": "...", "name": "...", "role": "...", "description": "...",
-              "responsibilities": [...], "tools": [...], "memory": [...]}],
-  "relationships": [{"source": "...", "target": "...", "type": "...", "description": "..."}],
-  "quality_attributes": {"reliability": 8.0, "output_quality": 9.0, ...}
+  agent_system: Record<string, unknown>;  // design dict (see below)
+  criteria: string;                       // 1-100000 chars
+  domain: string;                         // 1-200 chars
 }
 ```
 
-**Key output fields:**
-- `evaluation.summary`: overall assessment
-- `evaluation.metrics`: per-attribute scores (each 1–10)
-- `evaluation.recommendations`: improvement suggestions grouped by quality attribute
-- `evaluation.risks`: identified risks with severity
+Read-only for server state, but still an LLM call — same abort risk under the default deadline
+as `analyze_agent_system`. Not idempotent.
 
-Long-running (LLM call). Not idempotent.
+Output is **flattened**, unlike the `evaluation` object inside `design_agent_system`:
 
----
+```ts
+{
+  summary: string;                 // "Overall score: 42.0/100"
+  metrics: Record<string, number>; // per-attribute score / 10 → 0-10 scale
+  recommendations: string[];       // flattened from the per-area map
+}
+```
+
+Input requirements: the dict must pass strict validation — `overview` with a valid
+`AgentTopology` value and at least one agent with a kebab-case `id`
+(`^[a-z][a-z0-9_-]*$`); otherwise `ERR_012` / `ERR_004`.
+
+Minimum viable input:
+
+```json
+{
+  "overview": {"topology": "hierarchical", "category": "multi_agent", "principles": ["single-responsibility-agents"]},
+  "agents": [
+    {"id": "planner", "name": "PlannerAgent", "role": "planner",
+     "description": "Decomposes the goal into a task plan",
+     "responsibilities": ["task decomposition"], "tools": [], "memory": ["task_state"]},
+    {"id": "executor", "name": "ExecutorAgent", "role": "executor",
+     "description": "Executes plan steps with tool calls",
+     "responsibilities": ["tool invocation"], "tools": ["web_search"], "memory": ["conversation_history"]}
+  ],
+  "relationships": [
+    {"source": "planner", "target": "executor", "type": "handoff", "description": "Dispatches planned steps"}
+  ]
+}
+```
 
 ### `design_agent_system`
 
-Full pipeline: `analyze_agent_system` → `generate_agent_system` → `evaluate_agent_system` → up to 2 automatic retries if quality < 50. Returns both the design and its evaluation in one call.
+Full pipeline in one call: analyse → generate → evaluate → refine.
 
-```python
-design_agent_system(
-    requirements: str,                          # 1–100000 chars
-    domain: str,                               # 1–200 chars
-    override_topology: str | None = None,         # force a specific topology
-) -> dict
+```ts
+{
+  requirements: string;
+  domain: string;
+  override_topology?: string | null;  // must be an AgentTopology value, else ERR_001
+}
 ```
 
-**Use this unless** your client has a hard 60-second timeout** (Claude Desktop, Cursor, TS-SDK agents) — in those cases use the job trio instead.
+Latency 5–10 minutes → it aborts under OMP's default 30 s deadline. Use the job trio,
+or raise the server timeout first (see `SKILL.md`).
 
-**Key output fields (from `DesignAgentSystemOutput`):**
-- `design`: full agent-system dict (overview, agents, relationships, contracts)
-- `evaluation`: evaluation dict (summary, metrics, recommendations, risks)
-- `attempts`: number of generate attempts made (1 = succeeded first try; >1 = retry succeeded)
-- `final_topology`: confirmed topology (AgentTopology value)
-- `final_pattern_name`: name of the top-scored pattern matching `final_topology` (`""` when the topology was overridden or no patterns were scored)
-- `quality_metrics`: analysis-stage quality attribute weights
-- `final_quality_score`: 0–100 overall quality score after best attempt
-- `matched_domains`: top matched domain slugs with fusion scores
-- `is_fallback`: True when no real pattern candidates matched and the fallback was used
-- `alternative_topologies`: runner-up topologies, deduplicated per topology; each entry is `{pattern_name, topology, score}`
+Output (same schema as the job's `result`):
 
-`override_topology` is strictly validated against the `AgentTopology` enum (`evaluator-loop`, `graph-orchestrated`, `hierarchical`, `parallel-fan-out`, `pipeline`, `plan-execute`, `single-agent-loop`, `swarm`); any other value is rejected with `ERR_001`.
+| Field | Content |
+|-------|---------|
+| `design` | full design dict |
+| `evaluation` | full `AgentSystemEvaluation` dict: `summary{reasoning, overall_score 0-100, strengths, weaknesses, critical_findings}`, `metrics[]{name, score 0-100, description, findings, recommendations}`, `risks`, `compliance`, `recommendations{area: [...]}`. |
+| `attempts` | generate attempts performed (1–3) |
+| `final_topology` | confirmed topology |
+| `final_pattern_name` | pattern matching `final_topology`; `""` when overridden or nothing scored |
+| `quality_metrics` | analysis-stage weights (0–10 per attribute) or `null` |
+| `final_quality_score` | 0–100 score of the best attempt |
+| `matched_domains` | retrieval slugs + fusion scores |
+| `is_fallback` | `true` when the `react` fallback was used |
+| `alternative_topologies` | `{pattern_name, topology, score}` runner-ups |
 
-**Retry logic:** if `final_quality_score < 50` after generation, the pipeline retries (up to 2 times). `attempts > 1` indicates a retry was needed — inspect `evaluation.recommendations` to understand what changed.
+Refinement loop: retries while the best `overall_score` stays below `min_quality_score`
+(default 50), up to `retrieval.max_tries` generate attempts (config default 2; the pipeline's
+own fallback is `DEFAULT_MAX_TRIES = 3`, and the config accepts 1–10).
 
-Long-running (5–10 min; 3–9 LLM round trips). Not idempotent.
-
----
-
-## Group 2 — Async Job Trio
-
-For clients with hard 60-second request timeouts (Claude Desktop, Cursor, TS-SDK agents). Returns `job_id` immediately; poll `get_agent_design_status` every 10–30 seconds.
+## Group 2 — async job trio
 
 ### `submit_agent_design_job`
 
-```python
-submit_agent_design_job(
-    requirements: str,              # 1–100000 chars
-    domain: str,                   # 1–200 chars
-    override_topology: str | None = None,
-) -> dict
+```ts
+{ requirements: string; domain: string; override_topology?: string | null; }
 ```
 
-Returns immediately:
-```python
-{
-    "job_id": "<uuid>",
-    "status": "pending",
-    "message": "Job <uuid> created. Poll get_agent_design_status('<uuid>') until status is 'completed', 'failed', or 'cancelled'."
-}
+Returns in ~50 ms (measured 0.05 s):
+
+```json
+{"job_id": "<uuid>", "status": "pending", "message": "Job <uuid> created. Poll get_agent_design_status('<uuid>') until status is 'completed', 'failed', or 'cancelled'."}
 ```
 
-Store the `job_id` — there is no `tasks/list` equivalent; the client owns the handle.
-
----
+Persist the `job_id`: the server has no job listing, so a lost id is unrecoverable.
 
 ### `get_agent_design_status`
 
-```python
-get_agent_design_status(
-    job_id: str,   # returned by submit_agent_design_job
-) -> dict
+```ts
+{ job_id: string; }
 ```
 
-**Status values (`JobStatus` enum):**
+Returns in ~40 ms (measured 0.04 s). Read-only and idempotent.
+
+```json
+{"job_id": "...", "status": "running", "message": "Job is actively running the design pipeline.", "created_at": "...", "updated_at": "..."}
+```
 
 | Status | Meaning |
 |--------|---------|
-| `pending` | Job queued, pipeline not yet started |
-| `running` | Pipeline active; wait and poll again |
-| `completed` | Done — full design is in `result` field |
-| `failed` | Pipeline error — `error` field contains message |
-| `cancelled` | Cancelled by `cancel_agent_design` |
-
-**Polling loop:**
-```python
-while True:
-    result = get_agent_design_status(job_id)
-    if result["status"] == "completed":
-        design = result["result"]["design"]
-        evaluation = result["result"]["evaluation"]
-        break
-    elif result["status"] in ("failed", "cancelled"):
-        handle_error(result)
-        break
-    sleep(15)  # poll every 10–30 s
-```
-
-Returns `{job_id, status, message, created_at, updated_at}` plus `result` when completed or `error` when failed.
-
----
+| `pending` | queued, pipeline not started (`"Job is queued, not yet started."`) |
+| `running` | pipeline active — poll again in 10–30 s |
+| `completed` | full design output in `result` (schema above) |
+| `failed` | `error` carries the failure message |
+| `cancelled` | cancelled via `cancel_agent_design` |
 
 ### `cancel_agent_design`
 
-Best-effort cancellation. Takes effect at the next pipeline stage boundary (may take up to one LLM call).
-
-```python
-cancel_agent_design(
-    job_id: str,   # returned by submit_agent_design_job
-) -> dict
+```ts
+{ job_id: string; }
 ```
 
-Returns `{cancelled: bool, status: <current status>}`.
-Cannot cancel jobs that are already `completed`, `failed`, or `cancelled`.
+Returns in ~30 ms (measured 0.03 s):
 
----
+```json
+{"job_id": "...", "status": "cancelled", "cancelled": true, "task_was_running": true, "message": "Job ... cancelled. The background task will exit at its next cancellation checkpoint."}
+```
 
-## Group 3 — Read-Only Pattern Catalog
+Best-effort: the pipeline checks the flag at stage boundaries, so up to one LLM call may
+still complete. Jobs already `completed`, `failed`, or `cancelled` cannot be cancelled.
 
-Fast, idempotent. Safe for exploration before committing to an expensive pipeline call.
+## Group 3 — read-only catalog
 
 ### `list_agent_patterns`
 
-Returns a **minimal view** (name + one-line description) of all patterns, optionally filtered.
-
-```python
-list_agent_patterns(
-    category: str | None = None,   # reasoning, tool_use, planning, reflection,
-                                   # research_synthesis, multi_agent, memory, retrieval,
-                                   # safety_control, observability
-    domain: str | None = None,    # matches against pattern.suitable_domains
-) -> list[dict[str, str]]
+```ts
+{ category?: string | null; domain?: string | null; }
 ```
 
-**For full pattern JSON** use `get_agent_pattern(name=...)` — do not try to parse the minimal list entries.
+Returns `[{name, description}]` — a minimal view. Read-only; no idempotence hint.
 
-Valid `category` values: `reasoning`, `tool_use`, `planning`, `reflection`, `research_synthesis`, `multi_agent`, `memory`, `retrieval`, `safety_control`, `observability`.
+- `category`: `reasoning`, `tool_use`, `planning`, `reflection`, `research_synthesis`, `multi_agent`, `memory`, `retrieval`, `safety_control`, `observability` (unknown values return `[]`)
+- `domain`: matched against `pattern.suitable_domains`
 
----
+Caveat: the unfiltered list (61 patterns) exceeds OMP's device-output cap and is cut off
+near 10 KB — filter by `category` or `domain`, or read patterns one at a time.
 
 ### `get_agent_pattern`
 
-Returns the **full JSON** for one pattern by exact name.
-
-```python
-get_agent_pattern(
-    name: str,   # exact pattern name, e.g. "react", "supervisor-worker", "agentic-rag"
-) -> dict
+```ts
+{ name: string; }   // exact JSON name — 'react', 'supervisor-worker', 'self-rag'
 ```
 
-**Pattern JSON shape:**
-```python
+Full pattern JSON. Read-only; no idempotence hint. Unknown names raise `Pattern not found: <name>`.
+
+Pattern names carry **no** `-pattern` suffix; on disk the files are `<name>-pattern.json`.
+All 61: `agent-as-a-judge`, `agentic-rag`, `agent-resumption`, `agent-tracing-telemetry`,
+`camel-role-play`, `chain-of-thought`, `chain-of-verification`, `code-agent`,
+`context-compaction`, `control-flow-integrity`, `conversational-memory`, `corrective-rag`,
+`cross-reflection`, `decision-log`, `dual-llm-quarantine`, `episodic-memory`,
+`evaluator-optimizer`, `goal-creator-passive`, `goal-creator-proactive`,
+`graph-orchestration`, `graph-rag`, `guardrails`, `handoff`, `human-in-the-loop`,
+`hybrid-rerank`, `kill-switch`, `lats`, `least-privilege-tool-scoping`, `llm-compiler`,
+`memoization`, `metagpt-sop-pipeline`, `multi-agent-debate`, `naive-rag`,
+`orchestrator-workers`, `parallelization`, `plan-and-solve`, `procedural-memory`,
+`prompt-chaining`, `prompt-response-optimizer`, `query-rewriting`, `react`, `reflection`,
+`reflexion`, `rewoo`, `routing`, `scratchpad-note-taking`, `self-consistency`,
+`self-discovery`, `self-heal-loop`, `self-rag`, `semantic-memory`, `step-budget`, `storm`,
+`structured-output`, `subagent-isolation`, `supervisor-worker`, `swarm`, `tool-agent-registry`,
+`tree-of-thoughts`, `verifier-critic`, `voting-based-cooperation`.
+
+Pattern JSON keys: `name`, `category`, `topology`, `context`, `benefits`, `tradeoffs`,
+`quality_attributes` (0–10 per attribute, includes `simplicity`), `suitable_domains`,
+`unsuitable_domains`, `use_cases`, `avoid_when`, `component_types`, `technology_stack`,
+`anti_patterns`, `migration_from`, `migration_to`, `design_principles`,
+`best_practices`, `references`.
+
+## MCP resources
+
+The server advertises `pattern://`, `pattern://{name}`, `template://{name}`, `component://{type}`.
+OMP reads them with `read mcp://<resource-uri>` (e.g. `read mcp://pattern://`).
+
+On this host the sibling `architecture-pattern` server registers the same `pattern://{name}`
+scheme and OMP matched that sibling, so `read mcp://pattern://react` fails with
+`Pattern not found: react` while the tool route returns the pattern. Treat the tool route
+(`get_agent_pattern`, `list_agent_patterns`) as authoritative and use `mcp://` resource reads
+only when the target server is unambiguous.
+
+## Prompts
+
+Interactive OMP sessions expose each server prompt as a slash command
+`/agent-pattern:<prompt-name>` with `key=value` arguments (quote multi-word values):
+
+| Prompt | Arguments | Effect |
+|--------|-----------|--------|
+| `design_agent_system_workflow` | `requirements*`, `domain`, `topology` | drives the full design workflow |
+| `explore_pattern_catalog` | `domain`, `category` | catalog discovery with live pattern names |
+| `evaluate_my_agent_system` | `focus` | structures an existing design, then evaluates it |
+| `compare_agent_topologies` | `topology_a*`, `topology_b*`, `requirements*` | two designs side by side (~2× cost) |
+
+Non-interactive route: `write xd://mcp__agent_pattern_get_prompt` with
+`{"name": "<prompt>", "arguments": {...}}` → `{"messages": [{"role": "user", "content": "..."}]}`;
+`list_prompts` (no args) enumerates them. Inspect with `/mcp prompts` in the TUI.
+
+## Tool annotations
+
+| Tool | readOnlyHint | destructiveHint | idempotentHint |
+|------|--------------|-----------------|----------------|
+| `analyze_agent_system` | true | false | false |
+| `generate_agent_system` | true | false | false |
+| `evaluate_agent_system` | true | false | false |
+| `design_agent_system` | true | false | false |
+| `submit_agent_design_job` | false | false | false |
+| `get_agent_design_status` | true | false | **true** |
+| `cancel_agent_design` | false | **true** | false |
+| `list_agent_patterns` | true | false | — |
+| `get_agent_pattern` | true | false | — |
+
+`readOnlyHint: true` on the LLM tools means the server's own state is unchanged — they still
+invoke the LLM, cost money, and are not cached.
+
+## Design dict shape
+
+`design` in a pipeline result (and the accepted `agent_system` input, minus
+`best_practices`-style extras):
+
+```ts
 {
-    "category": "...",
-    "name": "...",
-    "context": "when this pattern applies",
-    "benefits": ["...", "..."],
-    "tradeoffs": ["...", "..."],
-    "quality_attributes": {
-        "reliability": 8, "cost_efficiency": 6, "latency": 5,
-        "output_quality": 8, "observability": 9, "safety": 6, "simplicity": 9
-    },
-    "suitable_domains": ["tool-use-tasks", "api-automation", ...],
-    "unsuitable_domains": ["..."],
-    "component_types": ["...", "..."],
-    "technology_stack": ["...", "..."],
-    "anti_patterns": ["...", "..."],
-    "migration_from": ["..."],
-    "migration_to": ["..."],
-    "design_principles": ["...", "..."],
-    "best_practices": ["...", "..."],
-    "topology": "single-agent-loop"
+  overview: {topology: AgentTopology, category: PatternCategory, principles: [string], constraints: [string]?, score?: number|null},
+  agents: [{
+    id, name, role, description, responsibilities: [string],
+    llm_role?: "planning"|"generation"|"reflection"|null,
+    tools: [string], memory: [string], prompt_strategy?: [string]|null,
+    technology_stack: [string], config_requirements: [string]
+  }],
+  relationships: [{source, target, type, description}],
+  quality_attributes: {[attribute]: number},
+  tool_contracts: [{tool_name, agent_id, description, input_schema?, output_schema?, auth_required}],
+  shared_state_models: [{name, fields: [{...}], description, is_shared}],
+  message_contracts: [{message_name, payload_schema, published_by, consumed_by: [string], description}]
 }
 ```
 
-Raises `ToolError` if the pattern name is not found. Use `list_agent_patterns` first to discover exact names.
-
----
-
-## MCP Resources
-
-| URI | What it returns |
-|-----|-----------------|
-| `pattern://{name}` | Full pattern JSON (same as `get_agent_pattern`) |
-| `template://{name}` | Agent system template by name |
-| `component://{type}` | Agent blueprint (e.g. `component://supervisor`) |
-
-Access via `mcp_read_resource(server="agent-pattern-mcp", uri="pattern://react-pattern")`.
-
----
-
-## Tool Annotations Reference
-
-| Tool | readOnlyHint | destructiveHint | idempotentHint |
-|------|-------------|----------------|-----------------|
-| `analyze_agent_system` | — | — | No |
-| `generate_agent_system` | — | — | No |
-| `evaluate_agent_system` | **True** | False | No |
-| `design_agent_system` | — | — | No |
-| `submit_agent_design_job` | — | — | N/A |
-| `get_agent_design_status` | True | False | **True** |
-| `cancel_agent_design` | False | **True** | No |
-| `list_agent_patterns` | True | False | **True** |
-| `get_agent_pattern` | True | False | **True** |
-
-`readOnlyHint=True` on `evaluate_agent_system` means the server's own state is unchanged (it benchmarks, not writes). It still invokes the LLM and is long-running.
+`category` must be one of the ten category slugs; `overview.topology` must be one of the
+eight `AgentTopology` values — both validated on input, so a hand-written design fails with
+`ERR_012` if they drift.
