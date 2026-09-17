@@ -34,10 +34,13 @@ MCP server that provides AI agent pattern expertise: generate, analyze, and eval
 # 1. Clone
 git clone https://github.com/olk/agent-pattern-mcp.git && cd agent-pattern-mcp
 
-# 2. Add your API key
-echo 'GENERATOR_API_KEY=sk-...' >> .env
+# 2. Add your API key (the dev compose pins GENERATOR_PROVIDER=minimax and
+#    loads docker/.env — not the repo-root .env)
+echo 'MINIMAXAI_API_KEY=sk-...' > docker/.env
 
-# 3. Start (Docker builds + starts everything)
+# 3. Build the images once (TEI model weights are baked in at build time,
+#    ~5 GB download on the first run), then start the stack
+make docker-build-all
 make docker-up
 
 # 4. Demo
@@ -410,8 +413,8 @@ cancel_agent_design(job_id)                                      → {cancelled,
 The example client in `examples/agent_client.py` is a **direct Python HTTP client** — it is not an MCP agent. It calls the server over HTTP without any MCP SDK, and therefore has **no client-side idle timeout**. It makes a single blocking request and waits for the full response, regardless of how long it takes.
 
 ```bash
-# Start the server (from project root)
-docker compose -f docker/docker-compose.yml up --build
+# Start the server (from project root; builds first if images are missing)
+make docker-build-all && make docker-up
 
 # In another terminal, run the example client
 make client

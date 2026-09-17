@@ -81,8 +81,18 @@
 # the image at build time and served with `HF_HUB_OFFLINE=1` in
 # docker-compose.yaml.
 #
-# NOTE: CMD must be in JSON exec form (not shell form) so that the args
-# are appended to the entrypoint instead of being wrapped in `/bin/sh -c`.
+# NOTE: CMD must be JSON exec form on a SINGLE line. The base image's
+# ENTRYPOINT is `text-embeddings-router`, and BuildKit only appends args to
+# that entrypoint when the instruction parses as JSON — any `$VAR` or `$(...)`
+# in the array (and a multi-line array) drops JSON detection, the whole array
+# text becomes a shell-form command, and the router exits with
+# `error: unexpected argument '/bin/sh' found` on every restart.
+#
+# The array carries only values intrinsic to this image (model path, pooling,
+# dtype). Everything tunable stays in the ENV block above: TEI binds those
+# options to the same-named environment variables (clap `[env: ...]`), and an
+# explicit CLI flag would shadow the env binding, so `docker-compose
+# environment:` / `docker run -e` overrides must NOT be repeated here.
 
 # Stage 1: Download the Qwen3-Embedding-0.6B ONNX weights.
 # The TEI runtime image is a pure Rust binary with no Python, so we use
@@ -142,13 +152,4 @@ ENV MAX_CONCURRENT_REQUESTS=32 \
     HOSTNAME=0.0.0.0 \
     PORT=8080
 
-CMD ["--model-id", "/data/qwen3-embedding-0.6b", \
-     "--hostname", "${HOSTNAME}", \
-     "--port", "${PORT}", \
-     "--pooling", "last-token", \
-     "--max-concurrent-requests", "${MAX_CONCURRENT_REQUESTS}", \
-     "--max-batch-tokens", "${MAX_BATCH_TOKENS}", \
-     "--max-client-batch-size", "${MAX_CLIENT_BATCH_SIZE}", \
-     "--dtype", "float32", \
-     $(if [ "$AUTO_TRUNCATE" = "true" ]; then echo "--auto-truncate"; fi), \
-     "--prometheus-port", "${PROMETHEUS_PORT}"]
+CMD ["--model-id", "/data/qwen3-embedding-0.6b", "--pooling", "last-token", "--dtype", "float32"]

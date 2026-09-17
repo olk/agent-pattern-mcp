@@ -2,17 +2,21 @@
 #
 # Dev variant (distinct from the systemd/production stack at
 # systemd/docker-compose.yml and /etc/agent-pattern-mcp/):
-#   - Has `build:` sections — builds images from source on `make docker-up --build`.
+#   - Runs prebuilt local images — there are NO `build:` sections here, so
+#     `up --build` rebuilds nothing. Build first with `make docker-build-all`
+#     (re-tags `:latest`, which is what this file references).
 #   - Uses service DNS (pattern-tei / pattern-tei-rerank) — no network_mode needed.
-#   - Config is read from ${HOME}/.config/agent-pattern-mcp/ (mounted at /app/config).
+#   - Config is read from ../config/config.json (repo copy, mounted at /app/config).
 #   - TEI sidecars use unique container names (agent-pattern-tei*) so the dev
 #     stack can run concurrently with the systemd stack and/or the shared
 #     tei-infra stack without container-name conflicts.
 #   - Default host port is 8061 (systemd uses 8051) so dev and prod can coexist.
 #
 # Usage:
-#   cp docker/.env.docker docker/.env   # fill in MINIMAXAI_API_KEY first
-#   make docker-up                      # or: docker compose -f docker/docker-compose.yml up -d --build
+#   export MINIMAXAI_API_KEY=sk-...    # or put it in docker/.env (gitignored —
+#                                      # compose auto-loads the .env next to this
+#                                      # file; the repo-root .env is NOT read)
+#   make docker-up                     # or: docker compose -f docker/docker-compose.yml up -d
 
 name: agent-pattern-mcp-dev
 

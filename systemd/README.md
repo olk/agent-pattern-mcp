@@ -9,7 +9,7 @@ This directory ships **two compose files** with different purposes:
 
 | File | Purpose |
 |---|---|
-| `docker/docker-compose.yml` (repo root) | **Development**. Has `build:` sections, uses `${HOME}` for the config volume, designed for `make docker-up` / `make docker-down`. |
+| `docker/docker-compose.yml` (repo root) | **Development**. Prebuilt local images (no `build:` sections), mounts the repo's `config/`, designed for `make docker-up` / `make docker-down`. |
 | `systemd/docker-compose.yml` (this dir) | **Production / systemd**. No `build:` (images must be pre-built), uses absolute paths, designed for `systemctl enable`. |
 
 Both describe the **MCP server** but differ in TEI handling: the systemd

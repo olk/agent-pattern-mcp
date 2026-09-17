@@ -60,10 +60,10 @@ ENV MAX_CONCURRENT_REQUESTS=64 \
     HOSTNAME=0.0.0.0 \
     PORT=8080
 
-CMD ["--model-id", "/data/reranker-model", \
-     "--hostname", "${HOSTNAME}", \
-     "--port", "${PORT}", \
-     "--max-concurrent-requests", "${MAX_CONCURRENT_REQUESTS}", \
-     "--max-client-batch-size", "${MAX_CLIENT_BATCH_SIZE}", \
-     $(if [ "$AUTO_TRUNCATE" = "true" ]; then echo "--auto-truncate"; fi), \
-     "--prometheus-port", "${PROMETHEUS_PORT}"]
+# CMD must be JSON exec form on a SINGLE line: the base image's ENTRYPOINT is
+# `text-embeddings-router`, and BuildKit only appends args to that entrypoint
+# when the instruction parses as JSON (a `$VAR`/`$(...)` in the array, or a
+# multi-line array, makes it shell form → `unexpected argument '/bin/sh'`).
+# Tunables stay in the ENV block above — TEI binds them to the same-named env
+# vars, and CLI flags would shadow those bindings.
+CMD ["--model-id", "/data/reranker-model"]
