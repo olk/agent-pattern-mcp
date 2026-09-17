@@ -5,8 +5,8 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/olk/agent-pattern-mcp/ci.yml?branch=main)](https://github.com/olk/agent-pattern-mcp/actions)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![M8ven Live Monitored](https://m8ven.ai/badge/mcp/olk-mem0-mcp-3lk8pc)](https://m8ven.ai/mcp/olk-mem0-mcp-3lk8pc)
-[![M8ven Score](https://m8ven.ai/badge/mcp/olk/architecture-pattern-mcp)](https://m8ven.ai/mcp/olk/architecture-pattern-mcp)
+[![M8ven Score](https://m8ven.ai/badge/mcp/olk/agent-pattern-mcp)](https://m8ven.ai/mcp/olk/agent-pattern-mcp)
+
 
 MCP server that provides AI agent pattern expertise: generate, analyze, and evaluate agent system designs against a curated catalog of 61 agent patterns (ReAct, supervisor-worker, reflexion, self-RAG, LLMCompiler, and more).
 
