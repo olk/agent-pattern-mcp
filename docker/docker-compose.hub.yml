@@ -6,7 +6,7 @@
 # RERANKER_BASE_URL (see the MCP service environment block below).
 #
 # Usage:
-#   TAG=1.0.1 docker compose -f docker-compose.hub.yml up -d   # pinned version
+#   TAG=1.0.2 docker compose -f docker-compose.hub.yml up -d   # pinned version
 #   docker compose -f docker-compose.hub.yml up -d            # latest
 #
 # Prerequisites:

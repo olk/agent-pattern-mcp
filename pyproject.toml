@@ -1,6 +1,6 @@
 [project]
 name = "agent-pattern-mcp"
-version = "1.0.1"
+version = "1.0.2"
 requires-python = ">=3.12"
 description = "MCP server providing AI agent pattern expertise: generate, analyze, and evaluate agent system designs"
 license = { text = "MIT" }

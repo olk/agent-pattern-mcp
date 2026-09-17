@@ -1,0 +1,102 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.olk/agent-pattern-mcp",
+  "title": "Agent Pattern MCP",
+  "description": "MCP server that provides AI agent pattern expertise for designing agent systems",
+  "repository": {
+    "url": "https://github.com/olk/agent-pattern-mcp",
+    "source": "github"
+  },
+  "version": "1.0.2",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "docker.io/olkowa/agent-pattern-mcp:1.0.2",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeHint": "docker",
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "--add-host",
+          "value": "host.docker.internal:host-gateway",
+          "description": "Makes a TEI embedder/reranker running on the Docker host reachable from the container (needed on Linux; already provided by Docker Desktop)."
+        }
+      ],
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "--transport"
+        },
+        {
+          "type": "positional",
+          "value": "stdio"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "GENERATOR_API_KEY",
+          "description": "API key for the generator LLM (LiteLLM provider).",
+          "format": "string",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "GENERATOR_PROVIDER",
+          "description": "LiteLLM provider prefix, e.g. openai, anthropic, openrouter, minimax.",
+          "format": "string",
+          "default": "openai",
+          "isRequired": false
+        },
+        {
+          "name": "GENERATOR_MODEL",
+          "description": "Model name, combined as <provider>/<model> via LiteLLM.",
+          "format": "string",
+          "default": "gpt-4o-mini",
+          "isRequired": false
+        },
+        {
+          "name": "GENERATOR_BASE_URL",
+          "description": "OpenAI-compatible base URL (LiteLLM api_base).",
+          "format": "string",
+          "isRequired": false
+        },
+        {
+          "name": "PATTERN_DIRECTORY",
+          "description": "Directory with *-pattern.json files. The image bakes the 61-pattern catalog at /app/pattern.",
+          "format": "string",
+          "default": "/app/pattern",
+          "isRequired": false
+        },
+        {
+          "name": "EMBEDDER_PROVIDER",
+          "description": "Embedding backend for pattern retrieval: tei, openai, ollama, vllm or hosted_vllm.",
+          "format": "string",
+          "default": "tei",
+          "isRequired": false
+        },
+        {
+          "name": "EMBEDDER_BASE_URL",
+          "description": "Embedder endpoint. For TEI sidecars on the host use http://host.docker.internal:8080/v1 (add --add-host=host.docker.internal:host-gateway on Linux).",
+          "format": "string",
+          "isRequired": false
+        },
+        {
+          "name": "EMBEDDER_API_KEY",
+          "description": "API key for the embedder. Required for startup even with keyless TEI; use 'not-needed' there.",
+          "format": "string",
+          "default": "not-needed",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "RERANKER_BASE_URL",
+          "description": "TEI cross-encoder reranker endpoint used during pattern retrieval.",
+          "format": "string",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}
