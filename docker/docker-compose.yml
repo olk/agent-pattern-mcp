@@ -105,7 +105,7 @@ services:
 
   pattern-tei-embed:
     image: ${TEI_IMAGE:-pattern-tei-embed:latest}
-    container_name: agent-pattern-tei
+    container_name: agent-pattern-tei-dev
     restart: unless-stopped
     environment:
       - HF_HUB_OFFLINE=1
@@ -123,7 +123,7 @@ services:
 
   pattern-tei-rerank:
     image: ${TEI_RERANK_IMAGE:-pattern-tei-rerank:latest}
-    container_name: agent-pattern-tei-rerank
+    container_name: agent-pattern-tei-rerank-dev
     restart: unless-stopped
     environment:
       - HF_HUB_OFFLINE=1
