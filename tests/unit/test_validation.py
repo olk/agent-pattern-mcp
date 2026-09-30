@@ -276,6 +276,99 @@ class TestValidateWithRetries:
         assert "Field required" in up
 
     @pytest.mark.asyncio
+    async def test_repair_prompt_demands_the_schema_function_call(self):
+        """A repair that only says "produce a response conforming to the
+        schema" re-triggers the text-JSON fault it is repairing (the model
+        answers with text, the transport discards it). The repair must ask
+        for the function call by name."""
+        recorded: list[str] = []
+
+        async def initial_caller() -> SimpleSchema:
+            raise ValidationError.from_exception_data(
+                "SimpleSchema",
+                [{"type": "missing", "loc": ("name",), "msg": "Field required", "input": {}}],
+            )
+
+        async def repair_caller(sp: str, up: str) -> SimpleSchema:
+            recorded.append(up)
+            return SimpleSchema(name="fixed", score=8.0)
+
+        await validate_with_retries(
+            initial_caller,
+            repair_caller,
+            SimpleSchema,
+            max_retries=1,
+            system_prompt="the system prompt",
+            user_prompt="the user prompt",
+        )
+
+        assert "calling the SimpleSchema function" in recorded[0]
+        assert "its parameters ARE the response schema" in recorded[0]
+
+    @pytest.mark.asyncio
+    async def test_unparseable_call_repair_demands_valid_complete_arguments(self):
+        """A tool call whose arguments were empty or unparseable (the shape a
+        prose-first thinking model produces) needs its own correction: re-emit
+        the whole object, keep prose fields concise, do not answer in text."""
+        recorded: list[str] = []
+
+        async def initial_caller() -> SimpleSchema:
+            raise LLMError(
+                provider="deepseek",
+                error="ERR_009",
+                provider_message=(
+                    "Structured output extraction failed: the LLM's tool call could not be "
+                    "parsed into SimpleSchema. Error: 1 validation error for SimpleSchema"
+                ),
+            )
+
+        async def repair_caller(sp: str, up: str) -> SimpleSchema:
+            recorded.append(up)
+            return SimpleSchema(name="fixed", score=8.0)
+
+        await validate_with_retries(
+            initial_caller,
+            repair_caller,
+            SimpleSchema,
+            max_retries=1,
+            system_prompt="the system prompt",
+            user_prompt="the user prompt",
+        )
+
+        assert "empty or not valid JSON" in recorded[0]
+        assert "ONE call" in recorded[0]
+        assert "do not answer in text" in recorded[0]
+
+    @pytest.mark.asyncio
+    async def test_llm_error_repair_prompt_demands_the_schema_function_call(self):
+        """The provider-error branch (ERR_009 "Expected at least one tool
+        call") must also restate the function-call contract."""
+        recorded: list[str] = []
+
+        async def initial_caller() -> SimpleSchema:
+            raise LLMError(
+                provider="deepseek",
+                error="ERR_009",
+                provider_message="Expected at least one tool call, but got 0 tool calls.",
+            )
+
+        async def repair_caller(sp: str, up: str) -> SimpleSchema:
+            recorded.append(up)
+            return SimpleSchema(name="fixed", score=8.0)
+
+        await validate_with_retries(
+            initial_caller,
+            repair_caller,
+            SimpleSchema,
+            max_retries=1,
+            system_prompt="the system prompt",
+            user_prompt="the user prompt",
+        )
+
+        assert "calling the SimpleSchema function" in recorded[0]
+        assert "its parameters ARE the response schema" in recorded[0]
+
+    @pytest.mark.asyncio
     async def test_max_retries_default_is_3(self):
         """Default max_retries in validate_with_retries is 3."""
         import inspect

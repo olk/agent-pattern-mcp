@@ -32,6 +32,7 @@ Covers:
 
 import pytest
 
+from src.config import RetrievalConfig
 from src.pipeline import AgentPatternPipeline
 from src.prompts import REQUIREMENT_WEIGHTS_EXAMPLE_CONFLICT
 from src.reasoning.prompts import (
@@ -46,8 +47,15 @@ ALL_PHASES = ("analyze", "generate", "evaluate", "refine")
 
 
 def bare_pipeline() -> AgentPatternPipeline:
-    """Pipeline instance without running __init__ (prompt builders are pure)."""
-    return object.__new__(AgentPatternPipeline)
+    """Pipeline instance without running __init__ (prompt builders are pure).
+
+    ``_retrieval_config`` is the only attribute those builders read: the
+    GENERATE/REFINE output contracts name the response-schema function that
+    ``use_lean_wire_schema`` selects.
+    """
+    pipeline = object.__new__(AgentPatternPipeline)
+    pipeline._retrieval_config = RetrievalConfig()
+    return pipeline
 
 
 class TestDegradedContext:
@@ -186,7 +194,9 @@ class TestPipelineInjection:
             reasoning_context=render_degraded_context("evaluate"),
         )
         assert "<reasoning_context>" in prompt
-        assert prompt.index("</reasoning_context>") < prompt.index("Think step-by-step")
+        # anchor: the block lands before the phase instruction (whose wording
+        # now routes the analysis into summary.reasoning, not the reply text)
+        assert prompt.index("</reasoning_context>") < prompt.index("Work through the evaluation")
 
     def test_refine_prompt_injects_block_before_preserve_contract(self):
         from src.schemas.evaluation import AgentSystemEvaluation, EvaluationSummary

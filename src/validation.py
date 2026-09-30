@@ -242,6 +242,24 @@ def repair_json_validation_error(
     return repaired
 
 
+def _unusable_call_correction(provider_message: str) -> str:
+    """Correction sentence for a provider error, chosen by failure shape.
+
+    Two shapes need different corrections and neither error explains itself:
+    ``could not be parsed into X`` means the tool call arrived with empty or
+    malformed arguments (a thinking model that answered in prose, or JSON
+    slippage on a very large payload); anything else is a transport fault.
+    """
+    if "could not be parsed into" in provider_message:
+        return (
+            "The previous call reached the function but its arguments were empty or "
+            "not valid JSON. Emit the complete object again, in ONE call, with every "
+            "field present. Keep prose fields concise so the whole object stays "
+            "well-formed — do not abbreviate, and do not answer in text."
+        )
+    return "A reply without the function call is rejected."
+
+
 async def validate_with_retries(  # noqa: UP047
     initial_caller: Callable[[], Awaitable[T]],
     repair_caller: Callable[[str, str], Awaitable[T]],
@@ -296,16 +314,18 @@ async def validate_with_retries(  # noqa: UP047
                 f"{user_prompt}\n\n"
                 "IMPORTANT: Your previous response failed validation.\n"
                 f"{errors_str}\n\n"
-                f"Please produce a new response that conforms exactly to the schema "
-                f"for {response_schema.__name__}. "
-                "Double-check every field before responding."
+                f"Deliver a corrected response by calling the {response_schema.__name__} "
+                "function: its parameters ARE the response schema. Do not print the JSON "
+                "in your reply text. Double-check every field before responding."
             )
         elif isinstance(original_error, LLMError):
             errors_str = f"LLM provider error: {original_error.provider_message}"
             repair_user_prompt = (
                 f"{user_prompt}\n\n"
                 f"IMPORTANT: previous LLM call failed with: {original_error.provider_message}\n"
-                f"Please produce a new response conforming to {response_schema.__name__}."
+                "Deliver a corrected response by calling the "
+                f"{response_schema.__name__} function: its parameters ARE the response "
+                f"schema. {_unusable_call_correction(original_error.provider_message)}"
             )
         else:
             raise original_error from None

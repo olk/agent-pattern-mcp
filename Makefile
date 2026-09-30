@@ -16,7 +16,8 @@
 	docker-build-all docker-publish docker-publish-tei \
 	docker-publish-all \
 	docker-up docker-down docker-logs docker-logs-follow \
-	docker-rm clean
+	docker-rm clean benchmark-selfcheck benchmark-offline benchmark-live \
+	benchmark-e2e benchmark-draft benchmark-compare benchmark-sidecars-up
 
 COMPOSE := docker compose -f docker/docker-compose.yml
 UV ?= uv
@@ -290,6 +291,91 @@ docker-logs-follow: ## Show and follow docker compose logs
 
 docker-rm: ## Remove Docker image
 	docker rmi $(DOCKER_IMAGE):$(DOCKER_TAG)
+
+##@ Benchmark (Stage-0 selection instrument)
+# The harness lives in tests/benchmark/harness/ (no pytest collection) and never edits src/.
+# Provider defaults: DeepSeek V4.1 Flash via its OpenAI-compatible endpoint (key from
+# DEEPSEEK_API_KEY in the environment). MiniMax M2.7 produced malformed-JSON generation faults
+# on the fat AgentSystemDesignResponse during live Stage-0 arms (2026-09-27), inflating exactly
+# the llm.* stage times this instrument measures. Any GENERATOR_* value already in the
+# environment wins; CONFIG_PATH pins the repo config (live wiring reads it exactly like
+# src/server.py does). docker/docker-compose.yml still wires the dev stack to MiniMax — align
+# it separately if desired.
+#
+# Reasoning servers: the config defaults resolve via REASONING_*_CMD, which point at the
+# Docker-embedded entry points that do not exist on a workstation, so the benchmark-live recipe
+# points them at the globally installed npm packages when present (make install-mcps). Without
+# them the pipeline degrades per call (visible as reasoning_health in the run manifest).
+# Discovery runs inside the recipe's shell, so no other make invocation pays for `npm root -g`.
+
+# Bench ports are overridable so a workstation where another stack already
+# publishes 18081/18082 (e.g. the architecture-pattern-mcp dev stack) can run
+# the bench sidecars elsewhere: make benchmark-sidecars-up BENCH_EMBED_PORT=28081
+# BENCH_RERANK_PORT=28082 — compose publishes there and the benchmark recipes
+# aim there. Defaults are unchanged.
+BENCH_EMBED_PORT   ?= 18081
+BENCH_RERANK_PORT  ?= 18082
+BENCH_EMBED_URL    ?= http://127.0.0.1:$(BENCH_EMBED_PORT)/v1
+BENCH_RERANK_URL   ?= http://127.0.0.1:$(BENCH_RERANK_PORT)
+BENCH_COMPOSE      := docker compose -f docker/docker-compose.yml -f docker/docker-compose.benchmark.yml
+# Shared run knobs: SPLIT (all|train|holdout), REPEAT, LOG_LEVEL, FAIL_FAST,
+# NO_WARMUP. The harness records every scenario failure and continues by
+# default — one provider fault must not burn a live arm; FAIL_FAST=1 restores
+# abort-on-first-failure (aborted.json, and compare then refuses the run).
+BENCH_COMMON_ARGS   := $(if $(SPLIT),--split $(SPLIT),) $(if $(LOG_LEVEL),--log-level $(LOG_LEVEL),) \
+	$(if $(FAIL_FAST),--fail-fast,)
+BENCH_RUN_ARGS      := $(if $(OUTPUT_ROOT),--output-root $(OUTPUT_ROOT),) \
+	$(if $(OUT),--out $(OUT),) $(if $(FORCE),--force,)
+
+benchmark-selfcheck: ## Run benchmark harness self-checks
+	$(UV) run python -m tests.benchmark.harness.selfcheck
+
+benchmark-offline: ## Offline scripted benchmark (LIMIT=n scenarios, FLIP=1 decoy arm, SPLIT=holdout)
+	$(UV) run python -m tests.benchmark.harness.main run --mode offline \
+		$(if $(LIMIT),--limit $(LIMIT)) $(if $(FLIP),--flip) $(if $(REPEAT),--repeat $(REPEAT),) \
+		$(BENCH_COMMON_ARGS)
+
+benchmark-live: ## Live in-process benchmark (LIMIT=n; sidecars up + MINIMAXAI_API_KEY; GENERATOR_PROVIDER=deepseek to switch; OUT=dir FORCE=1)
+	@sh -c 'root=$$(npm root -g 2>/dev/null); \
+		if [ -n "$$root" ] && [ -f "$$root/server-shannon-thinking/dist/index.js" ]; then \
+			export REASONING_SHANNONTHINKING_CMD="[\"node\", \"$$root/server-shannon-thinking/dist/index.js\"]"; \
+		fi; \
+		if [ -n "$$root" ] && [ -f "$$root/@mettamatt/code-reasoning/dist/index.js" ]; then \
+			export REASONING_CODE_REASONING_CMD="[\"node\", \"$$root/@mettamatt/code-reasoning/dist/index.js\"]"; \
+		fi; \
+		export CONFIG_PATH="$(CURDIR)/config/config.json"; \
+		export GENERATOR_PROVIDER="$${GENERATOR_PROVIDER:-minimax}"; \
+		case "$$GENERATOR_PROVIDER" in \
+		minimax) export GENERATOR_MODEL="$${GENERATOR_MODEL:-minimax/MiniMax-M2.7}"; \
+			export GENERATOR_BASE_URL="$${GENERATOR_BASE_URL:-https://api.minimax.io/v1}"; \
+			export GENERATOR_API_KEY="$${GENERATOR_API_KEY:-$${MINIMAXAI_API_KEY:-}}"; \
+			export RETRIEVAL_USE_LEAN_WIRE_SCHEMA="$${RETRIEVAL_USE_LEAN_WIRE_SCHEMA:-true}";; \
+		deepseek) export GENERATOR_MODEL="$${GENERATOR_MODEL:-deepseek-flash}"; \
+			export GENERATOR_BASE_URL="$${GENERATOR_BASE_URL:-https://api.deepseek.com/v1}"; \
+			export GENERATOR_API_KEY="$${GENERATOR_API_KEY:-$${DEEPSEEK_API_KEY:-}}";; \
+		esac; \
+		export EMBEDDER_BASE_URL="$(BENCH_EMBED_URL)"; \
+		export EMBEDDER_API_KEY="$${EMBEDDER_API_KEY:-tei-noauth}"; \
+		export RERANKER_BASE_URL="$(BENCH_RERANK_URL)"; \
+		exec $(UV) run python -m tests.benchmark.harness.main run --mode live \
+			$(if $(LIMIT),--limit $(LIMIT),) $(if $(REPEAT),--repeat $(REPEAT),) $(if $(NO_WARMUP),--no-warmup,) \
+			$(BENCH_COMMON_ARGS) $(BENCH_RUN_ARGS)'
+
+benchmark-draft: ## Draft new scenarios from run evidence (RUN_DIR=<dir> [RUN_DIR2=…])
+	$(UV) run python -m tests.benchmark.harness.main draft --run-dir $(RUN_DIR) \
+		$(if $(RUN_DIR2),--run-dir $(RUN_DIR2)) $(if $(RUN_DIR3),--run-dir $(RUN_DIR3))
+
+benchmark-e2e: ## Wire-mode benchmark via MCP client (CALL_TIMEOUT=s, MCP_URL=, SPLIT=holdout)
+	$(UV) run python -m tests.benchmark.harness.main run --mode e2e $(if $(LIMIT),--limit $(LIMIT)) \
+		$(if $(CALL_TIMEOUT),--call-timeout $(CALL_TIMEOUT)) $(if $(MCP_URL),--mcp-url $(MCP_URL)) \
+		$(if $(REPEAT),--repeat $(REPEAT),) $(BENCH_COMMON_ARGS)
+
+benchmark-compare: ## A/B compare two runs (A=<dir> B=<dir> [ALLOW_MISMATCH=1])
+	$(UV) run python -m tests.benchmark.harness.main compare $(A) $(B) \
+		$(if $(ALLOW_MISMATCH),--allow-mismatch)
+
+benchmark-sidecars-up: ## Publish the TEI sidecars on loopback (additive compose override)
+	$(BENCH_COMPOSE) up -d pattern-tei-embed pattern-tei-rerank
 
 ##@ Maintenance
 clean: ## Remove caches and build artifacts

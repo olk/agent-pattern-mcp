@@ -267,6 +267,7 @@ def _generate_system_prompt_cached(topology: str, use_lean: bool = False) -> str
             "Async hand-offs define message_contracts (message_name, payload_schema, published_by, consumed_by). "
             "Contracts may be empty when not applicable."
         )
+    schema_name = "AgentSystemDesignResponseWire" if use_lean else "AgentSystemDesignResponse"
     return f"""<role>
 You are a senior AI agent-system architect designing production {topology} systems. You favor proven techniques over novel ones, justify trade-offs explicitly, and quantify cost, latency, or quality claims whenever the requirements imply them.
 </role>
@@ -319,7 +320,7 @@ ANTI-HALLUCINATION:
 </hard_constraints>
 
 <output>
-Write overview.reasoning first, then the rest of the design. Output ONLY the JSON object — no prose, no markdown fences, no commentary. Every relationship source/target must reference an existing agent ID. quality_attributes values MUST be numbers on a 0-10 scale (for example 8.5) — never strings.
+Deliver the whole design in ONE call to the {schema_name} function: its parameters ARE the response schema, so your plan goes into overview.reasoning and every other field is populated in that same call. Your reply text is discarded — a reply that is not a fully populated {schema_name} call is thrown away and re-requested. Every relationship source/target must reference an existing agent ID. quality_attributes values MUST be numbers on a 0-10 scale (for example 8.5) — never strings.
 </output>
 """
 
@@ -390,9 +391,9 @@ common practice, or invented requirements.
 <task>
 Read the requirements inside <requirements> tags in the user prompt and
 decide how strongly they emphasise each of the seven quality attributes
-below. Return a single JSON object with one float in [0.0, 1.0] per
-attribute, normalised so the highest attribute(s) reach 1.0 and the rest
-scale down proportionally.
+below. Deliver one float in [0.0, 1.0] per attribute through the
+RequirementWeights function call, normalised so the highest attribute(s)
+reach 1.0 and the rest scale down proportionally.
 </task>
 
 <quality_attributes>
@@ -468,10 +469,12 @@ ordering is what the scoring step uses, not the absolute magnitudes.
 </example>
 
 <output>
-Emit ONLY a single JSON object with exactly seven keys (reliability,
+Deliver the weights by calling the RequirementWeights function: its
+parameters ARE the response schema — exactly seven keys (reliability,
 cost_efficiency, latency, output_quality, observability, safety,
-simplicity) and float values. No prose, no markdown fences, no
-commentary, no explanation of your reasoning.
+simplicity) with float values. Do not print the JSON in your reply text:
+no prose, no markdown fences, no commentary, no explanation of your
+reasoning.
 </output>
 """
 
@@ -1525,11 +1528,22 @@ Agent Topology: {topology}{primary_pattern_line}
 
         user_prompt += reasoning_context
 
+        schema_name = (
+            "AgentSystemDesignResponseWire"
+            if self._retrieval_config.use_lean_wire_schema
+            else "AgentSystemDesignResponse"
+        )
         user_prompt += f"""
 Selected Patterns:
 {pattern_context}
 
-Please generate an agent system design following the schema provided.
+<output>
+Deliver the design in ONE call to the {schema_name} function: its parameters ARE
+the response schema, so put your plan in overview.reasoning and populate every
+other field in that same call. Do not print anything in your reply text — no
+prose, no markdown fences. A call with empty or partial arguments, or a reply
+that is not a populated {schema_name} call, is rejected and re-requested.
+</output>
 """
 
         return user_prompt
@@ -1829,8 +1843,10 @@ Before emitting, verify (do not output this gate):
 </reasoning_gate>
 
 <output>
-Return a single JSON object with the seven quality-attribute keys, matching
-the RequirementWeights schema. No prose, no markdown fences.
+Deliver the weights by calling the RequirementWeights function: its
+parameters ARE the response schema — exactly seven keys with float values
+in [0.0, 1.0]. Do not print the JSON in your reply text: no prose, no
+markdown fences.
 </output>
 """
 
@@ -1843,8 +1859,8 @@ the RequirementWeights schema. No prose, no markdown fences.
         if not patterns:
             return f"""You are an expert AI agent system architect.
 Evaluate the provided agent system against the specified criteria.
-Think step-by-step using the <reasoning></reasoning> XML tag before providing your evaluation.
-Respond with a detailed evaluation including metrics and recommendations.
+Do your step-by-step analysis inside the summary.reasoning argument you pass to the AgentSystemEvaluation function — never emit a reasoning block in your reply text.
+Deliver a detailed evaluation including metrics and recommendations by calling the AgentSystemEvaluation function: its parameters ARE the response schema. Do not print the JSON in your reply text — no prose, no markdown fences.
 
 {AGENT_SYSTEM_EVALUATION_EXAMPLE}
 """
@@ -1859,7 +1875,7 @@ Respond with a detailed evaluation including metrics and recommendations.
         dp_lines = "\n".join(f"  - {dp}" for dp in first.design_principles[:5])
         return f"""You are an expert AI agent system architect.
 Evaluate the provided agent system against the specified criteria.
-Think step-by-step using the <reasoning></reasoning> XML tag before providing your evaluation.
+Do your step-by-step analysis inside the summary.reasoning argument you pass to the AgentSystemEvaluation function — never emit a reasoning block in your reply text.
 Respond with a detailed evaluation including metrics and recommendations.
 
 AGENT PATTERN TO BENCHMARK: {first.name}
@@ -1874,6 +1890,10 @@ DESIGN PRINCIPLES TO VERIFY:
 {dp_lines}
 
 {AGENT_SYSTEM_EVALUATION_EXAMPLE}
+
+Deliver the evaluation by calling the AgentSystemEvaluation function: its
+parameters ARE the response schema. Do not print the JSON in your reply
+text — no prose, no markdown fences.
 """
 
     def _build_evaluate_user_prompt(
@@ -1946,8 +1966,12 @@ design elements only; do not invent requirements.
 {domain}{pattern_section}
 </domain>
 {requirements_block}{analysis_summary_block}
-{reasoning_context}Think step-by-step in <reasoning> before providing your final evaluation in <evaluation>.
-Then respond ONLY with valid JSON matching the AgentSystemEvaluation schema."""
+{reasoning_context}Work through the evaluation step by step inside the summary.reasoning argument, and put each metric's evidence in its findings — your reply text is not an output channel.
+Deliver the evaluation in ONE call to the AgentSystemEvaluation function: its
+parameters ARE the response schema, so summary, metrics and recommendations are
+all populated in that same call. Do not print anything in your reply text — no
+prose, no markdown fences. A call with empty or partial arguments is rejected
+and re-requested."""
 
     async def _build_retry_attempt_prompt(
         self,
@@ -2059,6 +2083,11 @@ ANTI-PATTERNS IDENTIFIED IN EVALUATION:
 PATTERN TRADEOFFS (acceptable compromises):
 {chr(10).join(f"- {t}" for t in (selected_pattern.tradeoffs or [])[:tradeoffs_limit])}
 """
+        schema_name = (
+            "AgentSystemDesignResponseWire"
+            if self._retrieval_config.use_lean_wire_schema
+            else "AgentSystemDesignResponse"
+        )
         return f"""Refine this agent system design based on evaluation feedback:
 
 ORIGINAL REQUIREMENTS:
@@ -2097,7 +2126,10 @@ Before emitting (do NOT output this gate), verify:
 </reasoning_gate>
 
 Produce an improved agent system design that addresses the above weaknesses.
-Respond ONLY with valid JSON matching the AgentSystemDesign schema.
 
 {AGENT_SYSTEM_DESIGN_EXAMPLE}
+
+Deliver the design by calling the {schema_name} function: its parameters ARE the
+response schema. Do not print the JSON in your reply text — no prose, no markdown
+fences.
 """

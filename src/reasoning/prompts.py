@@ -113,8 +113,10 @@ FOCUS: {agenda_focus}
 </inputs>
 
 <output>
-Emit a single ThoughtDraft JSON object matching the response schema. The
-'thought' field carries the actual reasoning for the stated FOCUS.
+Deliver the step by calling the ThoughtDraft function: its parameters ARE the
+response schema. The 'thought' field carries the actual reasoning for the
+stated FOCUS. Do not print the JSON in your reply text — no prose, no markdown
+fences.
 </output>
 """
 

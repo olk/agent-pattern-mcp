@@ -181,3 +181,7 @@ mutants/
 # fizz run artifacts (compiled spec ASTs + out/ graphs; regenerable per run)
 verify/fizz/*.json
 verify/fizz/out/
+
+# benchmark run artifacts (regenerable per run)
+data/benchmark-runs/
+benchmarks/

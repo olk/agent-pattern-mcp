@@ -1,0 +1,231 @@
+"""Throwaway authoring script v4: seed.json via per-scenario feasibility search."""
+from __future__ import annotations
+
+import json
+import random
+from pathlib import Path
+
+REPO = Path("/home/graemer/Projekte/Python/agent-pattern-mcp")
+PATTERN_DIR = REPO / "pattern"
+ATTRS = ["reliability", "cost_efficiency", "latency", "output_quality",
+         "observability", "safety", "simplicity"]
+
+catalog: dict[str, dict] = {}
+for _f in sorted(PATTERN_DIR.glob("*-pattern.json")):
+    _p = json.loads(_f.read_text())
+    catalog[_p["name"]] = _p
+
+slug_cats: dict[str, set[str]] = {}
+for _p in catalog.values():
+    for _slug in _p.get("suitable_domains", []):
+        slug_cats.setdefault(_slug, set()).add(_p["category"])
+
+PLAN: list[tuple[str, str, str, str, list[str], list[str]]] = [
+    ("multi-agent-swarm-orchestration", "multi_agent", "train", "multi-agent-systems", ["swarm", "multi-agent-debate"], ["e-commerce", "enterprise-search"]),
+    ("parallel-data-fusion-crew", "multi_agent", "train", "parallel-data-gathering", ["swarm", "multi-agent-debate"], ["legal-research", "e-commerce"]),
+    ("branching-deliberation-solver", "reasoning", "train", "complex-reasoning", ["tree-of-thoughts", "lats"], ["e-commerce", "enterprise-search"]),
+    ("long-horizon-plan-execute-agent", "reasoning", "train", "long-horizon-tasks", ["tree-of-thoughts", "lats"], ["personal-productivity", "legal-research"]),
+    ("iterative-code-refinement-loop", "reflection", "train", "code-generation", ["reflexion", "evaluator-optimizer"], ["multimodal", "enterprise-search"]),
+    ("quality-bar-review-loop", "reflection", "train", "high-stakes-outputs", ["evaluator-optimizer", "reflexion"], ["multimodal", "e-commerce"]),
+    ("budget-aware-plan-execution", "planning", "train", "cost-sensitive-workloads", ["rewoo", "plan-and-solve"], ["cybersecurity", "multimodal"]),
+    ("curriculum-planning-agent", "planning", "train", "education", ["plan-and-solve", "rewoo"], ["legal-research", "trial-and-error-learning"]),
+    ("customer-history-aware-assistant", "memory", "train", "conversational-assistants", ["semantic-memory", "episodic-memory"], ["legal-research", "multimodal"]),
+    ("learner-profile-retention", "memory", "train", "long-horizon-tasks", ["episodic-memory", "semantic-memory"], ["regulated-domains", "scientific-research"]),
+    ("reranked-enterprise-answer-engine", "retrieval", "train", "rag-applications", ["hybrid-rerank", "query-rewriting"], ["content-generation", "web-automation"]),
+    ("support-kb-query-optimization", "retrieval", "train", "customer-support", ["query-rewriting", "hybrid-rerank"], ["cybersecurity", "education"]),
+    ("literature-survey-synthesis", "research_synthesis", "train", "exploratory-research", ["storm"], ["cybersecurity", "enterprise-search"]),
+    ("compliance-guardrail-gateway", "safety_control", "holdout", "regulated-domains", ["guardrails", "human-in-the-loop"], ["e-commerce", "enterprise-search"]),
+    ("assistant-consent-gating", "safety_control", "holdout", "conversational-assistants", ["guardrails", "human-in-the-loop"], ["multimodal", "e-commerce"]),
+    ("autonomous-db-maintenance-agent", "tool_use", "holdout", "database-operations", ["tool-agent-registry", "llm-compiler"], ["legal-research", "education"]),
+    ("latency-bound-parallel-research", "tool_use", "holdout", "latency-sensitive-tasks", ["llm-compiler", "tool-agent-registry"], ["e-commerce", "scientific-research"]),
+    ("resumable-long-task-runner", "observability", "holdout", "long-horizon-tasks", ["agent-resumption", "decision-log"], ["e-commerce", "multimodal"]),
+    ("pipeline-trace-forensics", "observability", "holdout", "devops", ["agent-tracing-telemetry", "decision-log"], ["e-commerce", "trial-and-error-learning"]),
+    ("audit-trail-incident-review", "observability", "holdout", "legal-research", ["decision-log", "agent-resumption"], ["e-commerce", "multimodal"]),
+]
+
+REQUIREMENTS: dict[str, str] = {
+    "multi-agent-swarm-orchestration": "Build a multi-agent assistant where a crew of autonomous specialist agents collaborates peer-to-peer on open-ended tasks and negotiates handoffs without a central controller.",
+    "parallel-data-fusion-crew": "We need a decentralized multi-agent crew where independent agents gather and cross-check findings in parallel, then converge on a joint answer through role-play style consensus.",
+    "branching-deliberation-solver": "The system must solve hard analytical problems by exploring several reasoning branches, backtracking from dead ends, and picking the most promising deliberation path.",
+    "long-horizon-plan-execute-agent": "Our agent must carry out multi-hour missions: it should decompose a long-horizon goal into a plan, execute steps, and re-plan after failures while keeping global context.",
+    "iterative-code-refinement-loop": "The coding assistant should draft code, run it against tests, reflect on the failure trace, and iteratively refine its own attempts until the patch passes.",
+    "quality-bar-review-loop": "High-stakes deliverables must pass a review loop: draft the output, critique it against a strict quality rubric, and revise until every criterion clears the bar.",
+    "budget-aware-plan-execution": "Plan every request into an explicit step budget, execute the cheapest sufficient tool path first, and keep cost per task low without sacrificing task completion.",
+    "curriculum-planning-agent": "The tutor agent must transform a syllabus into a structured lesson plan, solve each lesson step by step, and verify the plan before teaching it.",
+    "customer-history-aware-assistant": "The assistant must recall prior interactions with each user, adapt recommendations to their history, and reference concrete past episodes when answering.",
+    "learner-profile-retention": "Build a tutor that maintains a persistent learner profile: it stores facts about progress and revisits earlier material based on what the student forgot.",
+    "reranked-enterprise-answer-engine": "Our enterprise Q&A engine must fuse keyword and semantic retrieval, rerank candidate passages with a cross-encoder, and cite only the strongest evidence.",
+    "support-kb-query-optimization": "Customers type vague questions; the agent must rewrite each question into a precise knowledge-base query before retrieval to lift answer accuracy.",
+    "literature-survey-synthesis": "Produce a structured literature survey: gather many papers, extract claims, and synthesize them into a cited multi-section report with consistent terminology.",
+    "compliance-guardrail-gateway": "Every model action in our regulated workflow must pass policy guardrails, and risky steps require an explicit human approval before execution.",
+    "assistant-consent-gating": "The consumer assistant must gate sensitive actions behind user consent, filter unsafe content, and escalate to a human operator when confidence drops.",
+    "autonomous-db-maintenance-agent": "An agent that plans and executes database maintenance: it must call admin tools safely, in parallel where possible, under strict change-control rules.",
+    "latency-bound-parallel-research": "Gather market data through many external tools in parallel and merge results within a tight latency budget; every tool call must be schema-validated.",
+    "resumable-long-task-runner": "Long-running automation must survive crashes: persist resumable checkpoints, resume exactly where it stopped, and expose task progress to operators.",
+    "pipeline-trace-forensics": "Instrument every pipeline stage with traces and telemetry so engineers can reconstruct any decision path after an incident and diff runs.",
+    "audit-trail-incident-review": "During legal research incidents the agent must log every decision with rationale into an audit trail that reviewers can resume and inspect later.",
+}
+
+
+def qa_vec(p: dict) -> dict[str, float]:
+    return {a: float(p["quality_attributes"].get(a, 0.0)) for a in ATTRS}
+
+
+def slug_candidates(slugs: list[tuple[str, float]]) -> dict[str, tuple[dict, float]]:
+    found: dict[str, tuple[dict, float]] = {}
+    for slug, score in slugs:
+        norm = slug.lower().replace(" ", "-")
+        for p in catalog.values():
+            if norm in p.get("suitable_domains", []) and norm not in p.get("unsuitable_domains", []):
+                if p["name"] not in found or score > found[p["name"]][1]:
+                    found[p["name"]] = (p, score)
+    return found
+
+
+def score_all(cands: dict[str, tuple[dict, float]], w: dict[str, float]) -> list[tuple[str, float]]:
+    fused = sorted(cands.values(), key=lambda x: (-x[1], x[0]["name"]))
+    f_min = min(x[1] for x in fused)
+    f_max = max(x[1] for x in fused)
+    f_range = f_max - f_min
+    wsum = sum(w.values())
+    out = []
+    for p, raw in fused:
+        v = qa_vec(p)
+        analysis = round(10.0 * (sum(w[a] * v[a] for a in ATTRS) / wsum), 2)
+        fnorm = 0.0 if f_range == 0 else round((raw - f_min) / f_range * 100.0, 2)
+        out.append((p["name"], round(0.7 * analysis + 0.3 * fnorm, 2)))
+    out.sort(key=lambda x: -x[1])
+    return out
+
+
+def weight_trials(seed_name: str) -> list[dict[str, float]]:
+    v = qa_vec(catalog[seed_name])
+    trials: list[dict[str, float]] = []
+    t = 1.0
+    while t <= 20.0:
+        tot = sum(v[a] ** t for a in ATTRS)
+        trials.append({a: v[a] ** t / tot for a in ATTRS})
+        t += 0.5
+    for a in ATTRS:
+        oh = {k: 0.0 for k in ATTRS}
+        oh[a] = 1.0
+        trials.append(oh)
+        for b in ATTRS:
+            if a < b:
+                half = {k: 0.0 for k in ATTRS}
+                half[a] = 0.5
+                half[b] = 0.5
+                trials.append(half)
+    rng = random.Random(42)
+    for _ in range(800):
+        raw = [rng.expovariate(1.0) for _ in ATTRS]
+        tot = sum(raw)
+        trials.append({a: raw[i] / tot for i, a in enumerate(ATTRS)})
+    return trials
+
+
+def find_weights(seed_name: str, cands: dict[str, tuple[dict, float]]) -> tuple[dict[str, float], float] | None:
+    for w in weight_trials(seed_name):
+        ranked = score_all(cands, w)
+        if ranked[0][0] != seed_name:
+            continue
+        margin = ranked[0][1] - ranked[1][1]
+        if margin > 0.5:
+            return (dict(w), margin)
+    return None
+
+
+def main() -> None:
+    used: set[tuple[str, str]] = set()
+    used_names: set[str] = set()
+    scenarios: list[dict] = []
+    problems: list[str] = []
+    for sid, cat, split, domain, primaries, decoys in PLAN:
+        req = REQUIREMENTS[sid]
+        assert len(req) >= 40, sid
+        prim_cats = {catalog[x]["category"] for x in primaries}
+        for d in decoys:
+            bad = slug_cats[d] & prim_cats
+            if bad:
+                problems.append(f"{sid}: decoy {d} leaks {sorted(bad)}")
+        dom_order = list(dict.fromkeys(
+            [domain]
+            + [s for x in primaries for s in catalog[x].get("suitable_domains", [])
+               if s not in decoys]
+        ))
+        chosen: tuple[str, str, dict[str, float], float] | None = None
+        fallback: tuple[str, str, dict[str, float], float] | None = None
+        for dom in dom_order:
+            normal = slug_candidates([(dom, 0.9)] + [(d, 0.3) for d in decoys])
+            flipped = slug_candidates([(d, 0.9) for d in decoys] + [(dom, 0.3)])
+            on_slug = list(dict.fromkeys(
+                [x for x in primaries if dom in catalog[x].get("suitable_domains", [])]
+                + [n for n in sorted(catalog)
+                   if catalog[n]["category"] == cat and dom in catalog[n].get("suitable_domains", [])]
+            ))
+            for cand_name in on_slug:
+                found = find_weights(cand_name, normal)
+                if found is None:
+                    continue
+                ranked_f = score_all(flipped, found[0])
+                if ranked_f[0][0] in primaries:
+                    continue
+                opt = (cand_name, dom, found[0], found[1])
+                if (cand_name, dom) not in used:
+                    chosen = opt
+                    break
+                if fallback is None:
+                    fallback = opt
+            if chosen is not None:
+                break
+        if chosen is None and fallback is not None:
+            chosen = fallback
+        if chosen is None:
+            for pname in sorted(catalog):
+                if pname in used_names:
+                    continue
+                for pslug in catalog[pname].get("suitable_domains", []):
+                    if pslug in decoys or (pname, pslug) in used:
+                        continue
+                    normal = slug_candidates([(pslug, 0.9)] + [(d, 0.3) for d in decoys])
+                    flipped = slug_candidates([(d, 0.9) for d in decoys] + [(pslug, 0.3)])
+                    found = find_weights(pname, normal)
+                    if found is None:
+                        continue
+                    if score_all(flipped, found[0])[0][0] in [pname]:
+                        continue
+                    chosen = (pname, pslug, found[0], found[1])
+                    break
+                if chosen is not None:
+                    break
+        if chosen is None:
+            problems.append(f"{sid}: no feasible pattern at all")
+            continue
+        winner, fdom, weights, margin = chosen
+        used.add((winner, fdom))
+        used_names.add(winner)
+        primaries = [winner] + [x for x in primaries if x != winner][:2]
+        fw = {k: round(x, 4) for k, x in weights.items()}
+        scenarios.append({
+            "scenario_id": sid, "category": cat, "split": split,
+            "requirements": req, "domain": fdom,
+            "acceptable_primary": primaries, "decoy_domains": decoys,
+            "scripted_weights": fw,
+        })
+        print(f"{sid:36s} w={winner:24s} dom={fdom:26s} margin={margin:5.2f}")
+
+    if problems:
+        print("\nPROBLEMS:")
+        for p in problems:
+            print(" -", p)
+        raise SystemExit(1)
+    splits = [s["split"] for s in scenarios]
+    print(f"\ntrain={splits.count('train')} holdout={splits.count('holdout')}")
+    out = REPO / "tests/benchmark/harness/scenarios/seed.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({"scenarios": scenarios}, indent=2) + "\n")
+    print(f"wrote {out}")
+
+
+if __name__ == "__main__":
+    main()

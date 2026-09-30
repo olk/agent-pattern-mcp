@@ -1,0 +1,25 @@
+# Benchmark TEI sidecar override: publishes the TEI endpoints on loopback so
+# the in-process benchmark harness (tests/benchmark/harness, live mode) can
+# reach them from the host. Fully additive — never run alone:
+#
+#   docker compose -f docker/docker-compose.yml -f docker/docker-compose.benchmark.yml \
+#       up -d pattern-tei-embed pattern-tei-rerank
+#
+# Env for the harness process on the host (NOT the container):
+#   EMBEDDER_BASE_URL=http://127.0.0.1:${BENCH_EMBED_PORT:-18081}/v1
+#   RERANKER_BASE_URL=http://127.0.0.1:${BENCH_RERANK_PORT:-18082}
+#
+# The base file declares no `build:` sections and no top-level `volumes:` for
+# the TEI services, so a redeclaration with distinct container names plus
+# published loopback ports composes cleanly with the base definitions.
+
+services:
+  pattern-tei-embed:
+    container_name: agent-pattern-tei-bench-embed
+    ports:
+      - "127.0.0.1:${BENCH_EMBED_PORT:-18081}:8080"
+
+  pattern-tei-rerank:
+    container_name: agent-pattern-tei-bench-rerank
+    ports:
+      - "127.0.0.1:${BENCH_RERANK_PORT:-18082}:8080"

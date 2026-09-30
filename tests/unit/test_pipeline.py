@@ -1807,6 +1807,142 @@ class TestPromptExamples:
         assert "selected_patterns" in PATTERN_ANALYSIS_EXAMPLE
 
 
+class TestStructuredOutputContract:
+    """Every prompt that feeds ``generate_structured`` must ask for the
+    function call, not for JSON text.
+
+    llama-index delivers structured output through function calling (one
+    tool named after the response schema). Thinking models told "emit only
+    a JSON object" answer with plain-text JSON instead of the tool call and
+    the transport discards it (``ERR_009 - Expected at least one tool
+    call, but got 0 tool calls``) — measured against DeepSeek V4.1 Flash:
+    3/3 GENERATE and 3/3 EVALUATE calls faulted before this contract
+    existed, 0/15 after. The invariant clause is the guard.
+    """
+
+    CLAUSE = "its parameters ARE the response schema"
+    BANNED_TEXT_JSON = (
+        "Emit ONLY a single JSON object",
+        "Output ONLY the JSON object",
+        "Return a single JSON object",
+        "Respond ONLY with valid JSON",
+        "Emit a single ThoughtDraft JSON object",
+        # Prose-first instructions: a thinking model answers in prose, then
+        # emits a tool call with EMPTY arguments (DeepSeek V4.1 Flash measured
+        # 4/12 evaluate calls before these were removed, 0/12 after). The
+        # reasoning belongs in a schema field, not in the reply text.
+        "Think step-by-step in <reasoning>",
+        "Think step-by-step using the <reasoning>",
+        "Write overview.reasoning first",
+    )
+
+    def _prompts(self) -> dict[str, str]:
+        """Every system/user prompt handed to ``generate_structured``."""
+        from src.reasoning.prompts import REASONING_STEP_SYSTEM_PROMPT, build_step_user_prompt
+        from src.schemas.evaluation import AgentSystemEvaluation, EvaluationSummary, MetricResult
+        from src.schemas.enums import AgentDomain
+        from src.schemas.patterns import Pattern
+
+        pipeline = create_test_pipeline()
+        pattern = Pattern.model_validate({
+            "name": "probe-pattern",
+            "context": "ctx",
+            "category": "reasoning",
+            "topology": "evaluator-loop",
+            "suitable_domains": [next(iter(AgentDomain)).value],
+            "benefits": ["b"],
+            "tradeoffs": ["t"],
+            "quality_attributes": {
+                "reliability": 8, "cost_efficiency": 7, "latency": 7,
+                "output_quality": 8, "observability": 7, "safety": 6, "simplicity": 6,
+            },
+        })
+        evaluation = AgentSystemEvaluation(
+            summary=EvaluationSummary(
+                reasoning="Evaluator reasoning", overall_score=60.0,
+                strengths=["s"], weaknesses=["w"], critical_findings=["c"],
+            ),
+            metrics=[MetricResult(
+                name="reliability", score=60.0, description="Overall",
+                findings=[], recommendations=["fix svc"],
+            )],
+            recommendations={"general": ["fix svc"]},
+        )
+        return {
+            "generate_system": pipeline._build_generate_system_prompt(
+                topology="hierarchical", _patterns=[]),
+            "generate_user": pipeline._build_generate_user_prompt(
+                "reqs", "healthcare", "hierarchical", "pattern context", None),
+            "analyze_system": pipeline._build_analyze_system_prompt(),
+            "analyze_user": pipeline._build_analyze_user_prompt("reqs", "healthcare"),
+            "evaluate_system_empty": pipeline._build_evaluate_system_prompt(patterns=[]),
+            "evaluate_system": pipeline._build_evaluate_system_prompt(patterns=[pattern]),
+            "evaluate_user": pipeline._build_evaluate_user_prompt(
+                _summary_design(), "reliability", "healthcare", [],
+                requirements="reqs"),
+            "refine_user": pipeline._retry_prompt(
+                _summary_design(), evaluation, "reqs", "hierarchical", "healthcare"),
+            "reasoning_step": REASONING_STEP_SYSTEM_PROMPT + build_step_user_prompt(
+                "generate", "directive", agenda_focus="focus",
+                trace_rendered="", task_inputs={"requirements": "reqs"},
+                step_number=1, total=2,
+            ),
+        }
+
+    def test_every_structured_prompt_asks_for_the_function_call(self):
+        """Each prompt names the schema function whose parameters ARE the
+        response schema — the wording that survives a thinking model."""
+        for name, prompt in self._prompts().items():
+            assert self.CLAUSE in _whitespace_normalised(prompt), (
+                f"{name} prompt lost the function-call clause"
+            )
+
+    def test_no_structured_prompt_asks_for_json_text(self):
+        """The text-JSON wordings that make the model skip the tool call
+        are gone from every structured prompt."""
+        for name, prompt in self._prompts().items():
+            for banned in self.BANNED_TEXT_JSON:
+                assert banned not in prompt, f"{name} prompt still asks for text JSON: {banned!r}"
+
+    def test_reasoning_is_requested_inside_the_schema_not_the_reply(self):
+        """Each prompt routes the model's analysis into a schema field, so
+        the function call is the only output channel it needs to fill."""
+        prompts = self._prompts()
+        for name in ("generate_system", "generate_user"):
+            assert "overview.reasoning" in prompts[name], name
+        for name in ("evaluate_system", "evaluate_system_empty", "evaluate_user"):
+            assert "summary.reasoning" in prompts[name], name
+
+    def test_refine_prompt_names_the_wire_schema_in_lean_mode(self):
+        """The lean wire schema has its own function name; a stale name
+        would make the refine call un-callable under lean mode."""
+        from src.config import RetrievalConfig
+        from src.schemas.evaluation import AgentSystemEvaluation, EvaluationSummary, MetricResult
+
+        pipeline = create_test_pipeline(retrieval_config=RetrievalConfig(use_lean_wire_schema=True))
+        prompt = pipeline._retry_prompt(
+            _summary_design(),
+            AgentSystemEvaluation(
+                summary=EvaluationSummary(
+                    reasoning="r", overall_score=60.0,
+                    strengths=["s"], weaknesses=["w"], critical_findings=["c"],
+                ),
+                metrics=[MetricResult(
+                    name="reliability", score=60.0, description="Overall",
+                    findings=[], recommendations=["fix svc"],
+                )],
+                recommendations={},
+            ),
+            "reqs", "hierarchical", "healthcare",
+        )
+        assert "AgentSystemDesignResponseWire function" in prompt
+
+
+def _whitespace_normalised(text: str) -> str:
+    """Collapse line wrapping so a clause split across lines still matches."""
+    return " ".join(text.split())
+
+
 class TestTimedPhaseLogging:
     """Verify _timed_phase emits INFO log with duration."""
 

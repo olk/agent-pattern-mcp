@@ -1,0 +1,493 @@
+{
+  "scenarios": [
+    {
+      "scenario_id": "multi-agent-swarm-orchestration",
+      "category": "multi_agent",
+      "split": "train",
+      "requirements": "Build a multi-agent assistant where a crew of autonomous specialist agents collaborates peer-to-peer on open-ended tasks and negotiates handoffs without a central controller.",
+      "domain": "multi-agent-systems",
+      "acceptable_primary": [
+        "graph-orchestration",
+        "swarm",
+        "multi-agent-debate"
+      ],
+      "decoy_domains": [
+        "e-commerce",
+        "enterprise-search"
+      ],
+      "scripted_weights": {
+        "reliability": 0.0,
+        "cost_efficiency": 0.0,
+        "latency": 0.0,
+        "output_quality": 0.5,
+        "observability": 0.5,
+        "safety": 0.0,
+        "simplicity": 0.0
+      }
+    },
+    {
+      "scenario_id": "parallel-data-fusion-crew",
+      "category": "multi_agent",
+      "split": "train",
+      "requirements": "We need a decentralized multi-agent crew where independent agents gather and cross-check findings in parallel, then converge on a joint answer through role-play style consensus.",
+      "domain": "parallel-data-gathering",
+      "acceptable_primary": [
+        "subagent-isolation",
+        "swarm",
+        "multi-agent-debate"
+      ],
+      "decoy_domains": [
+        "legal-research",
+        "e-commerce"
+      ],
+      "scripted_weights": {
+        "reliability": 0.1481,
+        "cost_efficiency": 0.1296,
+        "latency": 0.1481,
+        "output_quality": 0.1296,
+        "observability": 0.1481,
+        "safety": 0.1667,
+        "simplicity": 0.1296
+      }
+    },
+    {
+      "scenario_id": "branching-deliberation-solver",
+      "category": "reasoning",
+      "split": "train",
+      "requirements": "The system must solve hard analytical problems by exploring several reasoning branches, backtracking from dead ends, and picking the most promising deliberation path.",
+      "domain": "complex-reasoning",
+      "acceptable_primary": [
+        "chain-of-thought",
+        "tree-of-thoughts",
+        "lats"
+      ],
+      "decoy_domains": [
+        "e-commerce",
+        "enterprise-search"
+      ],
+      "scripted_weights": {
+        "reliability": 0.14,
+        "cost_efficiency": 0.14,
+        "latency": 0.12,
+        "output_quality": 0.14,
+        "observability": 0.16,
+        "safety": 0.1,
+        "simplicity": 0.2
+      }
+    },
+    {
+      "scenario_id": "long-horizon-plan-execute-agent",
+      "category": "reasoning",
+      "split": "train",
+      "requirements": "Our agent must carry out multi-hour missions: it should decompose a long-horizon goal into a plan, execute steps, and re-plan after failures while keeping global context.",
+      "domain": "code-generation",
+      "acceptable_primary": [
+        "chain-of-thought",
+        "tree-of-thoughts",
+        "lats"
+      ],
+      "decoy_domains": [
+        "personal-productivity",
+        "legal-research"
+      ],
+      "scripted_weights": {
+        "reliability": 0.0,
+        "cost_efficiency": 0.0,
+        "latency": 0.5,
+        "output_quality": 0.0,
+        "observability": 0.0,
+        "safety": 0.0,
+        "simplicity": 0.5
+      }
+    },
+    {
+      "scenario_id": "iterative-code-refinement-loop",
+      "category": "reflection",
+      "split": "train",
+      "requirements": "The coding assistant should draft code, run it against tests, reflect on the failure trace, and iteratively refine its own attempts until the patch passes.",
+      "domain": "code-generation",
+      "acceptable_primary": [
+        "reflection",
+        "reflexion",
+        "evaluator-optimizer"
+      ],
+      "decoy_domains": [
+        "multimodal",
+        "enterprise-search"
+      ],
+      "scripted_weights": {
+        "reliability": 0.1767,
+        "cost_efficiency": 0.0133,
+        "latency": 0.0133,
+        "output_quality": 0.3378,
+        "observability": 0.0848,
+        "safety": 0.0363,
+        "simplicity": 0.3378
+      }
+    },
+    {
+      "scenario_id": "quality-bar-review-loop",
+      "category": "reflection",
+      "split": "train",
+      "requirements": "High-stakes deliverables must pass a review loop: draft the output, critique it against a strict quality rubric, and revise until every criterion clears the bar.",
+      "domain": "high-stakes-outputs",
+      "acceptable_primary": [
+        "reflection",
+        "evaluator-optimizer",
+        "reflexion"
+      ],
+      "decoy_domains": [
+        "multimodal",
+        "e-commerce"
+      ],
+      "scripted_weights": {
+        "reliability": 0.1803,
+        "cost_efficiency": 0.0172,
+        "latency": 0.0172,
+        "output_quality": 0.325,
+        "observability": 0.0925,
+        "safety": 0.0428,
+        "simplicity": 0.325
+      }
+    },
+    {
+      "scenario_id": "budget-aware-plan-execution",
+      "category": "planning",
+      "split": "train",
+      "requirements": "Plan every request into an explicit step budget, execute the cheapest sufficient tool path first, and keep cost per task low without sacrificing task completion.",
+      "domain": "cost-sensitive-workloads",
+      "acceptable_primary": [
+        "routing",
+        "rewoo",
+        "plan-and-solve"
+      ],
+      "decoy_domains": [
+        "cybersecurity",
+        "multimodal"
+      ],
+      "scripted_weights": {
+        "reliability": 0.1379,
+        "cost_efficiency": 0.1552,
+        "latency": 0.1552,
+        "output_quality": 0.1207,
+        "observability": 0.1379,
+        "safety": 0.1379,
+        "simplicity": 0.1552
+      }
+    },
+    {
+      "scenario_id": "curriculum-planning-agent",
+      "category": "planning",
+      "split": "train",
+      "requirements": "The tutor agent must transform a syllabus into a structured lesson plan, solve each lesson step by step, and verify the plan before teaching it.",
+      "domain": "education",
+      "acceptable_primary": [
+        "goal-creator-proactive",
+        "plan-and-solve",
+        "rewoo"
+      ],
+      "decoy_domains": [
+        "legal-research",
+        "trial-and-error-learning"
+      ],
+      "scripted_weights": {
+        "reliability": 0.3081,
+        "cost_efficiency": 0.0682,
+        "latency": 0.0682,
+        "output_quality": 0.3081,
+        "observability": 0.0682,
+        "safety": 0.152,
+        "simplicity": 0.0271
+      }
+    },
+    {
+      "scenario_id": "customer-history-aware-assistant",
+      "category": "memory",
+      "split": "train",
+      "requirements": "The assistant must recall prior interactions with each user, adapt recommendations to their history, and reference concrete past episodes when answering.",
+      "domain": "conversational-assistants",
+      "acceptable_primary": [
+        "scratchpad-note-taking",
+        "semantic-memory",
+        "episodic-memory"
+      ],
+      "decoy_domains": [
+        "legal-research",
+        "multimodal"
+      ],
+      "scripted_weights": {
+        "reliability": 0.0,
+        "cost_efficiency": 0.0,
+        "latency": 0.0,
+        "output_quality": 0.5,
+        "observability": 0.5,
+        "safety": 0.0,
+        "simplicity": 0.0
+      }
+    },
+    {
+      "scenario_id": "learner-profile-retention",
+      "category": "memory",
+      "split": "train",
+      "requirements": "Build a tutor that maintains a persistent learner profile: it stores facts about progress and revisits earlier material based on what the student forgot.",
+      "domain": "trial-and-error-learning",
+      "acceptable_primary": [
+        "episodic-memory",
+        "semantic-memory"
+      ],
+      "decoy_domains": [
+        "regulated-domains",
+        "scientific-research"
+      ],
+      "scripted_weights": {
+        "reliability": 0.1802,
+        "cost_efficiency": 0.1802,
+        "latency": 0.1802,
+        "output_quality": 0.1802,
+        "observability": 0.1802,
+        "safety": 0.0494,
+        "simplicity": 0.0494
+      }
+    },
+    {
+      "scenario_id": "reranked-enterprise-answer-engine",
+      "category": "retrieval",
+      "split": "train",
+      "requirements": "Our enterprise Q&A engine must fuse keyword and semantic retrieval, rerank candidate passages with a cross-encoder, and cite only the strongest evidence.",
+      "domain": "rag-applications",
+      "acceptable_primary": [
+        "hybrid-rerank",
+        "query-rewriting"
+      ],
+      "decoy_domains": [
+        "content-generation",
+        "web-automation"
+      ],
+      "scripted_weights": {
+        "reliability": 0.2497,
+        "cost_efficiency": 0.1175,
+        "latency": 0.074,
+        "output_quality": 0.2497,
+        "observability": 0.1175,
+        "safety": 0.1175,
+        "simplicity": 0.074
+      }
+    },
+    {
+      "scenario_id": "support-kb-query-optimization",
+      "category": "retrieval",
+      "split": "train",
+      "requirements": "Customers type vague questions; the agent must rewrite each question into a precise knowledge-base query before retrieval to lift answer accuracy.",
+      "domain": "customer-support",
+      "acceptable_primary": [
+        "hybrid-rerank",
+        "query-rewriting"
+      ],
+      "decoy_domains": [
+        "cybersecurity",
+        "education"
+      ],
+      "scripted_weights": {
+        "reliability": 0.3208,
+        "cost_efficiency": 0.0913,
+        "latency": 0.0422,
+        "output_quality": 0.3208,
+        "observability": 0.0913,
+        "safety": 0.0913,
+        "simplicity": 0.0422
+      }
+    },
+    {
+      "scenario_id": "literature-survey-synthesis",
+      "category": "research_synthesis",
+      "split": "holdout",
+      "requirements": "Produce a structured literature survey: gather many papers, extract claims, and synthesize them into a cited multi-section report with consistent terminology.",
+      "domain": "exploratory-research",
+      "acceptable_primary": [
+        "storm",
+        "agent-as-a-judge"
+      ],
+      "decoy_domains": [
+        "enterprise-search",
+        "multimodal"
+      ],
+      "scripted_weights": {
+        "reliability": 0.176,
+        "cost_efficiency": 0.0078,
+        "latency": 0.0212,
+        "output_quality": 0.2989,
+        "observability": 0.2989,
+        "safety": 0.176,
+        "simplicity": 0.0212
+      }
+    },
+    {
+      "scenario_id": "compliance-guardrail-gateway",
+      "category": "safety_control",
+      "split": "holdout",
+      "requirements": "Every model action in our regulated workflow must pass policy guardrails, and risky steps require an explicit human approval before execution.",
+      "domain": "regulated-domains",
+      "acceptable_primary": [
+        "guardrails",
+        "human-in-the-loop"
+      ],
+      "decoy_domains": [
+        "e-commerce",
+        "enterprise-search"
+      ],
+      "scripted_weights": {
+        "reliability": 0.1769,
+        "cost_efficiency": 0.107,
+        "latency": 0.107,
+        "output_quality": 0.107,
+        "observability": 0.1769,
+        "safety": 0.2183,
+        "simplicity": 0.107
+      }
+    },
+    {
+      "scenario_id": "assistant-consent-gating",
+      "category": "safety_control",
+      "split": "holdout",
+      "requirements": "The consumer assistant must gate sensitive actions behind user consent, filter unsafe content, and escalate to a human operator when confidence drops.",
+      "domain": "conversational-assistants",
+      "acceptable_primary": [
+        "guardrails",
+        "human-in-the-loop"
+      ],
+      "decoy_domains": [
+        "multimodal",
+        "e-commerce"
+      ],
+      "scripted_weights": {
+        "reliability": 0.1769,
+        "cost_efficiency": 0.107,
+        "latency": 0.107,
+        "output_quality": 0.107,
+        "observability": 0.1769,
+        "safety": 0.2183,
+        "simplicity": 0.107
+      }
+    },
+    {
+      "scenario_id": "autonomous-db-maintenance-agent",
+      "category": "tool_use",
+      "split": "holdout",
+      "requirements": "An agent that plans and executes database maintenance: it must call admin tools safely, in parallel where possible, under strict change-control rules.",
+      "domain": "database-operations",
+      "acceptable_primary": [
+        "tool-agent-registry",
+        "llm-compiler"
+      ],
+      "decoy_domains": [
+        "legal-research",
+        "education"
+      ],
+      "scripted_weights": {
+        "reliability": 0.0,
+        "cost_efficiency": 0.0,
+        "latency": 0.0,
+        "output_quality": 0.0,
+        "observability": 0.5,
+        "safety": 0.5,
+        "simplicity": 0.0
+      }
+    },
+    {
+      "scenario_id": "latency-bound-parallel-research",
+      "category": "tool_use",
+      "split": "holdout",
+      "requirements": "Gather market data through many external tools in parallel and merge results within a tight latency budget; every tool call must be schema-validated.",
+      "domain": "parallel-data-gathering",
+      "acceptable_primary": [
+        "llm-compiler",
+        "tool-agent-registry"
+      ],
+      "decoy_domains": [
+        "e-commerce",
+        "scientific-research"
+      ],
+      "scripted_weights": {
+        "reliability": 0.1148,
+        "cost_efficiency": 0.1148,
+        "latency": 0.4034,
+        "output_quality": 0.2238,
+        "observability": 0.1148,
+        "safety": 0.0213,
+        "simplicity": 0.007
+      }
+    },
+    {
+      "scenario_id": "resumable-long-task-runner",
+      "category": "observability",
+      "split": "holdout",
+      "requirements": "Long-running automation must survive crashes: persist resumable checkpoints, resume exactly where it stopped, and expose task progress to operators.",
+      "domain": "long-horizon-tasks",
+      "acceptable_primary": [
+        "agent-resumption",
+        "decision-log"
+      ],
+      "decoy_domains": [
+        "e-commerce",
+        "multimodal"
+      ],
+      "scripted_weights": {
+        "reliability": 0.1051,
+        "cost_efficiency": 0.2314,
+        "latency": 0.1261,
+        "output_quality": 0.2589,
+        "observability": 0.1127,
+        "safety": 0.1596,
+        "simplicity": 0.0061
+      }
+    },
+    {
+      "scenario_id": "audit-trail-incident-review",
+      "category": "observability",
+      "split": "holdout",
+      "requirements": "During legal research incidents the agent must log every decision with rationale into an audit trail that reviewers can resume and inspect later.",
+      "domain": "legal-research",
+      "acceptable_primary": [
+        "decision-log",
+        "agent-resumption"
+      ],
+      "decoy_domains": [
+        "e-commerce",
+        "multimodal"
+      ],
+      "scripted_weights": {
+        "reliability": 0.1075,
+        "cost_efficiency": 0.1404,
+        "latency": 0.1404,
+        "output_quality": 0.1075,
+        "observability": 0.2193,
+        "safety": 0.1776,
+        "simplicity": 0.1075
+      }
+    },
+    {
+      "scenario_id": "storm-tech-scan-report",
+      "category": "research_synthesis",
+      "split": "holdout",
+      "requirements": "Given a broad technology question, produce a cited state-of-the-art report: generate grounded questions, fan out retrieval over sources, and synthesize the findings into a structured multi-section document.",
+      "domain": "rag-applications",
+      "acceptable_primary": [
+        "storm",
+        "agent-as-a-judge"
+      ],
+      "decoy_domains": [
+        "personal-productivity",
+        "e-commerce"
+      ],
+      "scripted_weights": {
+        "reliability": 0.236292,
+        "cost_efficiency": 0.015923,
+        "latency": 0.005221,
+        "output_quality": 0.326677,
+        "observability": 0.236292,
+        "safety": 0.163671,
+        "simplicity": 0.015923
+      }
+    }
+  ]
+}
