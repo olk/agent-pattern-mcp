@@ -407,6 +407,7 @@ class MCPAgentPatternServer:
                 embedder=embedder,
                 retrieval_config=self._config.retrieval,
                 reasoning_client=self._reasoning_client,
+                pipeline_config=self._config.pipeline,
             )
 
             logger.info("AgentPatternPipeline initialized")

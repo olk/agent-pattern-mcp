@@ -61,7 +61,7 @@ from workflows import Context, Workflow, step
 from workflows.events import StartEvent, StopEvent
 
 from src.agent import AgentSystemArchitect
-from src.config import RetrievalConfig, RerankerConfig
+from src.config import PipelineConfig, RetrievalConfig, RerankerConfig
 from src.design_normalization import denormalize_contracts
 from src.errors import ERROR_INVALID_AGENT_SYSTEM, MalformedAgentSystemOverviewError
 from src.patterns.loader import PatternLoader
@@ -535,6 +535,7 @@ class AgentPatternPipeline(Workflow):
         retrieval_config: RetrievalConfig | None = None,
         reranker_config: RerankerConfig | None = None,
         reasoning_client: ReasoningClient | None = None,
+        pipeline_config: PipelineConfig | None = None,
     ) -> None:
         """
         Initialize AgentPatternPipeline with injected dependencies.
@@ -549,8 +550,12 @@ class AgentPatternPipeline(Workflow):
             reranker_config: Reranker parameters — TEI connection and post-fusion slug-cut
                 settings (defaults to RerankerConfig())
             reasoning_client: Optional ReasoningClient for structured reasoning MCP integration
+            pipeline_config: Workflow budget for one complete run (all phases,
+                all retry attempts). Defaults to
+                ``DEFAULT_PIPELINE_TIMEOUT_SECONDS`` when omitted.
         """
-        super().__init__(timeout=1200)
+        self._pipeline_config = pipeline_config or PipelineConfig()
+        super().__init__(timeout=self._pipeline_config.timeout_seconds)
         self._agent = agent
         self._pattern_loader = pattern_loader
         self._embedder = embedder
@@ -574,6 +579,7 @@ class AgentPatternPipeline(Workflow):
                 "agent_type": type(agent).__name__,
                 "pattern_loader_loaded": pattern_loader.is_loaded,
                 "retrieval_config": self._retrieval_config.model_dump(),
+                "pipeline_config": self._pipeline_config.model_dump(),
                 "reranker_config": self._reranker_config.model_dump(),
                 "has_reasoning_client": reasoning_client is not None,
             }

@@ -56,6 +56,9 @@
     }
   },
   "pattern_directory": "{env:PATTERN_DIRECTORY:-~/.config/agent-pattern-mcp/pattern}",
+  "pipeline": {
+    "timeout_seconds": "{env:PIPELINE_TIMEOUT_SECONDS:-1200}"
+  },
   "reasoning": {
     "enabled": "{env:REASONING_ENABLED:-true}",
     "shannonthinking_cmd": "{env:REASONING_SHANNONTHINKING_CMD:-}",

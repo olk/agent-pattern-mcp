@@ -56,6 +56,14 @@ ERROR_INVALID_CONFIG = "INVALID_CONFIG"
 
 logger = logging.getLogger(__name__)
 
+#: Wall-clock budget (seconds) for one complete workflow run: the whole
+#: analyze -> generate -> evaluate -> refine loop, up to ``retrieval.max_tries``
+#: attempts.  Exceeding it raises ``WorkflowTimeoutError`` (llama-index
+#: workflows) out of ``AgentPatternPipeline.run_design``; the partial design is
+#: discarded.  Sized from the measured end-to-end distribution of the live
+#: benchmark arm (p50 365 s) with ~3.3x headroom.
+DEFAULT_PIPELINE_TIMEOUT_SECONDS = 1200.0
+
 
 class GeneratorInnerConfig(BaseModel):
     """Generator per-provider configuration."""
@@ -332,6 +340,27 @@ class TasksConfig(BaseModel):
     )
 
 
+class PipelineConfig(BaseModel):
+    """Workflow-level budget for one ``AgentPatternPipeline`` run.
+
+    timeout_seconds: Wall-clock seconds allowed for a complete run
+        (analyze -> generate -> evaluate -> refine, including every retry
+        attempt).  On expiry the run is cancelled and the tool call fails with
+        ``WorkflowTimeoutError``.  Must be positive; there is no "unlimited"
+        setting, because an unbounded workflow also outlives the MCP client
+        request (see ``tasks.heartbeat_interval_seconds`` for the client-idle
+        keepalive, which is a different mechanism).
+    """
+
+    timeout_seconds: float = Field(
+        default=DEFAULT_PIPELINE_TIMEOUT_SECONDS,
+        gt=0,
+        description="Wall-clock budget in seconds for one complete design run "
+        "(all phases, all retry attempts). Expiry cancels the run and fails "
+        "the call with WorkflowTimeoutError.",
+    )
+
+
 class ServerConfig(BaseModel):
     """
     # E-13: INVALID_CONFIG - Config structure invalid (HTTP 400, severity: warn)
@@ -427,6 +456,11 @@ class ServerConfig(BaseModel):
 
     # Reasoning MCP integration: shannonthinking + code-reasoning scratchpads
     reasoning: ReasoningConfig = Field(default_factory=lambda: ReasoningConfig())
+
+    # Workflow budget for one complete pipeline run (analyze -> generate ->
+    # evaluate -> refine, all retry attempts). Expiry cancels the run and
+    # fails the tool call with WorkflowTimeoutError.
+    pipeline: PipelineConfig = Field(default_factory=lambda: PipelineConfig())
 
     # Transport mode: "stdio" for local, "streamable-http" for HTTP
     transport: str = "streamable-http"

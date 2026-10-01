@@ -17,7 +17,7 @@ agent-pattern-mcp is an MCP server (FastMCP) that recommends agent patterns: `an
 
 | Fact | Location |
 |---|---|
-| `AgentPatternPipeline.__init__(agent, pattern_loader, embedder, retrieval_config=None, reranker_config=None, reasoning_client=None)`, Workflow `timeout=1200` | `src/pipeline.py:527-577` |
+| `AgentPatternPipeline.__init__(agent, pattern_loader, embedder, retrieval_config=None, reranker_config=None, reasoning_client=None, pipeline_config=None)`, Workflow `timeout=pipeline_config.timeout_seconds` (default 1200 s, `PIPELINE_TIMEOUT_SECONDS`) | `src/pipeline.py:530-558` |
 | `_reasoning_block` reads `.enabled` + `await run_pre_llm(phase, task_inputs)`; phases `"analyze"/"generate"/"evaluate"` | `src/pipeline.py:583-616`, calls at `:739/:897/:999` |
 | `ReasoningMCPClient.enabled` property | `src/reasoning/client.py:190-192` |
 | LLM dispatch: `generate_structured(system_prompt, user_prompt, response_schema)` with `RequirementWeights` (`:1667`), `AgentSystemDesignResponse`/`AgentSystemDesignResponseWire` (`:907-912`), `AgentSystemEvaluation` (`:1013`) | `src/pipeline.py`, `src/agent.py:163` |
@@ -104,7 +104,7 @@ Authoring procedure: for each category pick its 2 most distinctive patterns as p
 ### S7 — `harness/e2e.py`
 - `from fastmcp import Client` (precedent `examples/agent_client.py:52`); URL `--mcp-url` default `env BENCH_MCP_URL or http://localhost:8061/mcp`.
 - Call `design_agent_system(requirements=..., domain=...)`; parse `DesignAgentSystemOutput` fields (`final_pattern_name`, `final_topology`, `final_quality_score`, `is_fallback`, `attempts`, `matched_domains`).
-- Stages recorded: `e2e.http` (client-side wall per call), `e2e.total` (per scenario incl. parse). Default `--call-timeout 1500` (server Workflow timeout is 1200s + margin).
+- Stages recorded: `e2e.http` (client-side wall per call), `e2e.total` (per scenario incl. parse). Default `--call-timeout 1500` (server Workflow timeout is 1200s + margin; raise `PIPELINE_TIMEOUT_SECONDS` above 1500 if you do).
 
 ### S8 — `harness/compare.py`
 - Paired by `<scenario_id>#<repeat>`; refuse: corpus sha256 mismatch, mode mismatch, `aborted.json` present in either run.

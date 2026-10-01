@@ -21,11 +21,20 @@
 
 """Tests for configuration loading and env-var expansion."""
 
+import json
 import os
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-from src.config import ConfigManager, ServerConfig, RetrievalConfig
+from src.config import (
+    DEFAULT_PIPELINE_TIMEOUT_SECONDS,
+    ConfigManager,
+    PipelineConfig,
+    RetrievalConfig,
+    ServerConfig,
+)
 from src.config_expansion import expand_env, expand_env_in_obj
 from pydantic import ValidationError
 
@@ -317,3 +326,42 @@ class TestLegWeights:
         assert not any(
             "effectively disabled" in record.message for record in caplog.records
         )
+
+
+class TestPipelineTimeoutConfig:
+    """pipeline.timeout_seconds — the workflow wall-clock budget (config.json)."""
+
+    @staticmethod
+    def _base_config(**overrides):
+        return ServerConfig(
+            generator={"provider": "openai", "config": {"model": "gpt-4"}},
+            embedder={"provider": "tei", "config": {"base_url": "http://tei:8080"}},
+            **overrides,
+        )
+
+    def test_default_budget_is_1200_seconds(self) -> None:
+        """A config without a `pipeline` block keeps the historical 1200 s budget."""
+        assert self._base_config().pipeline.timeout_seconds == 1200.0
+        assert PipelineConfig().timeout_seconds == DEFAULT_PIPELINE_TIMEOUT_SECONDS
+
+    def test_env_expanded_string_is_coerced_to_seconds(self) -> None:
+        """config.json expands {env:PIPELINE_TIMEOUT_SECONDS:-1200} to a string."""
+        config = self._base_config(pipeline={"timeout_seconds": "45"})
+        assert config.pipeline.timeout_seconds == 45.0
+
+    @pytest.mark.parametrize("invalid", [0, -1, "0", "-30.5"])
+    def test_non_positive_budget_is_rejected(self, invalid) -> None:
+        """A zero/negative budget would cancel every run instantly — fail fast instead."""
+        with pytest.raises(ValidationError):
+            self._base_config(pipeline={"timeout_seconds": invalid})
+
+    def test_shipped_config_file_reads_the_env_var(self) -> None:
+        """The repo's config/config.json plumbs PIPELINE_TIMEOUT_SECONDS end to end."""
+        shipped = Path(__file__).resolve().parents[1] / "config" / "config.json"
+        raw = json.loads(shipped.read_text(encoding="utf-8"))
+        assert raw["pipeline"] == {"timeout_seconds": "{env:PIPELINE_TIMEOUT_SECONDS:-1200}"}
+
+        # ConfigManager.load_config short-circuits on its class-level cache.
+        with patch.dict(os.environ, {"PIPELINE_TIMEOUT_SECONDS": "900"}):
+            expanded = ConfigManager.load_config(str(shipped))
+        assert ServerConfig.model_validate(expanded).pipeline.timeout_seconds == 900.0

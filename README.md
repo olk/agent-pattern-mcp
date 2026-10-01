@@ -292,8 +292,8 @@ A single LLM configuration — `generator` — serves all pipeline phases (plann
 | `RERANKER_BASE_URL` | `http://pattern-tei-rerank:8080` | Reranker endpoint |
 | `TRANSPORT` | `streamable-http` | `stdio` or `streamable-http` |
 | `PORT` | `8051` | HTTP port |
+| `PIPELINE_TIMEOUT_SECONDS` | `1200` | Wall-clock budget (seconds) for one complete design run — all phases (analyze → generate → evaluate → refine) and every retry attempt. On expiry the run is cancelled and the tool call fails with `WorkflowTimeoutError`; the partial design is discarded. Raise it when `REASONING_ENABLED=true` on a slow provider, lower it to fail fast. Config key: `pipeline.timeout_seconds`. |
 | `TASKS_HEARTBEAT_ENABLED` | `true` | Enable heartbeat progress notifications during long tool calls |
-| `TASKS_HEARTBEAT_INTERVAL_SECONDS` | `30` | Heartbeat interval in seconds (keep below client idle timeout) |
 | `AGENT_PATTERN_JOBS_DB` | `~/.config/agent-pattern-mcp/jobs.db` | SQLite path for async job state (job trio); ephemeral in Docker |
 
 ### CLI flags
