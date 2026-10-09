@@ -4,9 +4,11 @@
 #   - No `build:` sections (images must be pre-built from the dev compose
 #     via `make docker-build-all` before enabling the service).
 #   - Absolute paths everywhere (no ${HOME}, no relative `build.context`).
-#   - The systemd unit injects COMPOSE_PROJECT_NAME=apmcp-systemd so this
-#     stack is distinct from the dev compose (different project label, no
-#     container_name collisions).
+#   - The systemd unit injects COMPOSE_PROJECT_NAME=agpmcp-systemd so this
+#     stack is distinct from the dev compose AND from the sibling
+#     architecture-pattern-mcp systemd stack (apmcp-systemd): sharing a
+#     project label would make each `up -d --remove-orphans` delete the
+#     sibling container as an orphan.
 #   - TEI sidecars are NOT defined here — they live in the shared
 #     `pattern-tei-infra` stack (~/Projekte/Python/tei-infra/).  This
 #     stack joins the `pattern-tei-shared` external network to reach them by DNS.

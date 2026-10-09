@@ -8,20 +8,31 @@
 [![M8ven Score](https://m8ven.ai/badge/mcp/olk/agent-pattern-mcp)](https://m8ven.ai/mcp/olk/agent-pattern-mcp)
 
 
-MCP server that provides AI agent pattern expertise: generate, analyze, and evaluate agent system designs against a curated catalog of 61 agent patterns (ReAct, supervisor-worker, reflexion, self-RAG, LLMCompiler, and more).
+An MCP (Model Context Protocol) server that provides agent system design expertise to AI coding agents. Given a requirements string and a domain, it analyses the problem, selects matching agent patterns (from 61 built-in patterns), generates a concrete agent system design with agents, relationships, tool contracts, state models, and message contracts, and evaluates it against quality attributes (reliability, cost efficiency, latency, output quality, observability, safety, simplicity).
+
+---
 
 ## Table of Contents
 
-- [Quickstart](#-quickstart)
-- [Connect Your Agent](#-connect-your-agent)
-- [Use the Tools](#use-the-tools)
-- [Tools at a Glance](#️-tools-at-a-glance)
-- [Prompts](#-prompts)
-- [Pattern Catalog](#-pattern-catalog)
-- [SKILL for AI Agents](#-skill-for-ai-agents)
+- [⚡ Quickstart](#-quickstart)
+- [Install via AI Agent](#install-via-ai-agent)
+- [🔌 Connect Your Agent](#-connect-your-agent)
+  - [Claude Code](#claude-code)
+  - [OpenCode](#opencode)
+  - [Codex CLI](#codex-cli)
+- [🧑‍🏫 SKILL for AI Agents](#-skill-for-ai-agents)
+- [🧪 Use the Tools](#-use-the-tools)
+  - [Design your first agent system](#design-your-first-agent-system)
+  - [Explore the pattern catalog](#explore-the-pattern-catalog)
+- [🛠️ Tools at a Glance](#️-tools-at-a-glance)
+- [📖 Pattern Catalog](#-pattern-catalog)
 - [Install Alternatives](#install-alternatives)
+  - [Docker (manual)](#docker-manual)
+  - [Local Development (uv)](#local-development-uv)
 - [Configuration](#configuration)
+- [Structured Reasoning (shannonthinking / code-reasoning)](#structured-reasoning-shannonthinking--code-reasoning)
 - [Extending with Custom Patterns](#extending-with-custom-patterns)
+- [Long-running tools & timeouts](#long-running-tools--timeouts)
 - [Troubleshooting](#troubleshooting)
 - [Building & Development](#building--development)
 - [Publishing](#publishing)
@@ -34,18 +45,39 @@ MCP server that provides AI agent pattern expertise: generate, analyze, and eval
 # 1. Clone
 git clone https://github.com/olk/agent-pattern-mcp.git && cd agent-pattern-mcp
 
-# 2. Add your API key (the dev compose pins GENERATOR_PROVIDER=minimax and
-#    loads docker/.env — not the repo-root .env)
-echo 'MINIMAXAI_API_KEY=sk-...' > docker/.env
+# 2. Add your API key (the dev compose reads MINIMAXAI_API_KEY and pins
+#    GENERATOR_PROVIDER=minimax)
+export MINIMAXAI_API_KEY=sk-...
 
-# 3. Build the images once (TEI model weights are baked in at build time,
-#    ~5 GB download on the first run), then start the stack
-make docker-build-all
-make docker-up
+# 3. Start (needs images: `make docker-build-all` once, or prebuilt pulls
+#    per INSTALL.md Path A)
+docker compose -f docker/docker-compose.yml up -d
 
 # 4. Demo
 make client
 ```
+
+Server starts on **streamable-http** at `http://localhost:8061/mcp` (dev compose host port; systemd uses 8051). Then connect your agent below.
+
+---
+
+## Install via AI Agent
+
+To have an AI coding agent install the Docker stack from prebuilt images (no local build), point it at **[INSTALL.md](INSTALL.md)** — the non-interactive agent runbook (copy-paste commands, expected outputs, verification probes).
+
+```text
+Clone this repo, then follow INSTALL.md Path A (compose stack, port 8061).
+My generator API key is: sk-...
+```
+
+Pick one path in `INSTALL.md`:
+
+- **Path A — Compose stack** (`:8061`): evaluating / developing, no sudo needed. Own TEI sidecar copies.
+- **Path B — systemd stack** (`:8051`): persistent host service, starts at boot, needs `sudo`. Uses the shared `pattern-tei-infra` TEI stack.
+
+The agent needs a repo clone, Docker ≥ v2.20 with group membership, ~5 GB free, a `MINIMAXAI_API_KEY` (or another provider per `INSTALL.md#switching-the-generator-llm`), and linux/amd64 (on arm64 it builds locally via `make docker-build-all`). After install, continue with [Connect Your Agent](#-connect-your-agent) below.
+
+---
 
 ## 🔌 Connect Your Agent
 
@@ -53,145 +85,291 @@ make client
 
 ```bash
 # Install (one-time)
-npm install -g @anthropic-ai/claude-code
+uv pip install -e .
 
 # Run as stdio subprocess — pass API key via env
-GENERATOR_API_KEY=sk-... claude mcp add agent-pattern-mcp -- python -m src.main --transport stdio
+claude mcp add agent-pattern \
+  -e GENERATOR_API_KEY=your_key \
+  -e GENERATOR_PROVIDER=openai \
+  -- agent-pattern-mcp --transport stdio
+```
+
+Or add to your project for the whole team:
+
+```bash
+claude mcp add --scope project agent-pattern \
+  -e GENERATOR_API_KEY=your_key \
+  -- agent-pattern-mcp --transport stdio
 ```
 
 ### OpenCode
 
+OpenCode uses HTTP transport. Start the server first, then configure opencode:
+
 ```bash
 # Terminal 1: start the server
-make docker-up
+docker compose -f docker/docker-compose.yml up --build
 # or locally:
-uv run python -m src.main
+uv run python -m src.main --port 8051
 
 # Terminal 2: add to ~/.config/opencode/opencode.json
 ```
 
-```jsonc
+```json
 {
+  "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "agent-pattern-mcp": {
+    "agent-pattern": {
       "type": "remote",
-      "url": "http://localhost:8061/mcp",
-      "enabled": true
+      "url": "http://localhost:8061/mcp"
     }
   }
 }
 ```
 
+> **Note:** `GENERATOR_API_KEY` is read from the server's config file (`~/.config/agent-pattern-mcp/config.json`), not from opencode's environment.
+
 ### Codex CLI
 
 ```bash
 # Install (one-time)
-brew install codex
-
-# Add to ~/.codex/config.toml
+uv pip install -e .
 ```
+
+Add to `~/.codex/config.toml`:
 
 ```toml
-[mcp_servers.agent-pattern-mcp]
-url = "http://localhost:8061/mcp"
+[mcp_servers.agent-pattern]
+command = "agent-pattern-mcp"
+args = ["--transport", "stdio"]
+
+[mcp_servers.agent-pattern.env]
+GENERATOR_API_KEY = "your_key"
+GENERATOR_PROVIDER = "openai"
 ```
 
-## Use the Tools
+Or via CLI:
+
+```bash
+codex mcp add agent-pattern \
+  -e GENERATOR_API_KEY=your_key \
+  -- agent-pattern-mcp --transport stdio
+```
+
+---
+
+## 🧑‍🏫 SKILL for AI Agents
+
+The SKILL in `skills/agent-pattern-mcp/` is written for **Oh My Pi (OMP)**, where this server's tools are reached as `xd://mcp__agent_pattern_*` devices and every MCP request is bounded by a deadline (`OMP_MCP_TIMEOUT_MS` → per-server `timeout` → 30 s). It teaches the agent which entry point fits that deadline, how to read the results, and the full workflow recipes.
+
+```
+skills/agent-pattern-mcp/
+├── SKILL.md                 # OMP constraints, entry-point decision guide, device quick reference
+└── references/
+    ├── tools.md             # 9 tool signatures, output schemas, error codes, design-dict shape
+    └── workflows.md         # recipes, result interpretation, OMP troubleshooting
+```
+
+**Install for OMP** — copy the skill directory into the user skills root, or point `skills.customDirectories` at this repository's `skills/` directory in OMP's config:
+
+```bash
+cp -r skills/agent-pattern-mcp ~/.omp/agent/skills/
+```
+
+The skill then tells the agent:
+
+- Which entry point fits OMP's deadline: the async job trio by default, one-shot `design_agent_system` only after raising the server's `timeout` (every LLM tool aborts under the 30 s default — `submit_agent_design_job` answers in ~0.05 s)
+- How to phrase `requirements`, `domain`, and `topology` as separate structured arguments
+- How to interpret `final_quality_score`, `attempts > 1`, and `evaluation.recommendations`
+- That `read mcp://pattern://…` is ambiguous while the sibling `architecture-pattern` server is connected, so the tool route (`get_agent_pattern`) is authoritative
+
+The tool schemas, error codes and design-dict shape in `references/` are client-agnostic; only the deadline/device guidance is OMP-specific.
+
+---
+
+## 🧪 Use the Tools
+
+All tools accept `requirements` (free text) and `domain` (e.g. `tool-use-tasks`, `data-processing`, `customer-support`) as arguments. The examples below show the exact tool call shape so you can use them in any MCP client or API consumer.
 
 ### Design your first agent system
 
-Ask your agent (or call the tool directly):
+In Claude Code (or any MCP client), paste the natural-language instruction:
 
-> Use design_agent_system to design a research assistant that combines web search with sandboxed code execution for multi-hop questions. Domain: tool-use-tasks.
+```
+Build a research assistant agent that answers multi-hop questions by combining
+web search results with sandboxed Python computation, iterating until it can
+synthesise a final cited answer.
+```
 
-The tool runs the full pipeline — analyze (pattern retrieval + requirements-weighted scoring) → generate (LLM structured output) → evaluate (metric scoring) → refine (bounded retry loop) — and returns a complete `AgentSystemDesign` with agents, relationships, tool contracts, and quality scores.
+Your agent calls `design_agent_system` internally. The server returns a full agent system design: agents (planner, searcher, coder, synthesizer), quality attribute scores (reliability: 8.0, output_quality: 8.5, …), and specific recommendations.
 
-### Explore the pattern catalog
+**Or call tools directly** from your agent:
 
-> List all agent patterns in the tool_use category.
+```
+Call analyze_agent_system with:
+  requirements: "Research assistant combining web search with sandboxed code execution for multi-hop questions"
+  domain: "tool-use-tasks"
 
-> Get the full JSON of the react pattern.
+Call generate_agent_system with:
+  requirements: "Research assistant: decompose into sub-questions, search or code per sub-question, synthesise cited answer"
+  domain: "tool-use-tasks"
+  selected_patterns: ["react"]
+
+Call evaluate_agent_system with:
+  agent_system: { ... paste a design dict here ... }
+  criteria: "reliability, safety"
+
+Call list_agent_patterns()  # all 61 patterns
+Call list_agent_patterns(category="multi_agent")  # filter by category
+Call get_agent_pattern(name="supervisor-worker")   # full pattern JSON
+```
 
 ### Async job pattern: `submit_agent_design_job` + `get_agent_design_status`
 
 ONLY for clients with short request timeouts (Cursor, Claude Desktop, TS-SDK). The default is `design_agent_system` with heartbeat defence. `submit_agent_design_job` returns a `job_id` immediately; poll `get_agent_design_status` until done:
 
 ```
-submit_agent_design_job(requirements, domain, override_topology)  → job_id
-get_agent_design_status(job_id)                                  → {status, result, error}
-cancel_agent_design(job_id)                                    → {cancelled, status}
+# Step 1: start the job
+Call submit_agent_design_job with:
+  requirements: "Research assistant combining web search with sandboxed code execution for multi-hop questions"
+  domain: "tool-use-tasks"
+
+# Step 2: poll every 10-30 seconds
+Call get_agent_design_status with:
+  job_id: "<job_id from step 1>"
+
+# → status is "pending" | "running" | "completed" | "failed" | "cancelled"
+# When status is "completed", the full design is in result.design
+# When status is "failed", the error is in result.error
 ```
 
-`submit_agent_design_job` returns a `job_id` in milliseconds. The pipeline runs in a background task. Poll `get_agent_design_status(job_id)` every 10–30 seconds. When status is `completed`, the full design is in the `result` field. Cancellation is best-effort — the job exits at the next pipeline stage boundary.
+In Python (via the MCP HTTP API directly — see `examples/agent_client_async.py`):
 
-**This is the only fix that works for TS-SDK clients (Claude Desktop, Cursor).**
+```python
+import asyncio
+from fastmcp import Client
 
-The job store is SQLite at `~/.config/agent-pattern-mcp/jobs.db` (configurable via `AGENT_PATTERN_JOBS_DB`).
+SERVER = "http://localhost:8061/mcp"
+POLL_EVERY = 15  # seconds
+
+async def main():
+    async with Client(SERVER) as client:
+        # Start
+        started = await client.call_tool("submit_agent_design_job", {
+            "requirements": "Research assistant: web search + sandboxed code for multi-hop questions",
+            "domain": "tool-use-tasks",
+        })
+        job_id = started.data["job_id"]
+        print(f"Job started: {job_id}")
+
+        # Poll
+        while True:
+            await asyncio.sleep(POLL_EVERY)
+            status = await client.call_tool("get_agent_design_status", {"job_id": job_id})
+            data = status.data
+            print(f"  status={data['status']}  message={data['message']}")
+            if data["status"] in ("completed", "failed", "cancelled"):
+                break
+
+        print(data.get("result", data))  # full design when completed
+```
+
+See `examples/agent_client_async.py` for the complete runnable example. Run it with:
+
+```bash
+docker compose -f docker/docker-compose.yml up --build   # Terminal 1
+make client-async                                      # Terminal 2
+```
+
+### Explore the pattern catalog
+
+```
+Call list_agent_patterns() with no filters to see all patterns.
+```
+
+Or get details on a specific pattern:
+
+```
+Show me details about the react agent pattern.
+```
+
+---
 
 ## 🛠️ Tools at a Glance
 
 | Tool | Description |
 |---|---|
-| `design_agent_system` | Full pipeline: analyze → generate → evaluate → refine. Returns complete design + evaluation + quality metrics. *Long-running (5–10 min); use this unless your client has a short request timeout.* |
-| `analyze_agent_system` | Analyse requirements and derive agent pattern recommendations using pattern matching and domain similarity. *Long-running (LLM call). Not idempotent.* |
-| `generate_agent_system` | Generate an agent system design from requirements, topology, domain, and selected patterns. *Long-running (LLM call). Not idempotent.* |
-| `evaluate_agent_system` | Evaluate an agent system design against specified criteria and domain using pattern benchmarking. *Long-running (LLM call). Not idempotent.* |
-| `list_agent_patterns` | List all 61 patterns; filter by `category` and/or `domain` |
-| `get_agent_pattern` | Get full JSON for a specific pattern by name |
+| `analyze_agent_system` | Analyse requirements and domain → recommended topology, patterns, quality metrics. *Long-running (LLM call). Not idempotent.* |
+| `generate_agent_system` | Generate an agent system design from requirements and selected patterns. *Long-running (LLM call). Not idempotent.* |
+| `evaluate_agent_system` | Score an existing design against quality attributes. *Long-running (LLM call). Not idempotent.* |
+| `design_agent_system` | Default tool for full agent system design (analyse → generate → evaluate → refine, up to 3 attempts). *Long-running (5–10 min); use this unless your client has a short request timeout.* |
 | `submit_agent_design_job` | Start a background design job and return a `job_id` immediately. **ONLY for clients with short request timeouts** (Cursor, Claude Desktop, TS-SDK). For other clients use `design_agent_system`. Poll `get_agent_design_status` every 10–30 s. |
 | `get_agent_design_status` | Poll job status. Returns the current status, progress message, and the full design output when `completed`. |
 | `cancel_agent_design` | Cancel a running job (best-effort; takes effect at the next pipeline stage boundary; may take up to one LLM call). |
+| `list_agent_patterns` | List all 61 patterns; filter by `category` and/or `domain` |
+| `get_agent_pattern` | Get full JSON for a specific pattern by name |
+
+
+**Domain and Topology are structured parameters** — pass them as separate tool arguments, not embedded in the requirements text.
+
+Example prompts:
+
+```
+Build a research assistant that answers multi-hop questions by combining
+web search with sandboxed code execution, with full audit logging.
+```
+
+```
+Design an agent system for customer-support automation handling 1M
+conversations/day. Domain: customer-support. Topology: hierarchical.
+```
+
+```
+Show me details about the reflexion pattern.
+```
+
+```
+Call design_agent_system with:
+  requirements: "Research assistant combining web search with sandboxed code execution for multi-hop questions"
+  domain: "tool-use-tasks"
+```
+
+---
 
 ## 💬 Prompts
 
-The server also exposes four user-invoked workflow prompts (slash commands in clients that support them):
+This server also exposes four user-invoked workflow prompts (slash commands
+in MCP clients). Unlike tools, the LLM does not autonomously invoke prompts —
+the user selects one and fills in its arguments. Each prompt encodes a tested
+tool-orchestration recipe.
 
 | Prompt | Args | What it does |
 |---|---|---|
-| `design_agent_system_workflow` | `requirements*` | Full analyze → generate → evaluate pipeline |
-| `explore_pattern_catalog` | `domain`, `category` | Live catalog discovery with embedded pattern names |
-| `evaluate_my_agent_system` | `focus` | Guide evaluation criteria + finding prioritisation |
-| `compare_agent_topologies` | `topology_a*`, `topology_b*`, `requirements*` | Two designs side-by-side; ~2× token cost |
+| `/design_agent_system_workflow` | requirements\* | Full analyze → generate → evaluate pipeline |
+| `/explore_pattern_catalog` | `domain`, `category` | Live catalog discovery with embedded pattern names |
+| `/evaluate_my_agent_system` | `focus` | Guide evaluation criteria + finding prioritisation |
+| `/compare_agent_topologies` | topology_a\*, topology_b\*, requirements\* | Two designs side-by-side; ~2× token cost |
 
 \* = required argument
 
 ### Tool-only clients
 
-In tool-only clients, the prompts are also exposed as tools via FastMCP's `PromptsAsTools` transform — you can call them like any other tool.
-
-## 🧑‍🏫 SKILL for AI Agents
-
-AI coding agents (Claude Code, OpenCode, Codex CLI) can load a SKILL that teaches them how and when to use this server's tools — including timeout-aware entry-point selection, output interpretation, and the full workflow recipe.
-
-The SKILL lives in `skills/agent-pattern-mcp/`:
-
-```
-skills/agent-pattern-mcp/
-├── SKILL.md                 # Discovery, critical rules, decision guide
-└── references/
-    ├── tools.md             # All 9 tool signatures and output schemas
-    └── workflows.md         # 4 worked examples, 4 prompts, best practices
-```
-
-**For agents that support file-based skills** (OpenCode, Claude Code): point the agent's skill loader at `skills/agent-pattern-mcp/SKILL.md`. The skill tells the agent:
-
-- Which tool to use based on client type and timeout budget
-- How to phrase `requirements`, `domain`, and `topology` as separate structured arguments
-- How to interpret `final_quality_score`, `attempts > 1`, and `evaluation.recommendations`
-- When to use the async job trio vs `design_agent_system` directly
+Clients that only support the tools protocol (no native `prompts/list` or `prompts/get`) can access all four workflow prompts via the generated `list_prompts` and `get_prompt` tools, which route through the server's middleware chain exactly as native prompt calls do.
 
 ---
 
 ## 📖 Pattern Catalog
 
-61 agent patterns across 10 categories (reasoning, tool_use, planning, reflection, research_synthesis, multi_agent, memory, retrieval, safety_control, observability) and 8 topologies (single-agent-loop, hierarchical, pipeline, plan-execute, parallel-fan-out, evaluator-loop, graph-orchestrated, swarm).
-
 ### Via MCP tools (recommended — works in all clients)
 
 ```
-list_agent_patterns(category="multi_agent")
-get_agent_pattern(name="supervisor-worker")
+list_agent_patterns()                                  # all 61 patterns
+list_agent_patterns(category="multi_agent")            # filter by category
+list_agent_patterns(domain="tool-use-tasks")           # filter by domain
+get_agent_pattern(name="supervisor-worker")            # full pattern JSON
 ```
+
+Valid `category` values: `reasoning`, `tool_use`, `planning`, `reflection`, `research_synthesis`, `multi_agent`, `memory`, `retrieval`, `safety_control`, `observability`.
 
 ### Via MCP resources
 
@@ -202,9 +380,15 @@ template://{name}             → curated design templates (react, supervisor-wo
 component://{type}            → component blueprints derived from pattern data
 ```
 
+> **Note:** on hosts where the sibling `architecture-pattern-mcp` server is also connected, `pattern://{name}` is ambiguous (both servers register the scheme) — the tool route (`get_agent_pattern`) is authoritative.
+
 ### Pattern JSON structure
 
-Each `pattern/*-pattern.json` file contains: `name`, `category`, `topology`, `context`, `benefits`, `tradeoffs`, `quality_attributes` (7 dims, 1-10), `suitable_domains`, `unsuitable_domains`, `use_cases`, `avoid_when`, `component_types`, `technology_stack`, `anti_patterns`, `migration_from`, `migration_to`, `design_principles`, `best_practices`, `references`.
+Each pattern includes: `name`, `category`, `topology`, `context`, `benefits`, `tradeoffs`, `quality_attributes` (reliability/cost_efficiency/latency/output_quality/observability/safety/simplicity, numeric scores), `suitable_domains`, `component_types`, `technology_stack`, `design_principles`, `best_practices`.
+
+Required fields: `name`, `context`, `category`, `topology`, `suitable_domains`, `quality_attributes` (all 7 keys).
+
+---
 
 ## Install Alternatives
 
@@ -212,50 +396,82 @@ Each `pattern/*-pattern.json` file contains: `name`, `category`, `topology`, `co
 
 ```bash
 # Build the image
-docker build --target production -f Dockerfile -t agent-pattern-mcp:latest .
+make docker-build
 
 # Run with your API key
-docker run -p 8061:8051 --env-file .env agent-pattern-mcp:latest
-```
-
-### Docker Hub image (compose)
-
-Pull `olkowa/agent-pattern-mcp` without building. The hub compose starts the
-MCP server only; start the TEI sidecars (`olkowa/pattern-tei-embed`,
-`olkowa/pattern-tei-rerank`) separately and wire them via `EMBEDDER_BASE_URL`
-/ `RERANKER_BASE_URL`:
-
-```bash
-TAG=latest docker compose -f docker/docker-compose.hub.yml up -d
+MINIMAXAI_API_KEY=your_key docker compose -f docker/docker-compose.yml up -d
 ```
 
 ### Local Development (uv)
 
+**Prerequisites:** Python 3.12+, [uv](https://github.com/astral-sh/uv)
+
 ```bash
 # Install
-uv sync
+make install
 
 # Configure
-mkdir -p ~/.config/agent-pattern-mcp
-cp config/config.json ~/.config/agent-pattern-mcp/
+cp config/config.json ~/.config/agent-pattern-mcp/config.json
 # Edit ~/.config/agent-pattern-mcp/config.json and set your GENERATOR_API_KEY
 
 # Run the server
-uv run python -m src.main
+uv run python -m src.main --transport stdio              # for Claude Code / Codex
+uv run python -m src.main --port 8051                    # for OpenCode (HTTP, default)
 ```
+
+Or use the installed console script (after `make install`):
+
+```bash
+agent-pattern-mcp --transport stdio
+```
+
+The TEI embedder (Qwen3-Embedding-0.6B) is required for domain-scoped pattern retrieval. Without it, the server falls back to the default pattern. Docker compose starts it automatically; local users must run it separately on port 8080.
+
+The retrieval indexes (FAISS + BM25) are built at server startup so a misconfigured or unreachable TEI sidecar prevents startup (fail-fast) rather than breaking the user's first design request. Docker compose's `service_healthy` dependency ordering guarantees TEI is ready before the app starts.
+
+---
 
 ## Configuration
 
 ### config.json
 
-See `config/config.json` for the full annotated example. Key sections:
+The server reads `~/.config/agent-pattern-mcp/config.json` (override with `--config-path`):
 
-- **generator** — single LLM configuration: provider, model, temperature. Serves all pipeline phases (planning, generation, reflection).
-- **embedder** — TEI (default), OpenAI, or Ollama embeddings for dense retrieval.
-- **retrieval** — hybrid BM25 + dense fusion tuning: top-k caps, fusion mode (`simple` / `reciprocal_rerank`), reranker settings, quality thresholds, blend weights, topology score threshold.
-- **validation** — self-healing retry loop settings (max_retries, retry_on_fail).
-- **tasks** — heartbeat settings for long-running tools: `heartbeat_enabled` and `heartbeat_interval_seconds`.
-- **pattern_directory** — where `*-pattern.json` files are loaded from. Defaults to `~/.config/agent-pattern-mcp/pattern` for local runs; the Docker image sets `PATTERN_DIRECTORY=/app/pattern`, the baked 61-pattern catalog.
+```json
+{
+  "generator": {
+    "provider": "openai",
+    "config": {
+      "model": "gpt-4o-mini",
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "{env:GENERATOR_API_KEY}",
+      "temperature": 0.1,
+      "top_p": 1.0,
+      "top_k": 20
+    }
+  },
+  "embedder": {
+    "provider": "tei",
+    "config": {
+      "base_url": "http://pattern-tei-embed:8080/v1"
+    }
+  },
+  "retrieval": {
+    "bm25_top_k": 0,
+    "dense_top_k": 0,
+    "top_k_patterns": 5,
+    "min_quality_score": 50.0
+  },
+  "pattern_directory": "~/.config/agent-pattern-mcp/pattern",
+  "transport": "streamable-http",
+  "host": "0.0.0.0",
+  "port": 8051,
+  "logging_level": "INFO",
+  "logging_format": "json"
+}
+```
+
+`{env:VAR:-default}` syntax expands environment variables at load time.
 
 ### Generator LLM (LlamaIndex LiteLLM)
 
@@ -277,93 +493,174 @@ If the configured model already contains a provider prefix (e.g. `openai/gpt-4o-
 
 ### Key environment variables
 
-A single LLM configuration — `generator` — serves all pipeline phases (planning, generation, reflection). Legacy `PLANNER_*` / `REFLECTOR_*` variables and config sections were removed; configs containing them are rejected with an error.
-
-| Variable | Default | Purpose |
+| Variable | Default | Description |
 |---|---|---|
-| `GENERATOR_API_KEY` | (required) | LLM provider API key (passed to LiteLLM as `api_key`) |
+| `GENERATOR_API_KEY` | *(required)* | API key for your LLM provider (passed to LiteLLM as `api_key`) |
 | `GENERATOR_PROVIDER` | `openai` | LiteLLM provider prefix: `openai`, `anthropic`, `openrouter`, … — see [LiteLLM Providers](https://docs.litellm.ai/docs/providers) |
+| `GENERATOR_BASE_URL` | `https://api.openai.com/v1` | API base URL (passed to LiteLLM as `api_base`) |
 | `GENERATOR_MODEL` | `gpt-4o-mini` | Model name; final model string is `<GENERATOR_PROVIDER>/<GENERATOR_MODEL>` (LiteLLM syntax) |
-| `GENERATOR_TEMPERATURE` | `0.1` | LLM temperature (all phases) |
+| `GENERATOR_TEMPERATURE` | `0.1` | Sampling temperature |
+| `GENERATOR_TOP_P` | `1.0` | Top-p sampling |
+| `GENERATOR_TOP_K` | `20` | Top-k sampling |
+| `GENERATOR_STREAM` | `false` | Enable streaming responses |
 | `EMBEDDER_PROVIDER` | `tei` | Embedder provider |
-| `EMBEDDER_BASE_URL` | `http://127.0.0.1:8080` | TEI endpoint |
-| `RETRIEVAL_MODE` | `reciprocal_rerank` | Fusion mode |
-| `RETRIEVAL_ENABLE_RERANKING` | `false` | Enable TEI cross-encoder reranking |
-| `RERANKER_BASE_URL` | `http://pattern-tei-rerank:8080` | Reranker endpoint |
-| `TRANSPORT` | `streamable-http` | `stdio` or `streamable-http` |
-| `PORT` | `8051` | HTTP port |
+| `EMBEDDER_BASE_URL` | `http://pattern-tei-embed:8080/v1` | TEI embedder URL |
+| `EMBEDDER_BATCH_SIZE` | `16` | Embedding batch size |
+| `EMBEDDER_QUERY_INSTRUCTION` | *(empty)* | Query instruction prefix |
+| `EMBEDDER_TEXT_INSTRUCTION` | *(empty)* | Text instruction prefix |
+| `RETRIEVAL_BM25_TOP_K` | `0` | BM25 stage-1 recall cap (0=full corpus) |
+| `RETRIEVAL_DENSE_TOP_K` | `0` | Dense stage-1 recall cap (0=full corpus) |
+| `RETRIEVAL_DENSE_WEIGHT` | `0.7` | Stage-1 fusion leg weight on the dense leg. Pairs with `RETRIEVAL_BM25_WEIGHT`; both must be > 0 and sum to 1.0. |
+| `RETRIEVAL_BM25_WEIGHT` | `0.3` | Stage-1 fusion leg weight on the BM25 leg. See `RETRIEVAL_DENSE_WEIGHT`. |
+| `RETRIEVAL_TOP_K_PATTERNS` | `5` | Number of patterns to select |
+| `RETRIEVAL_MIN_FUSION_SCORE` | `0.0` | Relevance floor on the rank_fusion blend value. Default 0.0 (gate disabled). |
+| `RETRIEVAL_RERANK_TOP_N` | `10` | Rerank top N (slug-cut after CE) |
+| `RETRIEVAL_USE_LEAN_WIRE_SCHEMA` | `false` | Use lean response schema (omits free-form contract lists; the dev/systemd compose files default this to `true` for the MiniMax generator) |
+| `RETRIEVAL_TOPOLOGY_SCORE_THRESHOLD` | `50.0` | Min analysis score for topology recommendation |
+| `REASONING_ENABLED` | `true` | Server-side reasoning MCP integration — **on by default** (see [Structured Reasoning](#structured-reasoning-shannonthinking--code-reasoning)) |
+| `REASONING_SPAWN_TIMEOUT_SECONDS` | `10` | Subprocess spawn timeout per reasoning tool |
+| `REASONING_STEP_TIMEOUT_SECONDS` | `20` | Per-thought tool-call timeout |
+| `REASONING_MAX_TOTAL_STEPS` | `8` | Hard cap on reasoning steps per phase |
+| `REASONING_QUIET_STDERR` | `true` | Silence reasoning-subprocess stderr (ASCII progress boxes, `[info]` banners); set `false` to debug spawn failures |
+| `REASONING_FAIL_FAST` | `true` | Fail server startup when a reasoning tool is unreachable |
+| `REASONING_SHANNONTHINKING_CMD` | *(embedded)* | JSON list command for shannonthinking (e.g. `["npx","-y","server-shannon-thinking@latest"]`) |
+| `REASONING_CODE_REASONING_CMD` | *(embedded)* | JSON list command for code-reasoning |
+| `RETRIEVAL_ANALYSIS_BLEND_WEIGHT` | `0.7` | Weight on analysis score in blend |
+| `RETRIEVAL_FUSION_BLEND_WEIGHT` | `0.3` | Weight on fusion score in blend |
+| `RETRIEVAL_WEIGHT_SMOOTHING_ALPHA` | `0.7` | Weight smoothing alpha |
 | `PIPELINE_TIMEOUT_SECONDS` | `1200` | Wall-clock budget (seconds) for one complete design run — all phases (analyze → generate → evaluate → refine) and every retry attempt. On expiry the run is cancelled and the tool call fails with `WorkflowTimeoutError`; the partial design is discarded. Raise it when `REASONING_ENABLED=true` on a slow provider, lower it to fail fast. Config key: `pipeline.timeout_seconds`. |
-| `TASKS_HEARTBEAT_ENABLED` | `true` | Enable heartbeat progress notifications during long tool calls |
-| `AGENT_PATTERN_JOBS_DB` | `~/.config/agent-pattern-mcp/jobs.db` | SQLite path for async job state (job trio); ephemeral in Docker |
+| `RETRIEVAL_VERBOSE_TIMING` | `false` | Log phase timings at INFO level |
+| `RETRIEVAL_MAX_TRIES` | `2` | Max design loop attempts |
+| `RETRIEVAL_MIN_QUALITY_SCORE` | `50.0` | Early-stop quality threshold |
+| `RERANKER_BASE_URL` | `http://pattern-tei-rerank:8080` | TEI reranker endpoint |
+| `RERANKER_TIMEOUT` | `30.0` | Reranker timeout (seconds) |
+| `RERANKER_MAX_BATCH_SIZE` | `48` | Max texts per TEI /rerank request; must be ≤ min(MAX_CLIENT_BATCH_SIZE, MAX_CONCURRENT_REQUESTS) of the reranker sidecar. HybridPatternRetriever chunks large pools automatically. |
+| `PATTERN_DIRECTORY` | `~/.config/agent-pattern-mcp/pattern` | Pattern files directory |
+| `VALIDATION_MAX_RETRIES` | `2` | Max self-healing retry attempts |
+| `VALIDATION_RETRY_ON_FAIL` | `true` | Retry on validation failure |
+| `AGENT_PATTERN_JOBS_DB` | `~/.config/agent-pattern-mcp/jobs.db` | SQLite path for async job trio. Override for test isolation |
+| `TASKS_HEARTBEAT_ENABLED` | `true` | Emit progress notifications during long tool calls |
+| `TASKS_HEARTBEAT_INTERVAL_SECONDS` | `30` | Heartbeat interval in seconds (keep below client idle timeout) |
+| `TRANSPORT` | `streamable-http` | Transport mode: `stdio`, `streamable-http` |
+| `HOST` | `0.0.0.0` | HTTP bind host |
+| `PORT` | `8051` | HTTP bind port (in-container; the dev compose publishes host port 8061, systemd publishes 8051) |
+| `LOGGING_LEVEL` | `INFO` | Logging level |
+| `LOGGING_FORMAT` | `json` | Logging format: `json`, `text` |
+| `CONFIG_PATH` | `~/.config/agent-pattern-mcp/config.json` | Config file path |
+
+> **Note:** the dev and systemd compose files set `RETRIEVAL_BM25_TOP_K=20` / `RETRIEVAL_DENSE_TOP_K=20` (per-leg stage-1 caps) and `RETRIEVAL_MIN_FUSION_SCORE=0.015`, overriding the config defaults above. The deployed MiniMax generator block (`GENERATOR_PROVIDER=minimax`, `GENERATOR_MODEL=minimax/MiniMax-M2.7`, `GENERATOR_BASE_URL=https://api.minimax.io/v1`, `RETRIEVAL_USE_LEAN_WIRE_SCHEMA=true`) also differs from the OpenAI config defaults.
 
 ### CLI flags
 
+| Flag | Description |
+|---|---|
+| `--transport {stdio,streamable-http}` | Override transport mode |
+| `--host` | Override HTTP bind host (default: 0.0.0.0) |
+| `--port` | Override HTTP port (default: 8051) |
+| `--config-path` | Path to config file |
+| `--health` | Run health check and exit |
+
+---
+
+## Structured Reasoning (shannonthinking / code-reasoning)
+
+Before each LLM phase call (ANALYZE / GENERATE / EVALUATE / RETRY), the server
+optionally runs a bounded **ThoughtGenerator loop**: it authors each reasoning
+step with the generator's own LLM (LlamaIndex LiteLLM; one completion per
+step) and submits it to the
+[shannonthinking](https://github.com/olaservo/shannon-thinking) and/or
+[code-reasoning](https://github.com/mettamatt/code-reasoning) MCP servers —
+structured thinking scratchpads that validate, number, and record each step.
+The resulting trace is injected into the phase prompt as a
+`<reasoning_context>` block. Contract: **each thought = 1 LLM completion + 1
+MCP tool call**, capped by `REASONING_MAX_TOTAL_STEPS` (default 8).
+
+Key properties:
+
+- **Embedded in Docker** — the `build-mcps` stage bakes both npm packages
+  (`server-shannon-thinking@0.1.1`, `@mettamatt/code-reasoning@0.8.1`) into
+  the image at `/usr/local/lib/node_modules/...`; the runtime invokes them
+  directly via `node` (no network, no npx).
+- **Auto-fallback to npx** outside Docker — when the embedded entry points
+  are missing, the client falls back to `npx -y <pkg>` (first call downloads).
+- **Process-per-call isolation** — each tool call runs in a fresh subprocess
+  (`keep_alive=False`); nothing persists between calls.
+- **Silent per-call degradation** — any spawn/timeout/tool failure logs a
+  WARNING and the phase proceeds with a degraded in-prompt thinking scaffold
+  (decompose → classify → calibrate → resolve → verify); it never raises.
+- **Loud startup** — the lifespan health-check probes both tools and logs an
+  ERROR (with resolution hints) if one is unreachable; set
+  `REASONING_FAIL_FAST=true` to make startup fail instead.
+- **Trace caching** — ANALYZE and GENERATE traces are computed once per
+  design request and reused across design-loop attempts.
+
+### Opting in / tuning
+
+Reasoning is **enabled by default** in this repo's deployed stacks (both compose files set `REASONING_ENABLED=true`):
+
+```bash
+export REASONING_ENABLED=true           # enable the reasoning MCP integration
+export REASONING_FAIL_FAST=true         # refuse to start with broken MCPs
 ```
-python -m src.main --config-path /path/to/config.json \
-                   --transport stdio \
-                   --host 0.0.0.0 \
-                   --port 8051 \
-                   --health
-```
+
+Per-phase tool selection (defaults in `src/reasoning/config.py::_default_per_phase`):
+analyze `["code", "shannon"]` × 4 thoughts, generate `["code"]` × 3,
+evaluate `["shannon"]` × 3, refine `["code", "shannon"]` × 2.
+A full design run issues up to 24 reasoning tool calls as serial subprocesses —
+minutes, not seconds.
+
+Local (non-Docker) development needs Node.js; either install the packages
+globally (`npm install -g server-shannon-thinking @mettamatt/code-reasoning`)
+or let the npx fallback download them on first use.
+
+Set `LOGGING_LEVEL=DEBUG` to capture the authored `thought` and tool response
+for every per-step reasoning call. Docker/systemd stacks default to INFO;
+export `LOGGING_LEVEL=DEBUG` before `make docker-up`.
+
+---
 
 ## Extending with Custom Patterns
 
-1. Create `~/.config/agent-pattern-mcp/pattern/my-pattern-pattern.json`:
+Pattern files are loaded from `~/.config/agent-pattern-mcp/pattern/` (configurable via `PATTERN_DIRECTORY`). Drop a JSON file alongside the 61 built-in patterns.
+
+**Minimal pattern structure:**
 
 ```json
 {
-  "name": "my-pattern",
-  "topology": "single-agent-loop",
   "category": "tool_use",
-  "context": "When to use this pattern — problem context and forces",
-  "benefits": ["..."],
-  "tradeoffs": ["..."],
+  "name": "my-custom-pattern",
+  "topology": "single-agent-loop",
+  "context": "Describe when this pattern applies.",
+  "benefits": ["Benefit 1", "Benefit 2"],
+  "tradeoffs": ["Tradeoff 1"],
   "quality_attributes": {
-    "reliability": 7, "cost_efficiency": 6, "latency": 7,
-    "output_quality": 8, "observability": 6, "safety": 7, "simplicity": 8
+    "reliability": 7,
+    "cost_efficiency": 6,
+    "latency": 7,
+    "output_quality": 7,
+    "observability": 6,
+    "safety": 7,
+    "simplicity": 5
   },
-  "suitable_domains": ["tool-use-tasks"],
-  "use_cases": ["..."],
-  "avoid_when": ["..."],
-  "component_types": ["Planner: decomposes tasks"],
-  "technology_stack": ["LiteLLM"],
-  "anti_patterns": ["..."],
-  "design_principles": ["..."],
-  "best_practices": ["..."]
+  "suitable_domains": ["tool-use-tasks"]
 }
 ```
 
-2. Set `PATTERN_DIRECTORY` or `pattern_directory` in config to point at the directory (or place files in the repo's `pattern/` dir).
+Required fields: `name`, `context`, `category`, `topology`, `suitable_domains`, `quality_attributes` (all 7 keys).
 
-3. Restart the server. Invalid files are skipped with a warning (lenient loading); valid ones appear in `list_agent_patterns` immediately.
+Valid `category` values: `reasoning`, `tool_use`, `planning`, `reflection`, `research_synthesis`, `multi_agent`, `memory`, `retrieval`, `safety_control`, `observability`.
 
-## Troubleshooting
+Full JSON Schema with all enums: `docs/pattern-schema.json`
 
-### Server starts but tools are not visible
-- Verify the client config URL matches `http://localhost:8061/mcp` (note the `/mcp` path; dev default port is 8061, systemd uses 8051).
-- Check `docker compose logs agent-pattern-mcp` for startup errors.
-
-### "Connection refused" or timeout errors
-- The server binds `0.0.0.0:8051` by default (in-container). If Docker is used, the dev compose publishes on host port 8061 (`"${MCP_HOST_PORT:-8061}:8051"`); systemd uses 8051.
-
-### LLM provider errors (502 / 401)
-- `GENERATOR_API_KEY` must be set (via `.env`, environment, or config).
-- For MiniMax: `GENERATOR_PROVIDER=minimax`, `GENERATOR_MODEL=minimax/MiniMax-M2.7`, `GENERATOR_BASE_URL=https://api.minimax.io/v1`.
-
-### Pattern JSON files not loading
-- Files must match `*-pattern.json` and contain all required fields (`name`, `context`, `category`, `topology`, `suitable_domains`, `quality_attributes` with all 7 keys).
-- Check the startup log for `Pattern validation failed` warnings.
-
-### Async jobs not persisting across container restarts
-- `jobs.db` lives at `~/.config/agent-pattern-mcp/jobs.db` inside the container; it is **ephemeral** (lost on restart). Restarting a container discards in-flight and completed jobs. To persist jobs across restarts, mount a volume and set `AGENT_PATTERN_JOBS_DB` to point at it.
+---
 
 ## Long-running tools & timeouts
 
-`design_agent_system` (and to a lesser extent `analyze_agent_system`, `generate_agent_system`, `evaluate_agent_system`) run multi-stage LLM pipelines that **can take 5–10 minutes per call**. This is inherent to the workload, not a bug: the generator LLM must process a large input payload — the selected pattern definitions from the 61-pattern catalog, your requirements, and the full output of every previous stage — and produce a large, strictly structured JSON document (agents, relationships, tool contracts, quality scores) one token at a time. The `design_agent_system` pipeline repeats generate → evaluate up to three times, so a single call can comprise 9+ LLM round trips.
+`design_agent_system` (and to a lesser extent `analyze_agent_system`, `generate_agent_system`, `evaluate_agent_system`) run multi-stage LLM pipelines that **can take 5–10 minutes per call**. This is inherent to the workload, not a bug: the generator LLM must process a large input payload — the selected pattern definitions from the 61-pattern catalog, your requirements, and the full output of every previous stage — and produce a large, strictly structured JSON document (agents, relationships, tool contracts, state models, message contracts, quality scores) one token at a time. The `design_agent_system` pipeline repeats generate → evaluate up to three times, so a single call can comprise 9+ LLM round trips.
 
 ### The timeout problem
 
-MCP clients (AI coding agents, MCP SDKs) sit between the server and the LLM. Many implement a **client-side idle timeout**: if no data is received on the HTTP connection for some period (typically 30–120 seconds), the client aborts the request. The server is still working — the LLM is still generating — but the client closes the connection and reports a timeout error to the agent.
+MCP clients (AI coding agents, MCP SDKs) sit between the server and the LLM. Many of them implement a **client-side idle timeout**: if no data is received on the HTTP connection for some period (typically 30–120 seconds), the client aborts the request. The server is still working — the LLM is still generating — but the client closes the connection and reports a timeout error to the agent.
 
 This is a client-side behaviour, not a server-side one. The server processes the full request correctly; the client simply gives up before the response arrives.
 
@@ -400,27 +697,294 @@ For full control and compatibility with timeout-limited clients, three tools pro
 
 ```
 submit_agent_design_job(requirements, domain, override_topology)  → job_id
-get_agent_design_status(job_id)                                  → {status, result, error}
-cancel_agent_design(job_id)                                      → {cancelled, status}
+get_agent_design_status(job_id)                                     → {status, result, error}
+cancel_agent_design(job_id)                                         → {cancelled, status}
 ```
 
 `submit_agent_design_job` returns a `job_id` in milliseconds. The pipeline runs in a background task. Poll `get_agent_design_status(job_id)` every 10–30 seconds. When status is `completed`, the full design is in the `result` field. Cancellation is best-effort — the job exits at the next pipeline stage boundary.
 
 **This is the only fix that works for TS-SDK clients (Claude Desktop, Cursor).**
 
+The job store is SQLite at `~/.config/agent-pattern-mcp/jobs.db` (configurable via `AGENT_PATTERN_JOBS_DB`).
+
 ### Bypassing client timeouts entirely: `make client`
 
 The example client in `examples/agent_client.py` is a **direct Python HTTP client** — it is not an MCP agent. It calls the server over HTTP without any MCP SDK, and therefore has **no client-side idle timeout**. It makes a single blocking request and waits for the full response, regardless of how long it takes.
 
 ```bash
-# Start the server (from project root; builds first if images are missing)
-make docker-build-all && make docker-up
+# Start the server (from project root)
+docker compose -f docker/docker-compose.yml up --build
 
 # In another terminal, run the example client
 make client
 ```
 
 `make client` is a development/demo tool. It demonstrates that the server **correctly completes** long requests — the timeout issue is purely a client-side problem. For production use with MCP agents, the heartbeat defence covers the majority of clients; the async job trio is the universal fallback.
+
+---
+
+## Troubleshooting
+
+### Server starts but tools are not visible
+
+1. Check the agent's MCP connection: Claude Code `/mcp`, OpenCode `opencode mcp list`, Codex `codex mcp list`
+2. Verify the server process started: compose logs should show `MCPAgentPatternServer initialized`
+3. Confirm the TEI embedder is healthy: `docker exec agent-pattern-mcp python -c "import urllib.request; print(urllib.request.urlopen('http://pattern-tei-embed:8080/health').status)"`
+
+### "Connection refused" or timeout errors
+
+The server waits for the TEI embedder to become healthy:
+
+```bash
+docker compose -f docker/docker-compose.yml logs agent-pattern-mcp
+```
+
+### LLM provider errors (502 / 401)
+
+- Confirm `GENERATOR_API_KEY` is set and not expired
+- Verify `GENERATOR_BASE_URL` matches your provider's endpoint
+- If using a proxy, check reachability from inside the container
+
+### Pattern JSON files not loading
+
+- Files must have `.json` extension and match `*-pattern.json`
+- Required fields: `name`, `context`, `category`, `topology`, `suitable_domains`, `quality_attributes` (all 7 keys)
+- Check the startup log for `Pattern validation failed` warnings
+
+---
+
+## Building & Development
+
+**Common make targets** (full reference: [docs/make_rules.md](docs/make_rules.md)):
+
+| Target | Description |
+|---|---|
+| `make install` | Install package in editable mode with dev dependencies |
+| `make check-lint` | Run ruff linting |
+| `make check-static-typing` | Run mypy --strict type checking on src/ |
+| `make check-all` | Run every check-* quality gate (lint, types, dead code, deps) |
+| `make test-unit` | Run unit tests with uv (tests/unit/) |
+| `make test-oracles` | Run executable verification oracles (tests/verification/) |
+| `make client` | Run the example MCP client demo (requires server running) |
+| `make client-async` | Run the async job trio demo (requires server running) |
+| `make docker-build` | Build the MCP server Docker image |
+| `make docker-build-all` | Build MCP server + TEI embedder + reranker images |
+| `make docker-publish` | Push image to Docker Hub + GHCR (version + latest) |
+| `make docker-up` | Build and start all services |
+| `make docker-down` | Stop all services |
+
+**Development workflow:**
+
+```bash
+make install                      # First-time setup
+make check-all                    # Before pushing (lint + types + dead code + deps)
+make docker-build-all             # Build both images (first time and after code changes)
+make docker-up                    # Start services
+make docker-logs-follow           # Watch logs
+make docker-down                  # Stop
+```
+
+---
+
+## Publishing
+
+All three images are published to two registries simultaneously:
+
+| Image | Docker Hub | GHCR | Tags |
+|---|---|---|---|
+| MCP server | `olkowa/agent-pattern-mcp` | `ghcr.io/olk/agent-pattern-mcp` | `$(DOCKER_TAG)`, `latest` |
+| TEI embedder | `olkowa/pattern-tei-embed` | `ghcr.io/olk/pattern-tei-embed` | `$(DOCKER_TAG)`, `latest` |
+| TEI reranker | `olkowa/pattern-tei-rerank` | `ghcr.io/olk/pattern-tei-rerank` | `$(DOCKER_TAG)`, `latest` |
+
+All three images share the same `$(DOCKER_TAG)` (the version from `pyproject.toml`), so `tei:1.0.3` always ships with `mcp:1.0.3`. Blob deduplication keeps re-tagging unchanged TEI images cheap.
+
+> **Bandwidth note:** the TEI embedder image is ~5 GB (ONNX fp32 weights baked in). First push to each registry is ~5 GB upload. Subsequent pushes are incremental — only changed layers are transferred.
+
+### Prerequisites
+
+**Docker Hub** — already authenticated locally (`docker login`).
+
+**GitHub Container Registry** — requires a [classic PAT](https://github.com/settings/tokens/new?scopes=write:packages) with `write:packages` scope. 2FA is not an issue — PATs bypass it. After login the token is discarded; the credential persists in `~/.docker/config.json` until you log out.
+
+### Publish (one-time setup + per-session)
+
+```bash
+# 1. Login to GHCR (interactive — paste token at the password prompt)
+docker login ghcr.io -u olk
+
+# 2. Build and push all three images (MCP + TEI embedder + TEI reranker)
+#    The umbrella target builds the MCP image, tags it, pushes it, creates the git tag,
+#    then builds and pushes each TEI image in sequence.
+make docker-publish-all
+
+# 3. Logout from GHCR immediately after publishing
+#    (removes the ghcr.io credential from ~/.docker/config.json)
+docker logout ghcr.io
+```
+
+On subsequent publishes repeat steps 1–3. If your PAT has expired, generate a new one at the link above.
+
+### First push — set packages public (GHCR only)
+
+GHCR packages default to **private**. After the first `make docker-publish-all`, flip all three packages to public:
+
+| Package | Settings URL |
+|---|---|
+| MCP server | `https://github.com/users/olk/packages/container/agent-pattern-mcp/settings` |
+| TEI embedder | `https://github.com/users/olk/packages/container/pattern-tei-embed/settings` |
+| TEI reranker | `https://github.com/users/olk/packages/container/pattern-tei-rerank/settings` |
+
+Set each to **Public** and save.
+
+### Partial failure recovery
+
+If the push fails mid-way (e.g., GHCR auth was not configured), Docker Hub layers are already uploaded. After fixing auth, re-running `make docker-publish-all` is safe — each registry reports a cache hit for already-uploaded layers and completes the remaining push. For targeted retries, individual images can be pushed with `make docker-publish-tei` or `make docker-publish-tei-rerank`.
+
+---
+
+## systemd Service (Linux)
+
+The server can run as a systemd service on any systemd-based Linux host. It
+starts the Docker Compose stack automatically at boot.
+
+### File layout
+
+The `systemd/` directory contains three files:
+
+| File | Purpose |
+|---|---|
+| `systemd/agent-pattern-mcp.service` | The systemd unit |
+| `systemd/docker-compose.yml` | Production compose variant (no `build:`, absolute paths) |
+| `systemd/README.md` | Full runbook with install, verify, and troubleshooting |
+
+The production compose file is a deployment variant of `docker/docker-compose.yml`:
+it has no `build:` sections (images must be pre-built), uses absolute paths, and
+lives under `/etc/agent-pattern-mcp/` on the host. The systemd-managed
+project uses the distinct name `agpmcp-systemd` — distinct from both the dev
+compose and the sibling `architecture-pattern-mcp` systemd stack
+(`apmcp-systemd`), so neither stack's `up -d --remove-orphans` treats the
+other's container as an orphan.
+
+> **TEI sidecars are NOT defined in this stack** — the `pattern-tei-embed` embedder
+> and `pattern-tei-rerank` reranker containers live in the shared
+> [`pattern-tei-infra`](https://github.com/olk/pattern-tei-infra) stack.  This
+> stack owns the `pattern-tei-shared` Docker network and exposes the sidecars at
+> `http://pattern-tei-embed:8080/v1` (embedder) and `http://pattern-tei-rerank:8080`
+> (reranker).  The systemd MCP stack joins that network and reaches them by
+> those DNS names.
+>
+> **Prerequisite — one-time TEI infra setup:**
+>
+> ```bash
+> # Clone the infra stack (if not already on the host)
+> git clone https://github.com/olk/pattern-tei-infra.git ~/pattern-tei-infra
+>
+> # Install and enable the pattern-tei-infra systemd unit
+> sudo install -m 644 ~/pattern-tei-infra/pattern-tei-infra.service \
+>                 /etc/systemd/system/
+> sudo systemctl daemon-reload
+> sudo systemctl enable --now pattern-tei-infra.service
+> # Wait ~2 min for the TEI sidecars to become healthy
+> ```
+>
+> **Start `agent-pattern-mcp.service` only AFTER** `pattern-tei-infra.service`
+> is `active (running)`. See
+> [`pattern-tei-infra/README.md`](https://github.com/olk/pattern-tei-infra/README.md)
+> for full details.
+
+### Prerequisites
+
+- systemd-based Linux host with Docker (`docker compose version`).
+- `<user>` is in the `docker` group.
+- Both images pre-built locally (`make docker-build-all` from the repo).
+- **Shared TEI infra stack installed and enabled** (see tei-infra README).
+
+### Install
+
+```bash
+# 0. Install + enable shared TEI infra (once)
+sudo install -m 644 {HOME}/pattern-tei-infra/pattern-tei-infra.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now pattern-tei-infra.service
+
+# 1. Build images (once)
+make docker-build-all
+
+# 2. Deploy /etc/agent-pattern-mcp/
+sudo install -d /etc/agent-pattern-mcp/config
+sudo install -m 644 systemd/docker-compose.yml /etc/agent-pattern-mcp/
+sudo install -m 644 ~/.config/agent-pattern-mcp/config.json /etc/agent-pattern-mcp/config/
+
+# 3. Create the .env file (root:docker 640) and edit it.
+#     640 root:docker — not 600 root:root — so the systemd service
+#     running as User=graemer (a member of the `docker` group) can read this
+#     file when docker compose auto-loads it.  The `docker` group is
+#     effectively privileged; this is the standard trade-off for non-root
+#     systemd services that manage Docker containers.
+sudo install -o root -g docker -m 640 /dev/null /etc/agent-pattern-mcp/.env
+sudo $EDITOR /etc/agent-pattern-mcp/.env
+# Contents:
+#   MINIMAXAI_API_KEY=sk-...
+#   COMPOSE_PROJECT_NAME=agpmcp-systemd
+#   MCP_HOST_PORT=8051          # change to avoid port conflicts with other MCP servers
+
+# 4. Install and enable the service.
+sudo install -m 644 systemd/agent-pattern-mcp.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now agent-pattern-mcp.service
+```
+
+> **Prebuilt-image shortcut:** for the no-build install from Docker Hub
+> (pull + retag, JSON-RPC probe, day-2 operations), see
+> [INSTALL.md](INSTALL.md) Path B instead.
+
+### Verify
+
+`systemctl status` shows `active (exited)` within seconds, but the containers
+take **up to ~40 s** to become healthy (MCP `start_period: 40s`; TEI readiness
+is owned by `pattern-tei-infra` with `start_period: 120s`).
+The unit does not wait for healthchecks.
+
+```bash
+systemctl status agent-pattern-mcp
+journalctl -u agent-pattern-mcp -n 50
+docker compose -p agpmcp-systemd -f /etc/agent-pattern-mcp/docker-compose.yml ps
+docker inspect -f '{{.State.Health.Status}}' agent-pattern-mcp  # "healthy"
+# Probe the MCP endpoint — must print 200 (GET /health is 404 by design).
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "http://localhost:${MCP_HOST_PORT:-8051}/mcp" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"probe","version":"0.0.0"}},"id":1}'
+```
+
+### Day-to-day
+
+```bash
+sudo systemctl start|stop|restart|reload agent-pattern-mcp
+journalctl -u agent-pattern-mcp -n 200 -f
+docker compose -p agpmcp-systemd -f /etc/agent-pattern-mcp/docker-compose.yml logs -f
+```
+
+### Updating the stack
+
+```bash
+make docker-build-all                     # rebuild both images
+sudo systemctl reload agent-pattern-mcp   # recreate containers
+```
+
+### Uninstall
+
+```bash
+sudo systemctl disable --now agent-pattern-mcp.service
+sudo rm /etc/systemd/system/agent-pattern-mcp.service
+sudo systemctl daemon-reload
+sudo rm -rf /etc/agent-pattern-mcp
+```
+
+For full troubleshooting, networking details, and the coexistence guide, see
+`systemd/README.md`.
+
+---
 
 ## Verification Program
 
@@ -442,86 +1006,8 @@ Fast gates: `make check-all` (lint + types + dead code + deps) and
 `make test-all` (unit + oracles). The nightly canary lives in
 `.github/workflows/verification.yml`.
 
-## Building & Development
-
-```bash
-make install       # uv sync (dev deps included)
-make check-lint    # ruff check
-make check-static-typing   # mypy --strict
-make test-unit     # pytest tests/unit/ with coverage
-make test-oracles  # executable verification oracles
-make docker-build-all   # MCP + TEI + TEI-rerank images
-```
-
-```bash
-make install       # uv sync (dev deps included)
-make lint          # ruff check
-make typecheck     # mypy --strict (alias for static-typing)
-make unit-tests    # pytest tests/unit/
-make docker-build-all   # MCP + TEI + TEI-rerank images
-```
-
-## Publishing
-
-Images publish to Docker Hub (`olkowa/*`) and GHCR (`ghcr.io/olk/*`).
-
-### Prerequisites
-
-- Docker Hub and GHCR (`docker login`) access.
-
-### Publish (one-time setup + per-session)
-
-```bash
-# 1. Login to GHCR (interactive — paste token at the password prompt)
-docker login ghcr.io -u olk
-
-# 2. Build and push all three images (MCP + TEI embedder + TEI reranker)
-make docker-publish-all
-
-# 3. Logout from GHCR immediately after publishing
-docker logout ghcr.io
-```
-
-The `docker-publish` target also creates and pushes an annotated git tag `v$(VERSION)`.
-
-### First push — set packages public (GHCR only)
-
-New GHCR packages default to private. Visit `github.com/users/olk/packages`, open each package → Package settings → Change visibility → Public.
-
-## systemd Service (Linux)
-
-See [systemd/README.md](systemd/README.md) for the full guide: file layout, install steps, day-to-day commands, updating, and uninstall. Summary:
-
-> **Prerequisite:** The shared TEI infra stack must be installed first — see [`~/Projekte/Python/tei-infra/README.md`](../tei-infra/README.md). The systemd MCP stack joins the `tei-shared` external network to reach the embedder/reranker.
-
-```bash
-# 0. Install + enable shared TEI infra (once)
-sudo install -m 644 ~/Projekte/Python/tei-infra/pattern-tei-infra.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now pattern-tei-infra.service
-
-# 1. Build images (once)
-make docker-build-all
-
-# 2. Deploy /etc/agent-pattern-mcp/
-sudo install -d /etc/agent-pattern-mcp/config
-sudo install -m 644 systemd/docker-compose.yml /etc/agent-pattern-mcp/
-sudo install -m 644 ~/.config/agent-pattern-mcp/config.json /etc/agent-pattern-mcp/config/
-
-# 3. Create the .env file (root:docker 640) and edit it.
-sudo install -o root -g docker -m 640 /dev/null /etc/agent-pattern-mcp/.env
-sudo $EDITOR /etc/agent-pattern-mcp/.env
-# Contents:
-#   MINIMAXAI_API_KEY=sk-...
-#   COMPOSE_PROJECT_NAME=apmcp-systemd
-#   MCP_HOST_PORT=8051
-
-# 4. Install and enable the service.
-sudo install -m 644 systemd/agent-pattern-mcp.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now agent-pattern-mcp.service
-```
+---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT License. See [LICENSE](LICENSE).

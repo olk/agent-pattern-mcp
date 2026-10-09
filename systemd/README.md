@@ -45,8 +45,7 @@ make docker-build-all
 #           pattern-tei-rerank:latest
 # TEI images are consumed by pattern-tei-infra, not this stack.
 ```
-
-**Option B — Pull published images** *(skip the local build; retag to :local so the
+**Option B — Pull published images** *(skip the local build; retag to :latest so the
 `ExecStartPre` guard still passes)*:
 ```bash
 VERSION=$(grep -m 1 '^version' pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')
@@ -54,7 +53,7 @@ for image in olkowa/agent-pattern-mcp \
             olkowa/pattern-tei-embed \
             olkowa/pattern-tei-rerank; do
     docker pull "${image}:${VERSION}"
-    docker tag "${image}:${VERSION}" "${image##*/}:local"
+    docker tag "${image}:${VERSION}" "${image##*/}:latest"
 done
 ```
 
@@ -62,8 +61,11 @@ If you re-pull the repo later, rerun the same build or pull+tag commands to refr
 
 ## Step 1 — Coexist with the dev compose
 
-The systemd-managed project is given a distinct name (`apmcp-systemd`, set via
-`COMPOSE_PROJECT_NAME` in the `.env` file). The dev compose uses unique TEI
+The systemd-managed project is given a distinct name (`agpmcp-systemd`, set via
+`COMPOSE_PROJECT_NAME` in the `.env` file — deliberately different from the
+sibling architecture-pattern-mcp stack's `apmcp-systemd`, since sharing a
+project label would make each `up -d --remove-orphans` delete the sibling
+container as an orphan). The dev compose uses unique TEI
 container names (`agent-pattern-tei*`) and a different host port (8061 vs
 8051). Both stacks can now run **concurrently** — no need to stop one before
 starting the other:
@@ -101,8 +103,8 @@ sudo install -o root -g docker -m 640 /dev/null /etc/agent-pattern-mcp/.env
 sudo $EDITOR /etc/agent-pattern-mcp/.env
 # File contents:
 #   MINIMAXAI_API_KEY=sk-...
-#   COMPOSE_PROJECT_NAME=apmcp-systemd
-#   MCP_HOST_PORT=8050          # change to avoid port conflicts with other MCP servers
+#   COMPOSE_PROJECT_NAME=agpmcp-systemd
+#   MCP_HOST_PORT=8051          # change to avoid port conflicts with other MCP servers
 
 # 5. Install the unit file.
 sudo install -m 644 systemd/agent-pattern-mcp.service \
@@ -139,8 +141,13 @@ The unit does **not** wait for healthchecks.
 ```bash
 systemctl status agent-pattern-mcp                          # service state
 journalctl -u agent-pattern-mcp -n 50                     # last 50 log lines
-docker compose -p apmcp-systemd -f /etc/agent-pattern-mcp/docker-compose.yml ps
-curl -fsS http://localhost:${MCP_HOST_PORT:-8051}/health         # MCP HTTP health
+docker compose -p agpmcp-systemd -f /etc/agent-pattern-mcp/docker-compose.yml ps
+docker inspect -f '{{.State.Health.Status}}' agent-pattern-mcp  # "healthy" (≤ ~40 s after start)
+# Probe the MCP endpoint — must print 200 (GET /health is 404 by design).
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "http://localhost:${MCP_HOST_PORT:-8051}/mcp" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"probe","version":"0.0.0"}},"id":1}'
 ```
 
 ## Day-to-day commands
@@ -152,7 +159,7 @@ sudo systemctl restart agent-pattern-mcp     # stop + start
 sudo systemctl reload agent-pattern-mcp      # recreate containers to pick up
                                                # compose / env file edits
 journalctl -u agent-pattern-mcp -n 200     # recent logs
-docker compose -p apmcp-systemd -f /etc/agent-pattern-mcp/docker-compose.yml logs -f
+docker compose -p agpmcp-systemd -f /etc/agent-pattern-mcp/docker-compose.yml logs -f
 ```
 
 `restart` stops the stack (SIGTERM, 10 s grace, then SIGKILL via `compose down`)
@@ -193,7 +200,7 @@ sudo rm -rf /etc/agent-pattern-mcp
 - **`Failed to load environment file`** → `/etc/agent-pattern-mcp/.env`
   is missing or unreadable. Recreate with `sudo install -m 600 …`.
 - **`active (exited)` but `docker compose ps` shows `Exit`/`Restarting`** → a
-  container is crash-looping. Check `docker compose -p apmcp-systemd logs <svc>`.
+  container is crash-looping. Check `docker compose -p agpmcp-systemd logs <svc>`.
 - **`active (exited)` but no containers** → `docker compose up -d` failed;
   check `journalctl -u agent-pattern-mcp`.
 - **MCP server can't reach TEI at boot** → wait ~2 min for TEI's
