@@ -169,7 +169,7 @@ cython_debug/
 #.idea/
 
 .worktrees/
-.opencode/
+.omp/
 
 # Hypothesis nightly-profile example database (tests/conftest.py "nightly";
 # the ci/dev ".hypothesis/" dir is already covered above)
