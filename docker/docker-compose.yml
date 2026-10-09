@@ -115,10 +115,11 @@ services:
     environment:
       - HF_HUB_OFFLINE=1
       - HUGGINGFACE_HUB_CACHE=/data
-      - MAX_CONCURRENT_REQUESTS=32
-      - MAX_BATCH_TOKENS=8192
-      - MAX_CLIENT_BATCH_SIZE=32
-      - AUTO_TRUNCATE=true
+      - MAX_CONCURRENT_REQUESTS=${TEI_MAX_CONCURRENT_REQUESTS:-32}
+      - MAX_BATCH_TOKENS=${TEI_MAX_BATCH_TOKENS:-8192}
+      - WARMUP_TOKENS=${TEI_WARMUP_TOKENS:-0}
+      - MAX_CLIENT_BATCH_SIZE=${TEI_MAX_CLIENT_BATCH_SIZE:-32}
+      - AUTO_TRUNCATE=${TEI_AUTO_TRUNCATE:-true}
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
       interval: 30s
@@ -133,9 +134,11 @@ services:
     environment:
       - HF_HUB_OFFLINE=1
       - HUGGINGFACE_HUB_CACHE=/data
-      - MAX_CONCURRENT_REQUESTS=64
-      - MAX_CLIENT_BATCH_SIZE=48
-      - AUTO_TRUNCATE=true
+      - MAX_CONCURRENT_REQUESTS=${TEI_RERANK_MAX_CONCURRENT_REQUESTS:-64}
+      - MAX_BATCH_TOKENS=${TEI_RERANK_MAX_BATCH_TOKENS:-16384}
+      - WARMUP_TOKENS=${TEI_RERANK_WARMUP_TOKENS:-0}
+      - MAX_CLIENT_BATCH_SIZE=${TEI_RERANK_MAX_CLIENT_BATCH_SIZE:-48}
+      - AUTO_TRUNCATE=${TEI_RERANK_AUTO_TRUNCATE:-true}
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
       interval: 30s
