@@ -1,0 +1,103 @@
+{
+  "name": "prioritization",
+  "category": "planning",
+  "topology": "single-agent-loop",
+  "context": "An agent confronts a backlog larger than the compute available to it: a queue of issues, tickets, documents, search results, or subtasks where finishing everything in this turn is impossible. A priority layer sits in front of the executor loop and decides which pending item runs next, and it re-decides rather than fixing the order once. Two things make this distinct from routing (routing classifies an input and dispatches it to a handler, one-shot, and does not model contention) and from a step budget (a step budget caps how much an agent spends, it does not choose what it spends it on). The ordering signal is typically a composite: an explicit business priority (Critical > High > Normal > Low), an estimated token cost so that short jobs drain first under shortest-job-first, a dependency gate so a task is not eligible until its predecessors in a DAG complete, and a recency or dependency-derived re-rank after each completion. Re-prioritization matters because new information changes the ranking: a task whose result revealed an urgent blocker, or one that turned out to be infeasible, should move immediately rather than at the next planning cycle. The pattern applies both to a single agent managing its own queue (create -> execute -> re-prioritize, the BabyAGI loop) and to a serving layer multiplexing many concurrent agents onto a fixed pool of model capacity, where the queue is the contention point and starvation of high-value work is the failure mode being fixed.",
+  "benefits": [
+    "Spends a fixed token or time budget on the highest-value pending work instead of draining the queue in arrival order",
+    "Prevents starvation: a continuously-refreshed priority order bounds the wait of a high-priority task even under sustained load of low-priority work",
+    "Shortest-job-first within a priority class raises aggregate throughput because long jobs do not block a backlog of cheap ones",
+    "A dependency gate makes execution order correct rather than merely cheap, so a task never runs before its inputs exist",
+    "Re-prioritization after each completion turns execution results into scheduling information, which a one-shot classifier cannot use"
+  ],
+  "tradeoffs": [
+    "Cost estimation is the weak link: ranking by a mis-estimated token cost degrades scheduling to arrival order, and LLM-based cost prediction is itself noisy",
+    "A stale priority list is worse than none, because the agent commits to a now-wrong order; priorities must be recomputed after every completion or bounded staleness must be enforced",
+    "Adds a model call per re-rank on top of the execution call, which is a real tax on cheap tasks and can be self-defeating at high queue depth",
+    "Priority inversion still occurs at the boundary: the layer can only reorder what has already been admitted, so a genuinely urgent task arriving behind a large admitted batch waits for the batch",
+    "Shared static priority classes are a policy artifact, not a fact about the work, and encode the priorities of whoever set them; they can systematically devalue long-running or low-visibility work"
+  ],
+  "quality_attributes": {
+    "reliability": 7,
+    "cost_efficiency": 9,
+    "latency": 6,
+    "output_quality": 7,
+    "observability": 7,
+    "safety": 5,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "long-horizon-tasks",
+    "cost-sensitive-workloads",
+    "it-service-management",
+    "customer-support",
+    "code-generation",
+    "autonomous-task-execution",
+    "workflow-automation",
+    "multi-agent-systems"
+  ],
+  "unsuitable_domains": [
+    "latency-sensitive-tasks",
+    "conversational-assistants",
+    "gui-computer-use",
+    "high-stakes-outputs"
+  ],
+  "use_cases": [
+    "A coding agent working a backlog of issues under a per-run token budget, skipping items it judges infeasible and re-ranking the rest after each completion",
+    "A SOC alert triage agent ordering queued incidents by blast radius while dependencies on evidence-gathering steps gate eligibility",
+    "A research agent holding a sub-question queue and reordering it as retrieval reveals which questions are already answered and which are blocking",
+    "A serving proxy multiplexing many concurrent agents onto a fixed RPM/TPM pool, prioritizing by task class so that a low-value backlog cannot starve an interactive session"
+  ],
+  "avoid_when": [
+    "The queue always fits within the budget, in which case ordering is a no-op and the extra re-rank call is pure overhead",
+    "The work is latency-critical and interactive, where any scheduling indirection is felt directly as tail latency",
+    "A single user is waiting on one answer, since there is nothing to prioritize against",
+    "Priority cannot be estimated better than arrival order, in which case the layer adds a model call and buys nothing"
+  ],
+  "component_types": [
+    "priority queue with re-rank on completion",
+    "cost estimator for expected token spend",
+    "dependency DAG with eligibility gate",
+    "task store holding pending items",
+    "executor loop consuming one item at a time"
+  ],
+  "anti_patterns": [
+    "Fixing the priority order once at plan time and then executing it literally, so execution results cannot influence scheduling",
+    "Ranking purely by an LLM's stated difficulty or importance rather than by an estimated cost or dependency signal, which is uncorrelated with actual token spend",
+    "Letting every queued task be simultaneously eligible, so a cheap task with no dependencies queues behind an expensive blocking one",
+    "Re-ranking on every loop iteration even when no new information arrived, spending more on scheduling than on work",
+    "Using a shared priority class as a proxy for urgency without recording who assigned it, so the ranking is unauditable"
+  ],
+  "migration_from": [
+    "routing",
+    "parallelization"
+  ],
+  "migration_to": [
+    "supervisor-worker",
+    "orchestrator-workers",
+    "resource-aware-optimization",
+    "step-budget"
+  ],
+  "design_principles": [
+    "Re-rank on state change, not on a timer, so scheduling cost is paid only when it can change the decision",
+    "Separate eligibility (dependencies satisfied) from ordering (value and cost), so a correct dependency graph is not entangled with a heuristic ranking",
+    "Bound priority staleness explicitly, because a stale rank is an ordering decision made on evidence that no longer holds",
+    "Make the ordering signal auditable, since a priority that cannot be explained cannot be contested or corrected",
+    "Treat the queue as the contention point; contention is what makes ordering a pattern rather than a nicety"
+  ],
+  "best_practices": [
+    "Order by (explicit priority class, estimated cost, arrival time) so that the intent-bearing signal dominates and cost only breaks ties within a class",
+    "Track dependency edges as a DAG with cycle detection and gate eligibility on predecessor completion",
+    "Refresh the rank after each completion and after any failure that changes the feasibility of remaining work",
+    "Log the priority, the rank, and the reason for each promotion or demotion so reordering is reviewable",
+    "Measure scheduling overhead as a fraction of total token spend and drop the layer when it exceeds the value it returns",
+    "Enforce starvation bounds by aging, so a task cannot sit below a fixed priority indefinitely no matter how much lower-value work arrives"
+  ],
+  "references": [
+    "Nakajima, BabyAGI (GitHub), 2023 — https://github.com/yoheinakajima/babyAGI",
+    "IBM, What is BabyAGI?, 2025 — https://www.ibm.com/think/topics/babyagi",
+    "Yang et al., Justitia: Fair and Efficient Scheduling of Task-parallel LLM Agents with Selective Pampering, 2025 — https://arxiv.org/abs/2510.17015",
+    "Agyemang et al., HiveMind: OS-Inspired Scheduling for Concurrent LLM Agent Workloads, 2026 — https://arxiv.org/abs/2604.17111",
+    "Al Nazi and Roy Dipta, TRIAGE: Evaluating Prospective Metacognitive Control in LLMs under Resource Constraints, 2026 — https://arxiv.org/abs/2605.13414"
+  ]
+}

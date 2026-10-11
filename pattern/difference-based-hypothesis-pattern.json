@@ -1,0 +1,124 @@
+{
+  "name": "difference-based-hypothesis",
+  "category": "safety_control",
+  "topology": "evaluator-loop",
+  "context": "A conventional verifier answers a yes/no question: does this output satisfy the schema, does this answer pass the rubric, is this claim true. That framing needs a reference oracle, and for agent work — tool calls with side effects, edits to files, database writes, multi-step research — no correct oracle exists to compare against. The difference-based framing replaces 'is this correct?' with 'is the delta what I predicted?': before acting, the agent writes down a falsifiable hypothesis expressed as a measurable change (balance moves by X, file's line count increases by 3, record's status leaves draft, three tool calls are issued in this order). It then acts, reads the state back, and computes the difference between the prediction and the observation. A zero difference is confirmation; an unexpected difference is the finding. This is the agent-side port of differential testing, which exists precisely because modern systems are too complex for an a-priori oracle — McKeeman's 1998 argument is that the very complexity that makes a system hard to test makes expected outputs impractical to know in advance, so the tester supplies *a second comparable system* and lets the discrepancy be the bug-exposing signal. The same move works temporally: instead of (or in addition to) a predicted delta, compare a window of state against a prior window, which is the classic CUSUM formulation — accumulate the log-likelihood ratio of in-control against out-of-control observations, floor it at zero so pre-change increments drift negative and hug the barrier, and declare a change when the sum crosses a threshold. The agent-facing consequence is important: the guard does not need to know what the world should look like, only what it looked like before the agent touched it, and what the agent said would happen.",
+  "benefits": [
+    "Needs no ground-truth oracle, which is the only thing that makes agent self-verification possible at all for side-effecting tool calls",
+    "Catches whole classes of failure a boolean verifier structurally cannot see: an action that succeeded but did the wrong thing, and a mutation that touched state nobody mentioned",
+    "Anchors the agent to observable state rather than to its own narration, so a confidently wrong trace cannot verify itself",
+    "The predicted delta is a commitment made before the action, so it cannot be rationalised after seeing a surprising result — it is the agent's own audit commitment",
+    "The same machinery serves two directions of check: expected-minus-actual (did the action do what I said) and now-minus-before (did anything change that should not have), which is the difference between verifying an action and detecting an intrusion",
+    "Difference semantics make residual risk legible: an unexplained delta is a small, localised, timestamped artefact rather than a diffuse suspicion",
+    "Cheap to run repeatedly — a numeric comparison against a recorded baseline costs a state read, not another generation"
+  ],
+  "tradeoffs": [
+    "An incomplete baseline is worse than no baseline: predict the delta from a stale reading and every subsequent check inherits the staleness as a false violation",
+    "Every hypothesis is a chance to write an untestable one — an agent that predicts 'the deployment will behave sensibly' has produced a string, not a measurement, and the check is theatre",
+    "Non-determinism is the core enemy of this pattern: timestamps, autoscale events, concurrent writers and third-party APIs make deltas noisy, and the threshold that suppresses false alarms also suppresses real ones",
+    "Diff-based checking detects change, not correctness — a change can be wrong but expected, and no difference can mask a wrong-but-unchanged state",
+    "Reading state back costs a tool call and a turn, so the loop's latency is roughly the cost of one extra observation per checkpoint",
+    "The full state diff is usually too large to inspect, so real implementations must scope the comparison to named fields or invariants, which reintroduces exactly the blind spots a whole-state check would have caught",
+    "Predicting a delta before acting requires the agent to model the tool's effect accurately; the worse its model, the more of the loop is noise",
+    "As with differential testing generally, differences are candidate bugs rather than confirmed ones — a real verification step and triage cost follows every alarm"
+  ],
+  "quality_attributes": {
+    "reliability": 9,
+    "cost_efficiency": 8,
+    "latency": 5,
+    "output_quality": 7,
+    "observability": 9,
+    "safety": 9,
+    "simplicity": 6
+  },
+  "suitable_domains": [
+    "autonomous-task-execution",
+    "high-stakes-outputs",
+    "cybersecurity",
+    "data-analysis",
+    "software-testing",
+    "devops",
+    "workflow-automation",
+    "database-operations",
+    "trial-and-error-learning",
+    "regulated-domains"
+  ],
+  "unsuitable_domains": [
+    "conversational-assistants",
+    "content-generation",
+    "latency-sensitive-tasks",
+    "api-automation"
+  ],
+  "use_cases": [
+    "A coding agent that predicts which files a change should touch, then diffs the working tree and treats an unexpected touched file as a stop condition",
+    "A finance agent that records balance and position before a transfer, then verifies the exact delta and halts on any residual",
+    "An infrastructure agent that predicts a resource's post-change state and detects drift the change did not cause",
+    "Change detection on a live stream where a baseline window is compared against a current window and a sustained departure is the alarm — the CUSUM formulation, where the statistic floors at zero and accumulates log-likelihood ratios",
+    "Differential testing of an agent against a baseline run of the same task, where the output diff is the bug-exposing signal and no oracle exists",
+    "Metamorphic checks where a transformed input must produce a correspondingly different output — renaming a symbol should not change an entailment verdict, so a changed verdict is a violation"
+  ],
+  "avoid_when": [
+    "The task is generative with no stable state to read back — creative writing, open-ended advice — because there is nothing to difference",
+    "The system's state is not externally observable, so the 'read back' step is impossible without adding an observation channel that costs more than the check is worth",
+    "Side effects are legitimately non-deterministic at the field level and no invariant can be isolated, which makes every delta a false positive",
+    "Every action must complete within one turn and no additional tool call is affordable",
+    "You are verifying a claim about the world rather than about your own effect on it — differences in world state are not evidence about the agent's correctness"
+  ],
+  "component_types": [
+    "Baseline snapshot: the pre-action state of the named fields the agent has decided are relevant, recorded before any tool call mutates them",
+    "Hypothesis writer: the step that converts an intent ('update the pricing table') into a falsifiable, measurable prediction over named fields",
+    "Differ: the comparison of predicted delta against observed delta, scoped to the named fields so the result is inspectable",
+    "CUSUM accumulator: an optional sequential statistic that floors at zero and sums per-observation log-likelihood ratios, so small persistent drift is caught that a fixed threshold misses",
+    "State reader: the post-action tool call that observes the fields the hypothesis named",
+    "Violation reporter: the halt/rollback/escalate path, with the unexplained delta recorded as an artefact",
+    "Invariance relation: the declared rule about how output should change when an input is transformed, checked rather than assumed"
+  ],
+  "technology_stack": [
+    "Tool-use / function-calling loops",
+    "JSON-schema state snapshots",
+    "Sequential change-point detection (CUSUM and variants)",
+    "Property-based and metamorphic test relations",
+    "Version-control and API diff tooling",
+    "Structured logging with before/after field capture"
+  ],
+  "anti_patterns": [
+    "Writing the hypothesis after the action, which turns the check into a rationalisation exercise rather than a commitment",
+    "Predicting qualitative outcomes ('will succeed', 'will improve quality') that no read-back can falsify",
+    "Diffing everything and reporting whatever changed, producing an unreadable alarm stream that gets ignored — and ignored guards are worse than absent ones",
+    "Treating an explained delta as verified without recording *why* it was expected, so the same unexplained class of change recurs unflagged",
+    "Resetting the baseline after every successful check but never after a violated one, which lets a single unexplained change become the new normal",
+    "Comparing against a snapshot taken mid-action rather than before it, so the baseline already contains the mutation",
+    "Assuming zero difference means correct; a no-op agent produces a perfect delta record",
+    "Using the agent's own narration as both the prediction and the observation, which is the one comparison guaranteed to agree"
+  ],
+  "design_principles": [
+    "Commit before acting: a prediction recorded after the observation carries no information about correctness",
+    "The oracle is the delta, not the output — supply a reference behaviour instead of a correct answer",
+    "Scope the difference to named invariants; a whole-state diff is un-inspectable and therefore unread",
+    "Two directions of comparison — expected-minus-actual and now-minus-before — catch different failures, and the second catches failures the agent never intended",
+    "A guard that can be tuned off is not a guard; prefer an invariant over a statistical threshold wherever one exists",
+    "Record unexplained deltas as first-class artefacts; they are the residual-risk ledger",
+    "Never let the entity under test supply both sides of the comparison"
+  ],
+  "best_practices": [
+    "Express the hypothesis as a delta over explicitly named fields, in the same units the state reader will return",
+    "Capture the baseline in the same call sequence that precedes the mutation, with no intervening tool calls",
+    "Use a CUSUM-style accumulator rather than a fixed threshold when drift is small and persistent, since the statistic's zero floor is what keeps pre-change noise from triggering",
+    "Keep the violation path cheap and deterministic — a halt or rollback decided in code, not by another LLM call that could rationalise",
+    "Retain the baseline after a violation so the divergence has a concrete origin to investigate",
+    "Pair the expected-minus-actual check with an unexpected-change check on the same snapshot; the second is what catches third-party drift",
+    "Test the guard itself: verify that an intentionally injected mutation is actually caught, since a never-firing check is indistinguishable from a working system",
+    "Distinguish 'expected and confirmed' from 'no change observed' in the record, because a no-op looks identical to a correct check"
+  ],
+  "references": [
+    "McKeeman, W. M., Differential Testing for Software, Digital Technical Journal 10(1), 1998 — the argument that complexity makes a priori oracles impractical so a second comparable system supplies the oracle instead, https://www.cs.swarthmore.edu/~bylvisa1/cs97/f13/Papers/DifferentialTestingForSoftware.pdf",
+    "Differential testing — Wikipedia — the same input to several implementations, discrepancies marked as candidate bugs; back-to-back testing, delta-diversity in NEZHA, https://en.wikipedia.org/wiki/Differential_testing",
+    "Metamorphic Testing of Large Language Models for Natural Language Processing, ICSME 2025 — 191 collected metamorphic relations for NLP tasks, ~560K metamorphic tests executed, https://ieeexplore.ieee.org/document/11185922",
+    "LGMT: Logic-Grounded Metamorphic Testing for Evaluating the Reasoning Reliability of LLMs — metamorphic oracle violation as an oracle-free defect signal, with the stated limitation that identical-but-wrong predictions across both cases go undetected, https://arxiv.org/pdf/2605.23965",
+    "MorphAgent: Metamorphic Testing of Multi-Agent LLM Systems — lifting metamorphic relations from input-output pairs to execution traces (goal-preservation, coordination-consistency, tool-use integrity), AITest 2026, https://www.computer.org/csdl/proceedings-article/aitest/2026/056200a185/2jgwiWf2kU0",
+    "Flynn, T. and Yoo, S., Change Detection with the Kernel Cumulative Sum Algorithm — CUSUM as a likelihood-ratio accumulator floored at zero, with bounds on detection delay and false-alarm time, https://www.osti.gov/servlets/purl/1566867",
+    "NIST Dataplot, Difference of Proportions Hypothesis Test — the standard reference form of a difference-based hypothesis test, https://www.itl.nist.gov/div898/software/dataplot/refman2/auxillar/diffprop.htm",
+    "Xiang et al., GuardAgent: Safeguard LLM Agents via Knowledge-Enabled Reasoning, 2024 — the contrast case: guardrails that generate and execute checking code against declared rules rather than diffing observed state, https://arxiv.org/pdf/2406.09187v1",
+    "Agrail: A Lifelong Agent Guardrail with Effective and Adaptive Safety Check Optimization, ACL 2025 — safety checks iterated and pruned so over-defensive checks do not block legitimate actions, https://aclanthology.org/2025.acl-long.399.pdf"
+  ]
+}

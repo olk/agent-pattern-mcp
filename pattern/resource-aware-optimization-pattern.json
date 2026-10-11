@@ -1,0 +1,109 @@
+{
+  "name": "resource-aware-optimization",
+  "category": "planning",
+  "topology": "single-agent-loop",
+  "context": "An agent must decide, per step and before committing, how much compute the next unit of work deserves: which model tier answers it, whether to reason longer before acting, whether to spend the tokens at all, or which of several candidate actions is worth pursuing. The system holds a portfolio of models (a cheap small model, an expensive frontier model, a domain-specialised one) and an uncertainty or confidence signal on the cheap model's output, and escalates to the stronger tier only when the signal says the cheap one is unreliable. This is distinct from a step budget (a cap that halts a runaway loop; it says when to stop, not what quality tier to buy) and from routing (a classifier dispatches to a downstream handler or prompt, not to a different model tier under an explicit cost/quality operating point). The escalation decision can happen at three granularities: per request (try the small model, escalate the whole request on low confidence), per step inside an agent loop (defer a single action decision, keeping the cheap model's reasoning but escalating the action choice), and per planning action (spend the thinking tokens on a sub-question only when the expected gain exceeds the cost). The critical discipline is calibration: a raw logit margin or token entropy is a weak escalation signal until mapped to a per-query error probability by a monotone fit on held-out data, and a raw threshold picked by hand does not transfer across workloads. The optimization target is explicit: minimise cost subject to an accuracy floor, not maximise accuracy with whatever budget is left.",
+  "benefits": [
+    "Cuts serving cost substantially while holding an accuracy floor, because the cheap model absorbs the large majority of routine work",
+    "Escalation becomes a per-item decision, so expensive models are spent exactly where the cheap model was actually wrong rather than uniformly",
+    "Calibrated routing scores remove per-workload threshold hand-tuning, because the decision variable becomes a probability rather than an uncalibrated score",
+    "Step-level deferral keeps a cheap model's cheap reasoning while buying a strong model only for the action it is unsure about, preserving most of the savings",
+    "Allocating planning compute adaptively avoids the failure of both extremes: always-plan is expensive and degrades on long horizons, never-plan caps achievable quality",
+    "Makes the cost/quality trade-off an explicit, reviewable operating point rather than an emergent property of whoever picked the default model"
+  ],
+  "tradeoffs": [
+    "Everything rests on the quality estimator; when the routing signal is weak, even a theoretically optimal router yields only marginal gains over always-cheap",
+    "The large model's accuracy is usually assumed invariant to routing, and that assumption breaks when escalated items are systematically harder than the population average",
+    "Escalated queries are a biased sample, so evaluating a cascade by combining routing decisions with population-level accuracy figures overstates or misstates real deployed performance",
+    "Calibration drifts as the workload, the models, or the serving stack change, and a stale calibration map silently routes on a signal that no longer means what it did",
+    "Adds a second call on the escalation path, so worst-case latency and cost per request both roughly double exactly on the hardest items",
+    "Frontier models change underneath the policy, invalidating the learned threshold and requiring the router to be retrained against every model upgrade"
+  ],
+  "quality_attributes": {
+    "reliability": 8,
+    "cost_efficiency": 10,
+    "latency": 7,
+    "output_quality": 8,
+    "observability": 6,
+    "safety": 6,
+    "simplicity": 5
+  },
+  "suitable_domains": [
+    "cost-sensitive-workloads",
+    "latency-sensitive-tasks",
+    "enterprise-search",
+    "customer-support",
+    "document-processing",
+    "data-analysis",
+    "conversational-assistants",
+    "tool-use-tasks"
+  ],
+  "unsuitable_domains": [
+    "high-stakes-outputs",
+    "regulated-domains",
+    "legal-research",
+    "long-horizon-tasks"
+  ],
+  "use_cases": [
+    "An extraction agent serving 75k labelled queries with a 4B model at roughly a third of the cost of a 12B model, escalating only low-margin generations and holding micro-F1 at a fixed floor",
+    "A ReAct agent that runs reasoning on a small model but defers individual low-confidence action selections to a large model inside the loop",
+    "A research agent that spends extra planning tokens only on sub-questions whose expected information gain exceeds the token cost, instead of planning before every action",
+    "An interactive assistant that keeps tail latency inside an SLO by holding a chat model warm and escalating to a reasoning model only on the hard tail of requests"
+  ],
+  "avoid_when": [
+    "A single model is the only option, in which case there is no tier to select and the pattern collapses to a budget cap",
+    "Errors on the hard tail are unrecoverable, as in medical or legal decisioning, where a cost saving is not worth a missed escalation",
+    "The workload is small and homogeneous enough that always-cheap is already within the accuracy floor",
+    "There is no held-out labelled set, since calibration cannot be fitted and the escalation signal stays an uncalibrated guess",
+    "The agent's own outputs cannot be scored for correctness, leaving no signal on which to base a deferral decision"
+  ],
+  "component_types": [
+    "model tier portfolio (small, frontier, specialised)",
+    "uncertainty scorer over the cheap model's output",
+    "calibration map fitted on held-out data",
+    "escalation threshold set by constrained cost minimisation",
+    "cost meter tracking spend per request and per escalation"
+  ],
+  "anti_patterns": [
+    "Throttling on raw token entropy or raw logit margin without calibrating it to an error probability, which routes on a number that does not mean what the threshold assumes",
+    "Picking the escalation threshold by hand on production traffic and calling it tuned, which silently overfits to one workload and one cost regime",
+    "Evaluating a cascade by applying routing decisions to global per-model accuracy numbers instead of running end-to-end routing on real outputs",
+    "Escalating the entire request when one step is uncertain, discarding the cheap model's correct work on every other step of the same trajectory",
+    "Treating the routing threshold as permanent, leaving it in place after a frontier model upgrade silently degrades the operating point",
+    "Adding a self-consistency or deliberation ensemble at every tier instead of only at the escalation boundary, which multiplies cost on items that were never going to fail"
+  ],
+  "migration_from": [
+    "routing",
+    "step-budget",
+    "memoization"
+  ],
+  "migration_to": [
+    "prioritization",
+    "evaluator-optimizer",
+    "self-consistency",
+    "memoization"
+  ],
+  "design_principles": [
+    "Optimise cost subject to a quality floor, never quality subject to whatever budget remains, so the trade-off is stated rather than implied",
+    "Calibrate the escalation signal to a per-item error probability before using it as a decision variable, because an uncalibrated score has no stable threshold",
+    "Select the escalation granularity deliberately; per-step deferral preserves the cheap model's work where per-request escalation throws it away",
+    "Evaluate routing end-to-end on real model outputs and measured latency, never by simulating policy over population accuracies",
+    "Treat the router as a deployable artefact with an owner, a monitoring signal for calibration drift, and a retraining trigger on every model change"
+  ],
+  "best_practices": [
+    "Fit a monotone calibration map (isotonic regression) on a held-out set and choose the threshold by constrained cost minimisation at a stated accuracy floor",
+    "Hold out a calibration set that is representative of the population under which the quality floor must hold, not of the escalated subset",
+    "Defer individual action decisions inside the agent loop rather than escalating whole requests, so the marginal saving is kept",
+    "Measure cost and latency with the escalation path included; always-cheap and always-large baselines are the only honest comparison points",
+    "Monitor expected calibration error on live traffic and alert on drift, since a silently stale calibration map is worse than no router",
+    "Re-fit the router whenever a model in the portfolio is replaced, and record the accuracy floor the operating point was validated at"
+  ],
+  "references": [
+    "Ong et al., RouteLLM: Learning to Route LLMs with Preference Data, 2024 — https://arxiv.org/abs/2406.18665",
+    "Chen et al., FrugalGPT: How to Use Large Language Models While Reducing Cost and Improving Performance, 2023 — https://arxiv.org/abs/2305.05176",
+    "de Koninck et al., A Unified Approach to Routing and Cascading for LLMs, ICML 2025 — https://proceedings.mlr.press/v267/dekoninck25a.html",
+    "Piatrashyn et al., ReDAct: Uncertainty-Aware Deferral for LLM Agents, 2026 — https://arxiv.org/abs/2604.07036",
+    "Li et al., Spend Less, Reason Better: Budget-Aware Value Tree Search for LLM Agents, 2026 — https://arxiv.org/abs/2603.12634",
+    "Paglieri et al., Learning When to Plan: Efficiently Allocating Test-Time Compute for LLM Agents, 2025 — https://arxiv.org/abs/2509.03581"
+  ]
+}

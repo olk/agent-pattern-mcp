@@ -1,0 +1,113 @@
+{
+  "name": "ai-privacy",
+  "category": "safety_control",
+  "topology": "pipeline",
+  "context": "An agent touches personal or otherwise privacy-sensitive data across several trust boundaries — the user's prompt, retrieved documents, tool-call arguments sent to third-party services, persistent memory, and the final response — and each crossing is a place where data that the downstream party does not need becomes disclosed. The failure is not a leak the system tries to prevent and fails at; it is that the agent optimises for task completion and therefore over-shares by construction. Measured over realistic tasks, agents routinely pack privacy-sensitive data into tool-call arguments beyond what the invoked tool requires, because the agent optimises completion, not privacy. Standard defences are insufficient on their own: call-level gating can only allow or block (it cannot rewrite arguments), token-level PII detectors are pattern matchers that miss implicit sensitivity (a hospital name implies a diagnosis; a temporal pattern reveals a routine) and are schema-unaware, and uniform redaction ignores the trust level of the destination. This pattern therefore applies data minimisation proactively rather than relying on detection: a middleware sits between the agent and every tool, classifies the privacy-sensitive content actually present in the arguments against the receiving tool's schema and trust level, computes a privacy cost, and rewrites the arguments to the minimum necessary data that still preserves task validity. It pairs that argument-level rewrite with minimisation over the other boundaries — redact before entering context, minimise before persisting to memory, omit before responding — and tracks flow against the user's actual disclosure expectations, because whether something is a leak depends on context, not just on the content.",
+  "benefits": [
+    "Removes over-sharing at the source rather than catching it after disclosure, since minimization rewrites arguments to the minimum needed before the tool is ever called",
+    "Preserves task validity: argument-level rewriting trims only what the tool schema does not require, so the call still succeeds",
+    "Catches implicit privacy-sensitive data that token-level PII pattern matchers miss, such as a named hospital implying a diagnosis or a timestamp revealing a routine",
+    "Is schema-aware and trust-aware, so it redacts differentially: the same field is minimized more aggressively when the destination is an untrusted third party than when it is an internal service",
+    "Extends privacy beyond the single response to memory and retrieval, closing leaks that persist long after the turn ends",
+    "Assesses leakage against contextual integrity, so it catches disclosure that violates what the user expected even when no single field is individually identifying",
+    "Produces a quantitative privacy-cost metric, making the exposure of an agent measurable rather than anecdotal"
+  ],
+  "tradeoffs": [
+    "Aggressive minimization can strip a field the task actually turns out to need, degrading the result; the rewrite must be validated against task success, not applied blindly",
+    "Redaction is lossy and can create brittle downstream behaviour when the tool or the model expected the original field",
+    "Schema-aware minimization requires every tool to expose a schema and a declared trust level; an undeclared or undocumented tool silently defeats the mechanism",
+    "Implicit-sensitivity classification is itself a judgement call and can produce false positives on placeholder or synthetic data, or miss novel inference-based leaks",
+    "Adds a middleware hop on the tool path, costing latency and creating a new component that can fail or be bypassed",
+    "Minimization of the prompt sits in tension with utility: models are biased toward oversharing and, empirically, struggle to predict the minimum disclosure a task needs, so the utility-preserving floor is hard to locate",
+    "Privacy and task-completeness are genuinely in tension in some agents, and there is no setting of the minimizer that removes that trade-off — only moves it"
+  ],
+  "quality_attributes": {
+    "reliability": 7,
+    "cost_efficiency": 7,
+    "latency": 6,
+    "output_quality": 5,
+    "observability": 7,
+    "safety": 9,
+    "simplicity": 5
+  },
+  "suitable_domains": [
+    "customer-support",
+    "regulated-domains",
+    "personal-productivity",
+    "gui-computer-use",
+    "document-processing",
+    "web-automation",
+    "long-horizon-tasks"
+  ],
+  "unsuitable_domains": [
+    "scientific-research",
+    "code-generation",
+    "autonomous-task-execution",
+    "cost-sensitive-workloads"
+  ],
+  "use_cases": [
+    "A web-navigation agent that screenshots and acts on pages containing unrelated personal data in the background, minimizing before any screenshot or tool argument leaves the boundary",
+    "A support agent whose tool calls would otherwise forward the caller's account, health, or order details to a third-party API that only needs an account identifier",
+    "An assistant with persistent memory that minimizes what it stores, so injected or incidentally-seen PII is not retained and re-surfaced in a later session",
+    "A tool-using agent whose arguments are rewritten field-by-field to the minimum the receiving tool's schema requires, with privacy cost computed per call"
+  ],
+  "avoid_when": [
+    "The agent handles no personal or sensitive data, in which case the minimization layer has nothing to act on and only adds latency",
+    "Every downstream consumer is fully trusted and internal, where disclosure carries no cross-boundary risk and minimization only costs utility",
+    "Data minimisation would defeat the task outright and no lossless narrowing exists, so the choice is privacy or correctness rather than a tunable trade-off",
+    "No tool declares a schema or trust level, making schema-aware argument minimization impossible to apply correctly",
+    "The task is open-ended research over a corpus the agent must see in full, where the information needed is genuinely the whole input"
+  ],
+  "component_types": [
+    "privacy-sensitive data classifier (token and implicit)",
+    "schema-aware argument rewriter",
+    "tool trust-level registry",
+    "quantitative privacy-cost metric",
+    "contextual-integrity checker over information flow",
+    "redaction filter at the context and memory boundaries"
+  ],
+  "anti_patterns": [
+    "Relying on system-prompt instructions telling the model not to reveal sensitive data, since prompt-level restrictions are not reliably honoured and are bypassable by injection",
+    "Using token-level PII redaction that matches patterns but misses implicit sensitivity, treating 'no PII pattern matched' as 'nothing sensitive is present'",
+    "Gating whole calls as allow-or-block when the correct action is to rewrite the arguments to the minimum the schema requires",
+    "Applying uniform redaction regardless of the destination's trust level, stripping a field before an internal service while passing it through to an untrusted third party unchanged",
+    "Minimizing only the outgoing response while leaving tool-call arguments and persistent memory unfiltered, which is where most real disclosure actually occurs",
+    "Persisting raw user input into memory without a minimization or sensitivity scan, so incidental and injected PII is retained indefinitely",
+    "Assessing leakage by whether a single field is identifying, ignoring contextual-integrity violations where individually innocuous data jointly exceeds what the user expected to share"
+  ],
+  "migration_from": [
+    "guardrails",
+    "memoization"
+  ],
+  "migration_to": [
+    "guardrails",
+    "ai-governance",
+    "least-privilege-tool-scoping"
+  ],
+  "design_principles": [
+    "Minimize proactively at the boundary rather than detect after disclosure, because a rewrite that happens before the call cannot leak",
+    "Minimize to the task's actual necessity, preserving task validity, so privacy is achieved by removing the unneeded rather than by blocking the needed",
+    "Classify implicit as well as explicit sensitivity, since much real exposure (a diagnosis implied by a facility, a routine implied by a timestamp) is not a PII pattern",
+    "Make minimization schema-aware and trust-aware, so what is stripped is governed by what the destination needs and how far it is trusted",
+    "Treat memory and retrieval as first-class privacy boundaries, not sinks, because persisted data is disclosed again on every future turn",
+    "Evaluate leakage in context against the user's disclosure expectations, because privacy is a property of information flow, not of any single field",
+    "Make exposure measurable with a quantitative privacy-cost metric so minimizer changes can be compared rather than argued"
+  ],
+  "best_practices": [
+    "Deploy a middleware that intercepts tool calls before execution, classifies privacy-sensitive arguments, and rewrites them to the minimum the tool's schema requires",
+    "Record a declared schema and trust level for every tool the agent can call, and treat an undeclared tool as untrusted by default",
+    "Extend sensitivity beyond named PII to inferred sensitivity (facility names, timestamps, co-occurrence patterns) and measure it in a privacy-cost metric",
+    "Scan and minimize before anything is persisted to memory, not only before it is returned, so incidental and injected sensitive data is not retained",
+    "Strip placeholder and synthetic PII from enforcement to avoid false positives on test and demo data",
+    "Assess information flow against contextual-integrity norms (what the user expected to be shared with this destination) rather than only checking for identifiers",
+    "Validate minimization against end-to-end task success so the privacy/utility operating point is explicit and regression-tested, not assumed"
+  ],
+  "references": [
+    "Li et al., ToolMinimize: Auditing and Rewriting LLM Agent Tool Calls to Minimize Privacy Exposure, 2026 — https://arxiv.org/abs/2608.24957",
+    "Tamber et al., PrivacyAlign: Contextual Privacy Alignment for LLM Agents, 2026 — https://arxiv.org/abs/2606.21710",
+    "Zhou et al., Operationalizing Data Minimization for Privacy-Preserving LLM Prompting, 2025 — https://arxiv.org/abs/2510.03662",
+    "OWASP GenAI Security Project, LLM06:2025 Sensitive Information Disclosure — https://genai.owasp.org/llmrisk/llm06-sensitive-information-disclosure",
+    "OWASP Cheat Sheet Series, AI Agent Security, 2025 — https://cheatsheetseries.owasp.org/cheatsheets/AI_Agent_Security_Cheat_Sheet.html",
+    "PriGuardAgent: Context-Aware Privacy Guardrails for Agentic Systems (OpenReview), 2025 — https://openreview.net/pdf?id=581e31f9a5cba5c6cd50a358bc8f35123ea80762"
+  ]
+}

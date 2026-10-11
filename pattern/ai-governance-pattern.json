@@ -1,0 +1,119 @@
+{
+  "name": "ai-governance",
+  "category": "safety_control",
+  "topology": "single-agent-loop",
+  "context": "An autonomous agent holds real capability — a shell, a database, a payments API, a deploy pipeline — and the organisation is nonetheless accountable for what it does: which actions are permitted, under whose authority, at what blast radius, and provable after the fact to a regulator or an auditor. Governance frameworks (NIST AI RMF, ISO/IEC 42001, the EU AI Act) supply the objectives, risk taxonomy, and accountability baseline, but by themselves they are not executable: they define no policy language, no action schema, and no execution model. An organisation can be fully compliant on paper while its deployed agent has no runtime controls at all. This pattern closes that gap by translating governance objectives into a runtime enforcement layer coupled to the agent's reasoning loop. The mechanism has four parts. (1) Capability profiling: enumerate what the agent can actually reach, per tool, per credential, per environment, and map each capability to a risk category from a taxonomy (data exfiltration, unsafe code execution, autonomous financial transfer). (2) A machine-readable policy set, typically policy-as-code, where every rule traces back to a named regulatory clause or internal red line, so it is auditable and diffable like code. (3) Runtime mediation: a guard that sits between the agent's intent and the tool invocation and can allow, deny, delay, escalate, or reshape an action based on policy, context, identity, or trajectory — least privilege scoped per task, high-impact actions requiring human sign-off, dangerous tools wrapped in formally verified adapters. (4) Continuous evidence: every decision — thought, tool call, gate outcome — recorded as a tamper-evident audit trail with attribution, plus the means to interrupt and roll back a running agent. The governing insight is that governance must be a runtime property, not a pre-deployment certificate: an agent certified responsible at launch is assumed to stay aligned, which is unsafe for a system that executes its own code or moves money.",
+  "benefits": [
+    "Turns abstract governance objectives into runtime-enforced controls, so compliance stops being a document and becomes a property of the deployed system",
+    "Every policy rule traces to a named risk category or regulatory clause, making the enforcement layer auditable, diffable, and reviewable in the same way as source code",
+    "Capability-based least privilege limits blast radius at the moment of action, so a compromised or confused agent cannot reach what it was never scoped for",
+    "Continuous audit evidence (thought -> tool call -> gate decision -> outcome) makes post-hoc reconstruction possible for a regulator or an incident review",
+    "Interruption and rollback give operators a live control over a running autonomous system, not only a deploy-time one",
+    "Capability profiling exposes the true attack surface, since an agent's reachable tools and credentials define its risk far more than its model does",
+    "Surfaces agent-specific risks that generic frameworks omit, such as multi-agent collusion, denial-of-wallet loops, and excessive agency"
+  ],
+  "tradeoffs": [
+    "Every mediated action adds latency and a failure mode; the enforcement layer becomes part of the critical path and a new source of outages",
+    "Policy authoring is a real discipline — a wrong or over-broad rule either blocks legitimate work or, worse, permits the action it was meant to stop",
+    "Policy-as-code and standards translation do not compose automatically: governance objectives are not policy language, and the translation step is where controls are silently lost",
+    "A mediation layer that only sees the action and not the agent's reasoning or trajectory is blind to multi-step attacks that stay individually permissible",
+    "Agents that must route around slow gates learn to, so a governance layer that only delays without escalating to a human degrades into a latency tax the agent routes around",
+    "Governance is organisational as much as technical; a control nobody owns, or a policy set no one updates as capabilities change, decays into false assurance",
+    "Interruption semantics are hard: halting a mid-flight agent that holds side effects requires the agent itself to be checkpointable and its actions compensatable"
+  ],
+  "quality_attributes": {
+    "reliability": 7,
+    "cost_efficiency": 4,
+    "latency": 5,
+    "output_quality": 6,
+    "observability": 9,
+    "safety": 10,
+    "simplicity": 4
+  },
+  "suitable_domains": [
+    "high-stakes-outputs",
+    "regulated-domains",
+    "cybersecurity",
+    "autonomous-task-execution",
+    "multi-agent-systems",
+    "database-operations",
+    "devops",
+    "code-generation"
+  ],
+  "unsuitable_domains": [
+    "content-generation",
+    "exploratory-research",
+    "personal-productivity",
+    "gui-computer-use"
+  ],
+  "use_cases": [
+    "A coding agent with shell and deploy access, where capability profiling maps each tool to a risk category and a policy-as-code gate forces human sign-off before any production deploy",
+    "A regulated financial agent whose every tool invocation is mediated against a rule set traceable to specific regulatory clauses and logged for examination",
+    "An enterprise agent fleet governed from a control plane that enforces per-task least-privilege scoping, records a tamper-evident decision trail, and can interrupt or drain any running instance",
+    "A multi-agent system where the governance layer watches for collusion patterns and cascading failures that no single-agent policy would detect"
+  ],
+  "avoid_when": [
+    "The agent has no side-effecting capability, since there is nothing for a runtime gate to mediate and the control is pure overhead",
+    "The deployment is a prototype or internal exploration with no external accountability, where the audit and evidence machinery is not yet justified",
+    "Advisory or recommendation-only use, where a human reviews every output anyway and the gate duplicates the existing review",
+    "The action latency budget cannot absorb a mediation hop and the gate would simply be bypassed or configured permissively",
+    "There is no operator or risk owner to maintain the policy set, in which case it will silently rot and become false assurance"
+  ],
+  "component_types": [
+    "capability inventory and risk taxonomy mapping",
+    "policy-as-code rule set with provenance to governing clauses",
+    "runtime mediation guard between agent intent and tool invocation",
+    "human-approval checkpoint for high-impact actions",
+    "tamper-evident decision and audit log",
+    "interruptibility and rollback control plane",
+    "pre-deployment evaluation harness"
+  ],
+  "anti_patterns": [
+    "Treating a pre-deployment risk assessment or certification as ongoing governance, the static guardrail problem: once certified responsible, behaviour is assumed to remain aligned",
+    "Writing the guardrail rules only in natural language and asking the LLM to follow them in its prompt, so enforcement depends on model compliance rather than a deterministic check",
+    "Putting the governance check outside the agent's execution path (a periodic audit job) so it never actually intercepts a live action",
+    "Applying one global policy to all agents and all tasks regardless of the capability each holds, granting far more authority than the task requires",
+    "Logging actions without the reasoning and the gate decision that produced them, so a reviewer still cannot reconstruct why an action was allowed",
+    "Designing the deny path without an allow path, so legitimate work is blocked and operators disable the control",
+    "Declaring the agent compliant because a mapping document links it to a governance framework, without any runtime enforcement of that mapping"
+  ],
+  "migration_from": [
+    "guardrails",
+    "human-in-the-loop",
+    "least-privilege-tool-scoping"
+  ],
+  "migration_to": [
+    "guardrails",
+    "decision-log",
+    "agent-tracing-telemetry",
+    "kill-switch",
+    "least-privilege-tool-scoping"
+  ],
+  "design_principles": [
+    "Governance is a runtime property, not a pre-deployment certificate; behaviour must be mediated at the moment of action, not certified once at launch",
+    "Translate standards into executable controls explicitly and traceably, since governance objectives do not themselves define a policy language or execution model",
+    "Enumerate capabilities and scope privilege to the task, because an agent's reachable tools and credentials, not its model, define its blast radius",
+    "Make enforcement auditable and attributable: every allow, deny, and escalation must be reconstructable after the fact",
+    "Keep the human in the loop where blast radius is irreversible, and classify actions by reversibility and impact rather than gating everything uniformly",
+    "Design the layer to be interruptible and compensatable, so a runaway agent can be stopped without waiting for a redeploy",
+    "Prefer continuous evidence and drift detection over periodic certification, because agent capability and behaviour change after launch"
+  ],
+  "best_practices": [
+    "Build a capability inventory first (every tool, credential, and environment the agent can reach) and map each to a risk category before writing any policy",
+    "Express rules as policy-as-code with each rule annotated by the governing clause or internal red line it implements, so the set is reviewable and diffable",
+    "Implement the guard as a mediation layer in the execution path that can allow, deny, delay, escalate, or reshape based on policy, context, identity, and trajectory",
+    "Classify tool actions by reversibility and impact; require explicit human approval only above a defined threshold to avoid approval fatigue",
+    "Wrap high-risk tools (shell, deploy, payments) in formally verified adapters so the dangerous surface is small and checkable",
+    "Record a tamper-evident decision log linking each thought to its tool call, the gate evaluation, and the outcome, for post-hoc reconstruction",
+    "Provide and rehearse an interrupt and rollback path (drain, pause, halt) as part of the deployment, not as an afterthought",
+    "Run continuous behavioural evaluation and risk monitoring in production to detect drift and emergent multi-agent failures that no static assessment catches"
+  ],
+  "references": [
+    "Tabassi et al. (NIST), Artificial Intelligence Risk Management Framework (AI RMF 1.0), NIST AI 100-1, 2023 — https://nvlpubs.nist.gov/nistpubs/ai/nist.ai.100-1.pdf",
+    "Koch, From Governance Norms to Enforceable Controls: A Layered Translation Method for Runtime Guardrails in Agentic AI, 2026 — https://arxiv.org/abs/2604.05229",
+    "Khan et al., AGENTSAFE: A Unified Framework for Ethical Assurance and Governance in Agentic AI, 2025 — https://arxiv.org/abs/2512.03180",
+    "Huang et al., AAGATE: A NIST AI RMF-Aligned Governance Platform for Agentic AI, 2025 — https://arxiv.org/abs/2510.25863",
+    "OWASP Cheat Sheet Series, AI Agent Security, 2025 — https://cheatsheetseries.owasp.org/cheatsheets/AI_Agent_Security_Cheat_Sheet.html",
+    "Nagdev and Singh (Microsoft), Architecting Trust: A NIST-Based Security Governance Framework for AI Agents, 2026 — https://techcommunity.microsoft.com/blog/microsoftdefendercloudblog/architecting-trust-a-nist-based-security-governance-framework-for-ai-agents/4490556"
+  ]
+}
