@@ -32,7 +32,7 @@ from src.schemas.quality import QualityMetrics
 
 
 # Canonical quality-attribute keys present in every pattern's quality_attributes.
-# Verified uniform across the 61-pattern catalogue. Used for deterministic
+# Verified uniform across the 68-pattern catalogue. Used for deterministic
 # requirements-aware scoring of candidates in the analyze phase.
 QUALITY_ATTRIBUTE_KEYS: tuple[str, ...] = (
     "reliability",
@@ -101,7 +101,9 @@ class TopologyCandidate(BaseModel):
 
     pattern_name: str = Field(..., description="Name of the best-scoring pattern carrying this topology")
     topology: str = Field(..., description="AgentTopology value (e.g. 'hierarchical', 'single-agent-loop')")
-    score: float = Field(..., description="Effective sort score (analysis_score) of the representing pattern; higher is better")
+    score: float = Field(
+        ..., description="Effective sort score (analysis_score) of the representing pattern; higher is better"
+    )
 
 
 class AnalysisResult(BaseModel):
@@ -112,29 +114,17 @@ class AnalysisResult(BaseModel):
     and selected patterns from the ANALYZE phase.
     """
 
-    strengths: list[str] = Field(
-        default_factory=list,
-        description="Identified agent system strengths"
-    )
-    weaknesses: list[str] = Field(
-        default_factory=list,
-        description="Identified agent system weaknesses"
-    )
-    recommendations: list[str] = Field(
-        default_factory=list,
-        description="Agent system recommendations"
-    )
-    quality_metrics: QualityMetrics | None = Field(
-        default=None,
-        description="Quality assessment metrics"
-    )
+    strengths: list[str] = Field(default_factory=list, description="Identified agent system strengths")
+    weaknesses: list[str] = Field(default_factory=list, description="Identified agent system weaknesses")
+    recommendations: list[str] = Field(default_factory=list, description="Agent system recommendations")
+    quality_metrics: QualityMetrics | None = Field(default=None, description="Quality assessment metrics")
     recommended_topology: str = Field(
         ...,
-        description="AgentTopology value best suited for the requirements (e.g. 'hierarchical', 'single-agent-loop')"
+        description="AgentTopology value best suited for the requirements (e.g. 'hierarchical', 'single-agent-loop')",
     )
     recommended_pattern_name: str = Field(
         default="",
-        description="Name of the top-scored pattern that drove the topology recommendation ('' when no patterns were scored)"
+        description="Name of the top-scored pattern that drove the topology recommendation ('' when no patterns were scored)",
     )
     selected_patterns: list[ScoredPattern] = Field(
         default_factory=list,
@@ -142,13 +132,9 @@ class AnalysisResult(BaseModel):
     )
     matched_domains: list[MatchedDomain] = Field(
         default_factory=list,
-        description="Top matched AgentDomain slugs from BM25+FAISS retrieval (max 5, ordered by fusion score)"
+        description="Top matched AgentDomain slugs from BM25+FAISS retrieval (max 5, ordered by fusion score)",
     )
     is_fallback: bool = Field(
-        default=False,
-        description="True when no real domain match was found and the fallback 'react' pattern was used"
+        default=False, description="True when no real domain match was found and the fallback 'react' pattern was used"
     )
-    rationale: str = Field(
-        default="",
-        description="Rationale for the analysis and pattern selection"
-    )
+    rationale: str = Field(default="", description="Rationale for the analysis and pattern selection")

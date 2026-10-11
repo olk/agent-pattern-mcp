@@ -1,6 +1,6 @@
 ---
 name: agent-pattern-mcp
-description: Designs AI agent systems via the agent-pattern MCP server (OMP server name `agent-pattern`). Analyses requirements and domain, selects from 61 patterns (ReAct, reflexion, plan-and-solve, multi-agent debate, supervisor-worker, agentic-RAG and 55 more), generates designs with agents, relationships, tool contracts and state models, and evaluates them across reliability, cost efficiency, latency, output quality, observability and safety. Use when designing a new agent system, comparing agent topologies, evaluating an existing agent design, or exploring the pattern catalog. Triggers on design an agent system for X, compare supervisor-worker vs swarm, evaluate this agent design, choose an agent pattern for X. Do NOT use for implementing individual features, prompt engineering for a single LLM call, or framework selection. Requires the agent-pattern MCP server connected; its synchronous pipeline takes 5-10 minutes, so under OMP's default 30 s MCP deadline use the submit / status / cancel job trio.
+description: Designs AI agent systems via the agent-pattern MCP server (OMP server name `agent-pattern`). Analyses requirements and domain, selects from 68 patterns (ReAct, reflexion, plan-and-solve, multi-agent debate, supervisor-worker, agentic-RAG and 62 more), generates designs with agents, relationships, tool contracts and state models, and evaluates them across reliability, cost efficiency, latency, output quality, observability and safety. Use when designing a new agent system, comparing agent topologies, evaluating an existing agent design, or exploring the pattern catalog. Triggers on design an agent system for X, compare supervisor-worker vs swarm, evaluate this agent design, choose an agent pattern for X. Do NOT use for implementing individual features, prompt engineering for a single LLM call, or framework selection. Requires the agent-pattern MCP server connected; its synchronous pipeline takes 5-10 minutes, so under OMP's default 30 s MCP deadline use the submit / status / cancel job trio.
 ---
 
 # agent-pattern MCP
@@ -12,7 +12,7 @@ Agent system design pipeline exposed by the `agent-pattern` MCP server:
 3. **Evaluate** against reliability, cost efficiency, latency, output quality, observability, safety
 4. **Refine** — retries generation while `final_quality_score < 50`, up to 3 generate attempts
 
-61 built-in patterns; extra ones can be dropped in as JSON in the server's pattern directory.
+68 built-in patterns; extra ones can be dropped in as JSON in the server's pattern directory.
 
 ## OMP constraints (read first)
 
@@ -59,7 +59,7 @@ The server advertises `pattern://`, `pattern://{name}`, `template://{name}`, `co
 
 ### 5. Large device results are truncated
 
-`list_agent_patterns` with no filter returns all 61 patterns and is cut off around 10 KB of tool output. Filter by `category` or `domain`, or page with repeated narrow calls — do not assume an unfiltered listing is complete.
+`list_agent_patterns` with no filter returns all 68 patterns and is cut off around 10 KB of tool output. Filter by `category` or `domain`, or page with repeated narrow calls — do not assume an unfiltered listing is complete.
 
 ## Entry-point decision guide
 

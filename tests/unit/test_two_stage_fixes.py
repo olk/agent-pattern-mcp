@@ -26,7 +26,7 @@ T1: analysis_to_pydantic with empty lists does not raise (issue #1)
 T2: ScoredPattern round-trips analysis_score + fusion_score (issue #11)
 T3: generate tool resolves pattern names end-to-end (issue #12)
 T4: min_quality_score=50 + mocked overall_quality=60 stops after attempt 1 (issue #2)
-T5: All 61 catalogue JSONs have 7 QA keys; react loads (issue #8)
+T5: All 68 catalogue JSONs have 7 QA keys; react loads (issue #8)
 T6: rerank_enabled recall is lossless (issue #5)
 T7: min_fusion_score gate does not drop a single-leg hit (issue #3 lineage)
 T10: All-zero weights logs WARNING and retries (issue #17)
@@ -113,17 +113,19 @@ class TestT2ScoredPatternRoundTrip:
     """
 
     def test_scored_pattern_from_dict(self):
-        sp = ScoredPattern.model_validate({
-            "topology": "hierarchical",
-            "category": "multi_agent",
-            "name": "test",
-            "context": "ctx",
-            "benefits": ["b"],
-            "tradeoffs": ["t"],
-            "quality_attributes": dict(_AGENT_QA),
-            "analysis_score": 85.5,
-            "fusion_score": 0.0333,
-        })
+        sp = ScoredPattern.model_validate(
+            {
+                "topology": "hierarchical",
+                "category": "multi_agent",
+                "name": "test",
+                "context": "ctx",
+                "benefits": ["b"],
+                "tradeoffs": ["t"],
+                "quality_attributes": dict(_AGENT_QA),
+                "analysis_score": 85.5,
+                "fusion_score": 0.0333,
+            }
+        )
         assert sp.analysis_score == 85.5
         assert sp.fusion_score == 0.0333
 
@@ -134,17 +136,19 @@ class TestT2ScoredPatternRoundTrip:
             recommendations=[],
             quality_metrics=None,
             recommended_topology="test",
-            selected_patterns=[{
-                "topology": "hierarchical",
-                "category": "multi_agent",
-                "name": "test",
-                "context": "ctx",
-                "benefits": ["b"],
-                "tradeoffs": ["t"],
-                "quality_attributes": dict(_AGENT_QA),
-                "analysis_score": 75.0,
-                "fusion_score": 0.5,
-            }],
+            selected_patterns=[
+                {
+                    "topology": "hierarchical",
+                    "category": "multi_agent",
+                    "name": "test",
+                    "context": "ctx",
+                    "benefits": ["b"],
+                    "tradeoffs": ["t"],
+                    "quality_attributes": dict(_AGENT_QA),
+                    "analysis_score": 75.0,
+                    "fusion_score": 0.5,
+                }
+            ],
         )
         res = analysis_to_pydantic(dc)
         assert len(res.selected_patterns) == 1
@@ -152,17 +156,19 @@ class TestT2ScoredPatternRoundTrip:
         assert res.selected_patterns[0].fusion_score == 0.5
 
     def test_scored_pattern_model_dump_preserves_scores(self):
-        sp = ScoredPattern.model_validate({
-            "topology": "hierarchical",
-            "category": "multi_agent",
-            "name": "test",
-            "context": "ctx",
-            "benefits": ["b"],
-            "tradeoffs": ["t"],
-            "quality_attributes": dict(_AGENT_QA),
-            "analysis_score": 60.0,
-            "fusion_score": 0.025,
-        })
+        sp = ScoredPattern.model_validate(
+            {
+                "topology": "hierarchical",
+                "category": "multi_agent",
+                "name": "test",
+                "context": "ctx",
+                "benefits": ["b"],
+                "tradeoffs": ["t"],
+                "quality_attributes": dict(_AGENT_QA),
+                "analysis_score": 60.0,
+                "fusion_score": 0.025,
+            }
+        )
         d = sp.model_dump()
         assert d["analysis_score"] == 60.0
         assert d["fusion_score"] == 0.025
@@ -181,16 +187,22 @@ class TestT3GenerateResolvesPatternNames:
 
         from src.schemas.design import AgentSystemDesign, AgentSystemOverview
         from src.schemas.enums import AgentTopology, PatternCategory
+
         return AgentSystemDesign(
             overview=AgentSystemOverview(
                 topology=AgentTopology.HIERARCHICAL,
                 category=PatternCategory.MULTI_AGENT,
                 principles=["single responsibility"],
             ),
-            agents=[Agent(
-                id="c1", name="C1", role="planner",
-                description="d", responsibilities=["r"],
-            )],
+            agents=[
+                Agent(
+                    id="c1",
+                    name="C1",
+                    role="planner",
+                    description="d",
+                    responsibilities=["r"],
+                )
+            ],
             relationships=[],
             patterns=[],
             quality_attributes={},
@@ -216,12 +228,14 @@ class TestT3GenerateResolvesPatternNames:
         agent = MagicMock()
         tool = GenerateAgentSystemTool(agent=agent, pipeline=pipeline)
 
-        asyncio.run(tool.generate(
-            requirements="req",
-            topology="single-agent-loop",
-            domain="web",
-            selected_patterns=["react"],
-        ))
+        asyncio.run(
+            tool.generate(
+                requirements="req",
+                topology="single-agent-loop",
+                domain="web",
+                selected_patterns=["react"],
+            )
+        )
 
         pipeline.generate.assert_called_once()
         call_kwargs = pipeline.generate.call_args.kwargs
@@ -240,12 +254,14 @@ class TestT3GenerateResolvesPatternNames:
         agent = MagicMock()
         tool = GenerateAgentSystemTool(agent=agent, pipeline=pipeline)
 
-        asyncio.run(tool.generate(
-            requirements="req",
-            topology="hierarchical",
-            domain="web",
-            selected_patterns=["unknown-pattern"],
-        ))
+        asyncio.run(
+            tool.generate(
+                requirements="req",
+                topology="hierarchical",
+                domain="web",
+                selected_patterns=["unknown-pattern"],
+            )
+        )
 
         call_kwargs = pipeline.generate.call_args.kwargs
         assert call_kwargs["selected_patterns"] == []
@@ -274,12 +290,24 @@ class TestT4MinQualityScoreEarlyStop:
         from src.schemas.agent_system import AgentSystemDesignResponse
 
         design_response = AgentSystemDesignResponse(
-            overview={"reasoning": "test rationale", "topology": "hierarchical",
-                      "category": "multi_agent",
-                      "principles": ["single responsibility"], "constraints": []},
-            agents=[{"id": "c1", "name": "C1", "role": "planner",
-                     "description": "d", "responsibilities": ["r"],
-                     "tools": [], "memory": []}],
+            overview={
+                "reasoning": "test rationale",
+                "topology": "hierarchical",
+                "category": "multi_agent",
+                "principles": ["single responsibility"],
+                "constraints": [],
+            },
+            agents=[
+                {
+                    "id": "c1",
+                    "name": "C1",
+                    "role": "planner",
+                    "description": "d",
+                    "responsibilities": ["r"],
+                    "tools": [],
+                    "memory": [],
+                }
+            ],
             relationships=[],
             quality_attributes={},
             tool_contracts=[],
@@ -287,11 +315,12 @@ class TestT4MinQualityScoreEarlyStop:
             message_contracts=[],
         )
         evaluation = AgentSystemEvaluation(
-            summary=EvaluationSummary(reasoning="test rationale", overall_score=60.0,
-                                      strengths=[], weaknesses=[],
-                                      critical_findings=[]),
-            metrics=[MetricResult(name="overall_quality", score=60.0,
-                                  description="q", findings=[], recommendations=[])],
+            summary=EvaluationSummary(
+                reasoning="test rationale", overall_score=60.0, strengths=[], weaknesses=[], critical_findings=[]
+            ),
+            metrics=[
+                MetricResult(name="overall_quality", score=60.0, description="q", findings=[], recommendations=[])
+            ],
             recommendations={},
         )
 
@@ -323,29 +352,34 @@ class TestT4MinQualityScoreEarlyStop:
             nonlocal gen_count
             r = await original_gen(*args, **kwargs)
             from src.schemas.agent_system import AgentSystemDesignResponse as ADR
-            if kwargs.get("response_schema") is ADR or (
-                len(args) >= 3 and args[2] is ADR
-            ):
+
+            if kwargs.get("response_schema") is ADR or (len(args) >= 3 and args[2] is ADR):
                 gen_count += 1
             return r
 
         agent.generate_structured = counting_gen
 
-        asyncio.run(pipeline.design_loop(
-            requirements="test",
-            domain="task-automation",
-            topology="hierarchical",
-            selected_patterns=[{
-                "name": "supervisor-worker", "context": "",
-                "category": "multi_agent", "benefits": [],
-                "best_practices": [],
-                "quality_attributes": dict(_AGENT_QA),
-            }],
-            criteria="quality",
-            analysis_result=None,
-            max_tries=3,
-            min_quality_score=50.0,
-        ))
+        asyncio.run(
+            pipeline.design_loop(
+                requirements="test",
+                domain="task-automation",
+                topology="hierarchical",
+                selected_patterns=[
+                    {
+                        "name": "supervisor-worker",
+                        "context": "",
+                        "category": "multi_agent",
+                        "benefits": [],
+                        "best_practices": [],
+                        "quality_attributes": dict(_AGENT_QA),
+                    }
+                ],
+                criteria="quality",
+                analysis_result=None,
+                max_tries=3,
+                min_quality_score=50.0,
+            )
+        )
 
         # 60.0 >= 50.0 → early stop after 1 design attempt.
         assert gen_count == 1
@@ -355,16 +389,24 @@ class TestT4MinQualityScoreEarlyStop:
 
 
 class TestT5CatalogueIntegrity:
-    """T5: All 61 catalogue JSONs have 7 QA keys; react loads (issue #8)."""
+    """T5: All 68 catalogue JSONs have 7 QA keys; react loads (issue #8)."""
 
     def test_all_catalogue_files_have_seven_qa_keys(self):
         from src.patterns.loader import PatternLoader
+
         loader = PatternLoader()
         patterns = loader.load_all()
         assert len(patterns) >= 60, f"expected >=60 patterns, got {len(patterns)}"
 
-        required = {"reliability", "cost_efficiency", "latency",
-                    "output_quality", "observability", "safety", "simplicity"}
+        required = {
+            "reliability",
+            "cost_efficiency",
+            "latency",
+            "output_quality",
+            "observability",
+            "safety",
+            "simplicity",
+        }
         missing = []
         for p in patterns:
             qa = set(p.get("quality_attributes", {}).keys())
@@ -374,6 +416,7 @@ class TestT5CatalogueIntegrity:
 
     def test_react_loads_with_full_qa_keys(self):
         from src.patterns.loader import PatternLoader
+
         loader = PatternLoader()
         patterns = loader.load_all()
         react = next((p for p in patterns if p["name"] == "react"), None)
@@ -383,6 +426,7 @@ class TestT5CatalogueIntegrity:
 
     def test_supervisor_worker_loads_with_full_qa_keys(self):
         from src.patterns.loader import PatternLoader
+
         loader = PatternLoader()
         patterns = loader.load_all()
         sw = next((p for p in patterns if p["name"] == "supervisor-worker"), None)
@@ -400,6 +444,7 @@ class TestT6RerankLossless:
 
     def test_rerank_scores_all_fused_nodes(self):
         """The recall set size after rerank == size before."""
+
         class _MockReranker:
             def __init__(self):
                 self.top_n = 1
@@ -411,8 +456,10 @@ class TestT6RerankLossless:
                 return nodes
 
         pattern = {
-            "name": "supervisor-worker", "context": "Hierarchical delegation.",
-            "category": "multi_agent", "benefits": ["Scalability"],
+            "name": "supervisor-worker",
+            "context": "Hierarchical delegation.",
+            "category": "multi_agent",
+            "benefits": ["Scalability"],
             "tradeoffs": ["Complexity"],
             "quality_attributes": dict(_AGENT_QA),
             "suitable_domains": ["supervisor-worker"],
@@ -421,17 +468,24 @@ class TestT6RerankLossless:
 
         class _MockLoader:
             _loaded = True
-            def filter_by_domain(self, _d): return [pattern]
-            def get_by_name(self, _n): return None
+
+            def filter_by_domain(self, _d):
+                return [pattern]
+
+            def get_by_name(self, _n):
+                return None
 
         class _MockBM25:
             is_built = True
             domains = ["x"]
-            def as_retriever(self, _k): return MagicMock(retrieve=lambda _: [])
+
+            def as_retriever(self, _k):
+                return MagicMock(retrieve=lambda _: [])
 
         class _MockVec:
             is_built = True
             domains = ["x"]
+
             def as_retriever(self, _k):
                 nodes = [
                     NodeWithScore(
@@ -487,8 +541,10 @@ class TestT7MinFusionScoreGateDisabled:
         """With min_fusion_score=0.0 (explicitly disabled), a low raw dense
         score is not demoted to fallback."""
         pattern = {
-            "name": "supervisor-worker", "context": "Hierarchical delegation.",
-            "category": "multi_agent", "benefits": ["Scalability"],
+            "name": "supervisor-worker",
+            "context": "Hierarchical delegation.",
+            "category": "multi_agent",
+            "benefits": ["Scalability"],
             "tradeoffs": ["Complexity"],
             "quality_attributes": dict(_AGENT_QA),
             "suitable_domains": ["supervisor-worker"],
@@ -497,25 +553,34 @@ class TestT7MinFusionScoreGateDisabled:
 
         class _MockLoader:
             _loaded = True
-            def filter_by_domain(self, _d): return [pattern]
-            def get_by_name(self, _n): return None
+
+            def filter_by_domain(self, _d):
+                return [pattern]
+
+            def get_by_name(self, _n):
+                return None
 
         class _MockBM25:
             is_built = True
             domains = ["x"]
-            def as_retriever(self, _k): return MagicMock(retrieve=lambda _: [])
+
+            def as_retriever(self, _k):
+                return MagicMock(retrieve=lambda _: [])
 
         class _MockVec:
             is_built = True
             domains = ["x"]
+
             def as_retriever(self, _k):
                 # Simulate single-leg rank-7 RRF score.
-                return MagicMock(retrieve=lambda _: [
-                    NodeWithScore(
-                        node=TextNode(text="a", metadata={"slug": "supervisor-worker"}),
-                        score=1/67,
-                    ),
-                ])
+                return MagicMock(
+                    retrieve=lambda _: [
+                        NodeWithScore(
+                            node=TextNode(text="a", metadata={"slug": "supervisor-worker"}),
+                            score=1 / 67,
+                        ),
+                    ]
+                )
 
         retriever = HybridPatternRetriever(
             dense_retriever=MagicMock(),
@@ -544,26 +609,38 @@ class TestT7MinFusionScoreGateDisabled:
         """When recall is genuinely empty (no candidates, score=0.0),
         the fallback fires."""
         pattern = {
-            "name": "supervisor-worker", "context": "ctx",
-            "category": "multi_agent", "benefits": [],
-            "tradeoffs": [], "quality_attributes": dict(_AGENT_QA),
-            "suitable_domains": [], "best_practices": [],
+            "name": "supervisor-worker",
+            "context": "ctx",
+            "category": "multi_agent",
+            "benefits": [],
+            "tradeoffs": [],
+            "quality_attributes": dict(_AGENT_QA),
+            "suitable_domains": [],
+            "best_practices": [],
         }
 
         class _MockLoader:
             _loaded = True
-            def filter_by_domain(self, _d): return []
-            def get_by_name(self, _n): return pattern
+
+            def filter_by_domain(self, _d):
+                return []
+
+            def get_by_name(self, _n):
+                return pattern
 
         class _MockBM25:
             is_built = True
             domains = ["x"]
-            def as_retriever(self, _k): return MagicMock(retrieve=lambda _: [])
+
+            def as_retriever(self, _k):
+                return MagicMock(retrieve=lambda _: [])
 
         class _MockVec:
             is_built = True
             domains = ["x"]
-            def as_retriever(self, _k): return MagicMock(retrieve=lambda _: [])
+
+            def as_retriever(self, _k):
+                return MagicMock(retrieve=lambda _: [])
 
         retriever = HybridPatternRetriever(
             dense_retriever=MagicMock(),
@@ -607,8 +684,12 @@ class TestT10AllZeroWeightsRetry:
             nonlocal call_count
             call_count += 1
             return RequirementWeights(
-                reliability=1.0, cost_efficiency=0.8, latency=0.6,
-                output_quality=0.5, observability=0.3, safety=0.2,
+                reliability=1.0,
+                cost_efficiency=0.8,
+                latency=0.6,
+                output_quality=0.5,
+                observability=0.3,
+                safety=0.2,
                 simplicity=0.1,
             )
 
@@ -616,7 +697,9 @@ class TestT10AllZeroWeightsRetry:
 
         loader = MagicMock()
         pipeline = AgentPatternPipeline(
-            agent=agent, pattern_loader=loader, embedder=MagicMock(),
+            agent=agent,
+            pattern_loader=loader,
+            embedder=MagicMock(),
         )
 
         result = asyncio.run(pipeline._extract_requirement_weights("req", "domain"))
@@ -854,11 +937,13 @@ class TestT8RankFusionSelection:
         (0.95); the blend keeps slug-a at rank 1 because its fused and
         CE reciprocals outweigh the others combined.
         """
-        fused = self._make_fused_nodes([
-            (1.0 / 60, "slug-a"),
-            (1.0 / 61, "slug-b"),
-            (1.0 / 62, "slug-c"),
-        ])
+        fused = self._make_fused_nodes(
+            [
+                (1.0 / 60, "slug-a"),
+                (1.0 / 61, "slug-b"),
+                (1.0 / 62, "slug-c"),
+            ]
+        )
 
         class _CR:
             is_built = True
@@ -872,6 +957,7 @@ class TestT8RankFusionSelection:
 
             def retrieve(self, _q):
                 from copy import deepcopy
+
                 return deepcopy(self._nodes)
 
         class _MR:
@@ -889,11 +975,17 @@ class TestT8RankFusionSelection:
             _loaded = True
 
             def filter_by_domain(self, domain):
-                return [{
-                    "name": domain, "context": "T", "category": "multi_agent",
-                    "benefits": [], "tradeoffs": [], "quality_attributes": {},
-                    "suitable_domains": [],
-                }]
+                return [
+                    {
+                        "name": domain,
+                        "context": "T",
+                        "category": "multi_agent",
+                        "benefits": [],
+                        "tradeoffs": [],
+                        "quality_attributes": {},
+                        "suitable_domains": [],
+                    }
+                ]
 
             def get_by_name(self, _n):
                 return None
@@ -901,7 +993,9 @@ class TestT8RankFusionSelection:
         dr = _CR(fused)
         br = _CR([])
         retriever = HybridPatternRetriever(
-            bm25_retriever=br, dense_retriever=dr, pattern_loader=_ML(),
+            bm25_retriever=br,
+            dense_retriever=dr,
+            pattern_loader=_ML(),
             min_fusion_score=0.0,
             rerank_top_n=1,
             reranker_config=MagicMock(base_url="http://x", timeout=30.0, max_batch_size=48),
@@ -922,11 +1016,13 @@ class TestT8RankFusionSelection:
         slug-c is fused rank 3, CE rank 1 (blended = 1/62 + 1/60 ≈ 0.033).
         slug-a wins the blend and survives the top-1 cut.
         """
-        fused = self._make_fused_nodes([
-            (1.0 / 60, "slug-a"),
-            (1.0 / 61, "slug-b"),
-            (1.0 / 62, "slug-c"),
-        ])
+        fused = self._make_fused_nodes(
+            [
+                (1.0 / 60, "slug-a"),
+                (1.0 / 61, "slug-b"),
+                (1.0 / 62, "slug-c"),
+            ]
+        )
 
         class _CR:
             is_built = True
@@ -940,6 +1036,7 @@ class TestT8RankFusionSelection:
 
             def retrieve(self, _q):
                 from copy import deepcopy
+
                 return deepcopy(self._nodes)
 
         class _MR:
@@ -957,11 +1054,17 @@ class TestT8RankFusionSelection:
             _loaded = True
 
             def filter_by_domain(self, domain):
-                return [{
-                    "name": domain, "context": "T", "category": "multi_agent",
-                    "benefits": [], "tradeoffs": [], "quality_attributes": {},
-                    "suitable_domains": [],
-                }]
+                return [
+                    {
+                        "name": domain,
+                        "context": "T",
+                        "category": "multi_agent",
+                        "benefits": [],
+                        "tradeoffs": [],
+                        "quality_attributes": {},
+                        "suitable_domains": [],
+                    }
+                ]
 
             def get_by_name(self, _n):
                 return None
@@ -969,7 +1072,9 @@ class TestT8RankFusionSelection:
         dr = _CR(fused)
         br = _CR([])
         retriever = HybridPatternRetriever(
-            bm25_retriever=br, dense_retriever=dr, pattern_loader=_ML(),
+            bm25_retriever=br,
+            dense_retriever=dr,
+            pattern_loader=_ML(),
             min_fusion_score=0.0,
             rerank_top_n=1,
             reranker_config=MagicMock(base_url="http://x", timeout=30.0, max_batch_size=48),
@@ -984,11 +1089,13 @@ class TestT8RankFusionSelection:
 
     def test_blend_reports_reports_blended_scores(self):
         """Slug-cut reports the blend ``RR(fused) + RR(ce)`` per slug."""
-        fused = self._make_fused_nodes([
-            (1.0 / 60, "slug-a"),
-            (1.0 / 61, "slug-b"),
-            (1.0 / 62, "slug-c"),
-        ])
+        fused = self._make_fused_nodes(
+            [
+                (1.0 / 60, "slug-a"),
+                (1.0 / 61, "slug-b"),
+                (1.0 / 62, "slug-c"),
+            ]
+        )
 
         class _CR:
             is_built = True
@@ -1002,6 +1109,7 @@ class TestT8RankFusionSelection:
 
             def retrieve(self, _q):
                 from copy import deepcopy
+
                 return deepcopy(self._nodes)
 
         class _MR:
@@ -1019,11 +1127,17 @@ class TestT8RankFusionSelection:
             _loaded = True
 
             def filter_by_domain(self, domain):
-                return [{
-                    "name": domain, "context": "T", "category": "multi_agent",
-                    "benefits": [], "tradeoffs": [], "quality_attributes": {},
-                    "suitable_domains": [],
-                }]
+                return [
+                    {
+                        "name": domain,
+                        "context": "T",
+                        "category": "multi_agent",
+                        "benefits": [],
+                        "tradeoffs": [],
+                        "quality_attributes": {},
+                        "suitable_domains": [],
+                    }
+                ]
 
             def get_by_name(self, _n):
                 return None
@@ -1031,7 +1145,9 @@ class TestT8RankFusionSelection:
         dr = _CR(fused)
         br = _CR([])
         retriever = HybridPatternRetriever(
-            bm25_retriever=br, dense_retriever=dr, pattern_loader=_ML(),
+            bm25_retriever=br,
+            dense_retriever=dr,
+            pattern_loader=_ML(),
             min_fusion_score=0.0,
             rerank_top_n=3,
             reranker_config=MagicMock(base_url="http://x", timeout=30.0, max_batch_size=48),
@@ -1062,10 +1178,12 @@ class TestT8RankFusionSelection:
     def test_rerank_top_n_cap_keeps_top_blend_candidate(self):
         """Slug-cut (locked to rank_fusion blend) keeps the survivor whose
         stage-1 fused rank + CE rank dominate."""
-        fused = self._make_fused_nodes([
-            (1.0 / 60, "slug-a"),
-            (1.0 / 75, "slug-b"),
-        ])
+        fused = self._make_fused_nodes(
+            [
+                (1.0 / 60, "slug-a"),
+                (1.0 / 75, "slug-b"),
+            ]
+        )
 
         class _ConcreteRetriever:
             def __init__(self, nodes):
@@ -1116,9 +1234,7 @@ class TestT8RankFusionSelection:
             pattern_loader=_MockLoader(),
             min_fusion_score=0.0,
             rerank_top_n=1,
-            reranker_config=MagicMock(
-                base_url="http://localhost:8080", timeout=30.0, max_batch_size=48
-            ),
+            reranker_config=MagicMock(base_url="http://localhost:8080", timeout=30.0, max_batch_size=48),
         )
         retriever._dense_retriever = dense_retriever
         retriever._bm25_retriever = bm25_retriever
@@ -1127,9 +1243,7 @@ class TestT8RankFusionSelection:
             "src.patterns.retriever.SafeTEIReranker",
             return_value=mock,
         ):
-            result = retriever.retrieve(
-                user_domain="microservices", normalized_domain="microservices"
-            )
+            result = retriever.retrieve(user_domain="microservices", normalized_domain="microservices")
         assert result.patterns[0][0]["name"] == "slug-a"
 
     def test_single_candidate_pool_skips_reranking(self):
@@ -1178,9 +1292,7 @@ class TestT8RankFusionSelection:
         )
         retriever._dense_retriever = dense_retriever
         retriever._bm25_retriever = bm25_retriever
-        result = retriever.retrieve(
-            user_domain="microservices", normalized_domain="microservices"
-        )
+        result = retriever.retrieve(user_domain="microservices", normalized_domain="microservices")
         assert len(result.matched_domains) == 1
         assert result.matched_domains[0].slug == "slug-a"
         assert result.matched_domains[0].rerank_score is None
@@ -1195,14 +1307,19 @@ class TestT8RankFusionSelection:
         class _CR:
             def __init__(self, nd):
                 self._nodes = nd
-            def as_retriever(self, _k): return self
+
+            def as_retriever(self, _k):
+                return self
+
             def retrieve(self, _q):
                 from copy import deepcopy
+
                 return deepcopy(self._nodes)
 
         class _MR:
             def __init__(self):
                 self.top_n = 2
+
             def postprocess_nodes(self, nodes, query_bundle):
                 for n in nodes:
                     n.score = ce_logit
@@ -1210,15 +1327,29 @@ class TestT8RankFusionSelection:
 
         class _ML:
             _loaded = True
+
             def filter_by_domain(self, domain):
-                return [{"name": domain, "context": "T", "category": "multi_agent",
-                         "benefits": [], "tradeoffs": [], "quality_attributes": {}, "suitable_domains": []}]
-            def get_by_name(self, _n): return None
+                return [
+                    {
+                        "name": domain,
+                        "context": "T",
+                        "category": "multi_agent",
+                        "benefits": [],
+                        "tradeoffs": [],
+                        "quality_attributes": {},
+                        "suitable_domains": [],
+                    }
+                ]
+
+            def get_by_name(self, _n):
+                return None
 
         dr = _CR(fused)
         br = _CR([])
         retriever = HybridPatternRetriever(
-            bm25_retriever=br, dense_retriever=dr, pattern_loader=_ML(),
+            bm25_retriever=br,
+            dense_retriever=dr,
+            pattern_loader=_ML(),
             min_fusion_score=0.0,
             rerank_top_n=1,
             reranker_config=MagicMock(base_url="http://x", timeout=30.0, max_batch_size=48),

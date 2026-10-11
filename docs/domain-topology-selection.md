@@ -5,7 +5,7 @@ Analysis of how the agent-pattern-mcp server derives the target **domain** and t
 ## Three Different Vocabularies (`src/schemas/enums.py`)
 
 - **`AgentDomain`** (`src/schemas/enums.py:69`) — 36 problem-space slugs (`rag-applications`, `tool-use-tasks`, `cybersecurity`, ...) used only for pattern suitability filtering.
-- **Pattern `name`** — 61 kebab-case catalogue identities (`react`, `supervisor-worker`, ...), one per `pattern/*.json`.
+- **Pattern `name`** — 68 kebab-case catalogue identities (`react`, `supervisor-worker`, ...), one per `pattern/*.json`.
 - **`AgentTopology`** (`src/schemas/enums.py:116`) — 8 canonical structural shapes (`single-agent-loop`, `hierarchical`, `pipeline`, `plan-execute`, `swarm`, `parallel-fan-out`, `evaluator-loop`, `graph-orchestrated`) = the `topology` field in `pattern/*.json`.
 
 Domain answers *"which patterns apply?"*; topology answers *"which structural shape was chosen?"*; the pattern name answers *"which catalogue entry won?"*. Name and topology are deliberately kept apart: `recommended_topology`/`final_topology` carry `AgentTopology` values, while `recommended_pattern_name`/`final_pattern_name` carry the winning pattern's name.

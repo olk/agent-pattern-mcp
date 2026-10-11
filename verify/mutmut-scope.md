@@ -12,7 +12,7 @@
 |---|---|---|
 | `src/text_validation.py` | `tests/unit/test_text_validation.py`, `tests/unit/test_text_validation_internals.py`, `tests/verification/test_text_validation_properties.py` | Tier-A decision engine (strip window / verdict kinds); the V-1..V-6 oracles kill regex/branch/clamp mutants |
 | `src/config_expansion.py` | `tests/unit/test_config_expansion.py`, `tests/verification/test_config_properties.py` | CE-1..CE-6 kill regex-group and default-branch mutants |
-| `src/patterns/loader.py` | `tests/unit/test_pattern_loader.py`, `tests/verification/test_loader_properties.py` | LD-1..LD-6 kill slug-normalization and filter mutants over the real 61-pattern catalogue |
+| `src/patterns/loader.py` | `tests/unit/test_pattern_loader.py`, `tests/verification/test_loader_properties.py` | LD-1..LD-6 kill slug-normalization and filter mutants over the real 68-pattern catalogue |
 | `src/design_normalization.py` | `tests/unit/test_normalization.py`, `tests/verification/test_normalization_idempotence.py` | N-1..N-4 dedup/idempotence over the agent contract keys |
 | `src/tools/jobs.py` | `tests/unit/test_jobs.py` (exhaustive 4×5 guarded transition matrix), `tests/verification/test_jobs_properties.py` | W0-1 guard automaton; J-1..J-4 |
 | `src/validation.py` | `tests/unit/test_validation.py`, `tests/verification/test_jobs_properties.py` (E5 retry oracle) | self-healing retry bounding + error formatting |

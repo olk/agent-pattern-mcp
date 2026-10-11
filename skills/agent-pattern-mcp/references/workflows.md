@@ -119,7 +119,7 @@ Pattern names are exact and carry no `-pattern` suffix; useful ones here include
 `reflexion`, `self-heal-loop`, `human-in-the-loop`, `guardrails`, `dual-llm-quarantine`,
 `self-rag`, `corrective-rag`, `graph-rag`.
 
-**Caveat:** the unfiltered `list_agent_patterns` call returns all 61 patterns and is cut off by
+**Caveat:** the unfiltered `list_agent_patterns` call returns all 68 patterns and is cut off by
 OMP's device-output cap near 10 KB — always filter, or read patterns individually.
 
 ---

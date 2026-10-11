@@ -20,7 +20,7 @@
 # SOFTWARE.
 
 """
-Real-data catalog tests — verifies 61 agent patterns load correctly
+Real-data catalog tests — verifies 68 agent patterns load correctly
 with the dict-based PatternLoader and that topology/category invariants hold.
 """
 
@@ -46,7 +46,7 @@ def patterns(loader):
 
 
 def test_loader_loads_all(patterns):
-    assert len(patterns) == 61
+    assert len(patterns) == 68
 
 
 def test_pattern_names_are_unique(patterns):
@@ -115,6 +115,7 @@ def test_every_category_has_patterns(patterns):
 
 def test_category_counts(patterns):
     from collections import Counter
+
     counts = Counter(p["category"] for p in patterns)
     assert counts["multi_agent"] == 11
     assert counts["observability"] == 3
@@ -144,9 +145,7 @@ def test_domains_are_disjoint(patterns):
         suitable = {d.lower().replace(" ", "-") for d in p.get("suitable_domains", [])}
         unsuitable = {d.lower().replace(" ", "-") for d in p.get("unsuitable_domains", [])}
         overlap = suitable & unsuitable
-        assert not overlap, (
-            f"Pattern '{name}': suitable_domains and unsuitable_domains overlap: {sorted(overlap)}"
-        )
+        assert not overlap, f"Pattern '{name}': suitable_domains and unsuitable_domains overlap: {sorted(overlap)}"
 
 
 def test_migration_edges_exist(patterns):
@@ -154,13 +153,9 @@ def test_migration_edges_exist(patterns):
     for p in patterns:
         name = p["name"]
         for ref in p.get("migration_from", []):
-            assert ref in all_names, (
-                f"Pattern '{name}' migration_from references unknown pattern '{ref}'"
-            )
+            assert ref in all_names, f"Pattern '{name}' migration_from references unknown pattern '{ref}'"
         for ref in p.get("migration_to", []):
-            assert ref in all_names, (
-                f"Pattern '{name}' migration_to references unknown pattern '{ref}'"
-            )
+            assert ref in all_names, f"Pattern '{name}' migration_to references unknown pattern '{ref}'"
 
 
 def test_no_non_ascii_in_key_fields(patterns):
@@ -209,20 +204,20 @@ def test_every_domain_has_at_least_one_pattern(patterns):
 @pytest.mark.parametrize(
     ("domain", "expected_min"),
     [
-        ("cybersecurity", 5),            # min 5 of 7 curated
-        ("gui-computer-use", 6),         # min 6 of 11 curated
-        ("personal-productivity", 6),    # min 6 of 8 curated
-        ("devops", 3),                   # min 3 of 4 curated (revived dead entry)
-        ("education", 5),                # min 5 of 7 curated
-        ("legal-research", 4),           # min 4 of 6 curated
-        ("scientific-research", 4),      # min 4 of 6 curated (revived dead entry)
-        ("it-service-management", 4),    # min 4 of 6 curated
-        ("workflow-automation", 6),      # min 6 of 8 curated
-        ("enterprise-search", 5),        # min 5 of 7 curated
-        ("e-commerce", 4),               # min 4 of 5 curated
-        ("software-testing", 4),         # min 4 of 5 curated
-        ("multimodal", 3),               # min 3 of 4 curated (revived dead entry)
-        ("database-operations", 3),      # min 3 of 4 curated (revived dead entry)
+        ("cybersecurity", 5),  # min 5 of 7 curated
+        ("gui-computer-use", 6),  # min 6 of 11 curated
+        ("personal-productivity", 6),  # min 6 of 8 curated
+        ("devops", 3),  # min 3 of 4 curated (revived dead entry)
+        ("education", 5),  # min 5 of 7 curated
+        ("legal-research", 4),  # min 4 of 6 curated
+        ("scientific-research", 4),  # min 4 of 6 curated (revived dead entry)
+        ("it-service-management", 4),  # min 4 of 6 curated
+        ("workflow-automation", 6),  # min 6 of 8 curated
+        ("enterprise-search", 5),  # min 5 of 7 curated
+        ("e-commerce", 4),  # min 4 of 5 curated
+        ("software-testing", 4),  # min 4 of 5 curated
+        ("multimodal", 3),  # min 3 of 4 curated (revived dead entry)
+        ("database-operations", 3),  # min 3 of 4 curated (revived dead entry)
     ],
 )
 def test_loader_filter_by_domain_new_domains(loader, domain, expected_min):

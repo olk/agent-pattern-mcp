@@ -229,7 +229,7 @@ Returns `[{name, description}]` — a minimal view. Read-only; no idempotence hi
 - `category`: `reasoning`, `tool_use`, `planning`, `reflection`, `research_synthesis`, `multi_agent`, `memory`, `retrieval`, `safety_control`, `observability` (unknown values return `[]`)
 - `domain`: matched against `pattern.suitable_domains`
 
-Caveat: the unfiltered list (61 patterns) exceeds OMP's device-output cap and is cut off
+Caveat: the unfiltered list (68 patterns) exceeds OMP's device-output cap and is cut off
 near 10 KB — filter by `category` or `domain`, or read patterns one at a time.
 
 ### `get_agent_pattern`
@@ -241,18 +241,20 @@ near 10 KB — filter by `category` or `domain`, or read patterns one at a time.
 Full pattern JSON. Read-only; no idempotence hint. Unknown names raise `Pattern not found: <name>`.
 
 Pattern names carry **no** `-pattern` suffix; on disk the files are `<name>-pattern.json`.
-All 61: `agent-as-a-judge`, `agentic-rag`, `agent-resumption`, `agent-tracing-telemetry`,
-`camel-role-play`, `chain-of-thought`, `chain-of-verification`, `code-agent`,
-`context-compaction`, `control-flow-integrity`, `conversational-memory`, `corrective-rag`,
-`cross-reflection`, `decision-log`, `dual-llm-quarantine`, `episodic-memory`,
+All 68: `agent-as-a-judge`, `agentic-rag`, `agent-resumption`, `agent-tracing-telemetry`,
+`ai-governance`, `ai-oracle`, `ai-privacy`, `camel-role-play`, `chain-of-thought`,
+`chain-of-verification`, `code-agent`, `context-compaction`, `control-flow-integrity`,
+`conversational-memory`, `corrective-rag`, `cross-reflection`, `decision-log`,
+`difference-based-hypothesis`, `dual-llm-quarantine`, `episodic-memory`,
 `evaluator-optimizer`, `goal-creator-passive`, `goal-creator-proactive`,
 `graph-orchestration`, `graph-rag`, `guardrails`, `handoff`, `human-in-the-loop`,
 `hybrid-rerank`, `kill-switch`, `lats`, `least-privilege-tool-scoping`, `llm-compiler`,
 `memoization`, `metagpt-sop-pipeline`, `multi-agent-debate`, `naive-rag`,
-`orchestrator-workers`, `parallelization`, `plan-and-solve`, `procedural-memory`,
-`prompt-chaining`, `prompt-response-optimizer`, `query-rewriting`, `react`, `reflection`,
-`reflexion`, `rewoo`, `routing`, `scratchpad-note-taking`, `self-consistency`,
-`self-discovery`, `self-heal-loop`, `self-rag`, `semantic-memory`, `step-budget`, `storm`,
+`onchain-ai-inference`, `orchestrator-workers`, `parallelization`, `plan-and-solve`,
+`prioritization`, `procedural-memory`, `prompt-chaining`, `prompt-response-optimizer`,
+`query-rewriting`, `react`, `reflection`, `reflexion`, `resource-aware-optimization`,
+`rewoo`, `routing`, `scratchpad-note-taking`, `self-consistency`, `self-discovery`,
+`self-heal-loop`, `self-rag`, `semantic-memory`, `step-budget`, `storm`,
 `structured-output`, `subagent-isolation`, `supervisor-worker`, `swarm`, `tool-agent-registry`,
 `tree-of-thoughts`, `verifier-critic`, `voting-based-cooperation`.
 

@@ -161,12 +161,33 @@ def configure_logging(log_level: str = "INFO", log_format: str = "json") -> None
         class JSONFormatter(logging.Formatter):
             # Standard LogRecord attributes — always present on every record;
             # exclude from extra detection so they don't leak into the output.
-            _STANDARD_ATTRS = frozenset({
-                "name", "msg", "args", "levelname", "levelno", "pathname", "filename",
-                "module", "exc_info", "exc_text", "stack_info", "lineno", "funcName",
-                "created", "msecs", "relativeCreated", "thread", "threadName",
-                "processName", "process", "taskName", "message", "asctime",
-            })
+            _STANDARD_ATTRS = frozenset(
+                {
+                    "name",
+                    "msg",
+                    "args",
+                    "levelname",
+                    "levelno",
+                    "pathname",
+                    "filename",
+                    "module",
+                    "exc_info",
+                    "exc_text",
+                    "stack_info",
+                    "lineno",
+                    "funcName",
+                    "created",
+                    "msecs",
+                    "relativeCreated",
+                    "thread",
+                    "threadName",
+                    "processName",
+                    "process",
+                    "taskName",
+                    "message",
+                    "asctime",
+                }
+            )
 
             def format(self, record: logging.LogRecord) -> str:
                 log_entry = {
@@ -185,9 +206,7 @@ def configure_logging(log_level: str = "INFO", log_format: str = "json") -> None
 
         stderr_handler.setFormatter(JSONFormatter())
     else:
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         stderr_handler.setFormatter(formatter)
 
     root_logger.addHandler(stderr_handler)
@@ -226,9 +245,7 @@ class AnnotatedPromptsAsTools(PromptsAsTools):
         result = await super().list_tools(tools)
         return [_with_prompts_as_tools_annotations(t) for t in result]
 
-    async def get_tool(
-        self, name: str, call_next: GetToolNext, *, version: VersionSpec | None = None
-    ) -> Tool | None:
+    async def get_tool(self, name: str, call_next: GetToolNext, *, version: VersionSpec | None = None) -> Tool | None:
         tool = await super().get_tool(name, call_next, version=version)
         return _with_prompts_as_tools_annotations(tool) if tool else None
 
@@ -264,7 +281,7 @@ class MCPAgentPatternServer:
       - cancel_agent_design: Cancels a running job (best-effort; exits at next stage boundary)
 
     Read-only pattern catalogue:
-      - list_agent_patterns: Lists all 61 patterns; filter by category and/or domain
+      - list_agent_patterns: Lists all 68 patterns; filter by category and/or domain
       - get_agent_pattern: Returns the full JSON spec for a specific pattern
 
     Attributes:
@@ -320,10 +337,7 @@ class MCPAgentPatternServer:
         self._config = ServerConfig.model_validate(config_dict)
 
         # Configure logging
-        configure_logging(
-            log_level=self._config.logging_level,
-            log_format=self._config.logging_format
-        )
+        configure_logging(log_level=self._config.logging_level, log_format=self._config.logging_format)
 
         self._mcp = FastMCP(
             "Agent Pattern MCP Server",
@@ -343,10 +357,7 @@ class MCPAgentPatternServer:
         self._resources_registered: bool = False
         self._prompts_registered: bool = False
 
-        logger.debug(
-            "MCPAgentPatternServer instance created",
-            extra={"config_path": self._config_path}
-        )
+        logger.debug("MCPAgentPatternServer instance created", extra={"config_path": self._config_path})
 
     async def _initialize(self) -> None:
         """
@@ -361,10 +372,7 @@ class MCPAgentPatternServer:
             LLMError: If LLM initialization fails (E-9)
         """
         try:
-            logger.info(
-                "Configuration already loaded",
-                extra={"config_path": self._config_path}
-            )
+            logger.info("Configuration already loaded", extra={"config_path": self._config_path})
 
             # Initialize AgentSystemArchitect
             self._agent = AgentSystemArchitect(self._config)
@@ -383,9 +391,7 @@ class MCPAgentPatternServer:
 
             # Initialize PatternLoader and embedder
             # Stored on self so resource handlers can reach it via lifespan_context
-            self._pattern_loader = PatternLoader(
-                patterns_dir=os.path.expanduser(self._config.pattern_directory)
-            )
+            self._pattern_loader = PatternLoader(patterns_dir=os.path.expanduser(self._config.pattern_directory))
 
             # Build embedder from config
             embedder_cfg = self._config.embedder
@@ -422,25 +428,20 @@ class MCPAgentPatternServer:
             # DP-4: Factory Pattern - consistent tool creation
             if self._agent and self._pipeline:
                 self._tools = create_all_tools(
-                    self._agent, self._pipeline, self._pattern_loader,
+                    self._agent,
+                    self._pipeline,
+                    self._pattern_loader,
                     tasks_config=self._config.tasks,
                     job_tasks=self._job_tasks,
                 )
 
-                logger.info(
-                    "All tools initialized",
-                    extra={"tool_count": len(self._tools)}
-                )
+                logger.info("All tools initialized", extra={"tool_count": len(self._tools)})
 
         except FileNotFoundError as e:
             # E-11: ERR_011 - Server initialization failed
             logger.error(
                 "Configuration file not found during initialization",
-                extra={
-                    "error": ERROR_SERVER_INIT,
-                    "config_path": self._config_path,
-                    "details": str(e)
-                }
+                extra={"error": ERROR_SERVER_INIT, "config_path": self._config_path, "details": str(e)},
             )
             raise
 
@@ -448,22 +449,13 @@ class MCPAgentPatternServer:
             # E-11: ERR_011 - Server initialization failed (invalid config)
             logger.error(
                 "Configuration validation failed during initialization",
-                extra={
-                    "error": ERROR_SERVER_INIT,
-                    "details": str(e)
-                }
+                extra={"error": ERROR_SERVER_INIT, "details": str(e)},
             )
             raise
 
         except Exception as e:
             # E-11: ERR_011 - Server initialization failed
-            logger.error(
-                "Server initialization failed",
-                extra={
-                    "error": ERROR_SERVER_INIT,
-                    "details": str(e)
-                }
-            )
+            logger.error("Server initialization failed", extra={"error": ERROR_SERVER_INIT, "details": str(e)})
             raise
 
     def _build_reasoning_client(self) -> ReasoningClient | None:
@@ -507,13 +499,8 @@ class MCPAgentPatternServer:
                         ),
                     },
                 )
-        if client.config.fail_fast and any(
-            s != "ok" for s in self._reasoning_health.values()
-        ):
-            raise RuntimeError(
-                f"REASONING_FAIL_FAST=true and reasoning MCPs unreachable: "
-                f"{self._reasoning_health}"
-            )
+        if client.config.fail_fast and any(s != "ok" for s in self._reasoning_health.values()):
+            raise RuntimeError(f"REASONING_FAIL_FAST=true and reasoning MCPs unreachable: {self._reasoning_health}")
 
     async def _cleanup(self) -> None:
         """
@@ -560,10 +547,7 @@ class MCPAgentPatternServer:
             logger.info("Server resources cleanup completed")
 
         except Exception as e:
-            logger.warning(
-                "Error during cleanup",
-                extra={"details": str(e)}
-            )
+            logger.warning("Error during cleanup", extra={"details": str(e)})
 
     @asynccontextmanager
     async def lifespan(self, server: FastMCP) -> AsyncIterator[dict[str, Any]]:
@@ -620,7 +604,7 @@ class MCPAgentPatternServer:
 
             logger.debug(
                 "Lifespan context initialized",
-                extra={"has_agent": self._agent is not None, "has_pipeline": self._pipeline is not None}
+                extra={"has_agent": self._agent is not None, "has_pipeline": self._pipeline is not None},
             )
 
             # IC-37: Yield statement separates startup and shutdown
@@ -724,9 +708,7 @@ class MCPAgentPatternServer:
         async def _get_component(type: str, ctx: Context) -> str:
             if ctx.request_context is None:
                 raise ToolError("No request context available")
-            blueprints = ctx.request_context.lifespan_context.get(
-                "component_blueprints", {}
-            )
+            blueprints = ctx.request_context.lifespan_context.get("component_blueprints", {})
             slug = slugify(type)
             blueprint = blueprints.get(slug)
             if blueprint is None:

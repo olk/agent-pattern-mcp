@@ -8,7 +8,7 @@
 [![M8ven Score](https://m8ven.ai/badge/mcp/olk/agent-pattern-mcp)](https://m8ven.ai/mcp/olk/agent-pattern-mcp)
 
 
-An MCP (Model Context Protocol) server that provides agent system design expertise to AI coding agents. Given a requirements string and a domain, it analyses the problem, selects matching agent patterns (from 61 built-in patterns), generates a concrete agent system design with agents, relationships, tool contracts, state models, and message contracts, and evaluates it against quality attributes (reliability, cost efficiency, latency, output quality, observability, safety, simplicity).
+An MCP (Model Context Protocol) server that provides agent system design expertise to AI coding agents. Given a requirements string and a domain, it analyses the problem, selects matching agent patterns (from 68 built-in patterns), generates a concrete agent system design with agents, relationships, tool contracts, state models, and message contracts, and evaluates it against quality attributes (reliability, cost efficiency, latency, output quality, observability, safety, simplicity).
 
 ---
 
@@ -219,7 +219,7 @@ Call evaluate_agent_system with:
   agent_system: { ... paste a design dict here ... }
   criteria: "reliability, safety"
 
-Call list_agent_patterns()  # all 61 patterns
+Call list_agent_patterns()  # all 68 patterns
 Call list_agent_patterns(category="multi_agent")  # filter by category
 Call get_agent_pattern(name="supervisor-worker")   # full pattern JSON
 ```
@@ -306,7 +306,7 @@ Show me details about the react agent pattern.
 | `submit_agent_design_job` | Start a background design job and return a `job_id` immediately. **ONLY for clients with short request timeouts** (Cursor, Claude Desktop, TS-SDK). For other clients use `design_agent_system`. Poll `get_agent_design_status` every 10–30 s. |
 | `get_agent_design_status` | Poll job status. Returns the current status, progress message, and the full design output when `completed`. |
 | `cancel_agent_design` | Cancel a running job (best-effort; takes effect at the next pipeline stage boundary; may take up to one LLM call). |
-| `list_agent_patterns` | List all 61 patterns; filter by `category` and/or `domain` |
+| `list_agent_patterns` | List all 68 patterns; filter by `category` and/or `domain` |
 | `get_agent_pattern` | Get full JSON for a specific pattern by name |
 
 
@@ -363,7 +363,7 @@ Clients that only support the tools protocol (no native `prompts/list` or `promp
 ### Via MCP tools (recommended — works in all clients)
 
 ```
-list_agent_patterns()                                  # all 61 patterns
+list_agent_patterns()                                  # all 68 patterns
 list_agent_patterns(category="multi_agent")            # filter by category
 list_agent_patterns(domain="tool-use-tasks")           # filter by domain
 get_agent_pattern(name="supervisor-worker")            # full pattern JSON
@@ -627,7 +627,7 @@ export `LOGGING_LEVEL=DEBUG` before `make docker-up`.
 
 ## Extending with Custom Patterns
 
-Pattern files are loaded from `~/.config/agent-pattern-mcp/pattern/` (configurable via `PATTERN_DIRECTORY`). Drop a JSON file alongside the 61 built-in patterns.
+Pattern files are loaded from `~/.config/agent-pattern-mcp/pattern/` (configurable via `PATTERN_DIRECTORY`). Drop a JSON file alongside the 68 built-in patterns.
 
 **Minimal pattern structure:**
 
@@ -662,7 +662,7 @@ Full JSON Schema with all enums: `docs/pattern-schema.json`
 
 ## Long-running tools & timeouts
 
-`design_agent_system` (and to a lesser extent `analyze_agent_system`, `generate_agent_system`, `evaluate_agent_system`) run multi-stage LLM pipelines that **can take 5–10 minutes per call**. This is inherent to the workload, not a bug: the generator LLM must process a large input payload — the selected pattern definitions from the 61-pattern catalog, your requirements, and the full output of every previous stage — and produce a large, strictly structured JSON document (agents, relationships, tool contracts, state models, message contracts, quality scores) one token at a time. The `design_agent_system` pipeline repeats generate → evaluate up to three times, so a single call can comprise 9+ LLM round trips.
+`design_agent_system` (and to a lesser extent `analyze_agent_system`, `generate_agent_system`, `evaluate_agent_system`) run multi-stage LLM pipelines that **can take 5–10 minutes per call**. This is inherent to the workload, not a bug: the generator LLM must process a large input payload — the selected pattern definitions from the 68-pattern catalog, your requirements, and the full output of every previous stage — and produce a large, strictly structured JSON document (agents, relationships, tool contracts, state models, message contracts, quality scores) one token at a time. The `design_agent_system` pipeline repeats generate → evaluate up to three times, so a single call can comprise 9+ LLM round trips.
 
 ### The timeout problem
 

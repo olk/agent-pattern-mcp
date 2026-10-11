@@ -27,7 +27,7 @@ Validates:
 - No malformed domain slugs (commas, spaces)
 
 Note: arch's 1:1 ArchitectureStyle↔JSON-file completeness check does not
-apply here — the agent catalog has 61 patterns mapping many-to-one onto the
+apply here — the agent catalog has 68 patterns mapping many-to-one onto the
 8 AgentTopology values. That mapping is validated by
 tests/unit/test_catalog.py::test_every_json_topology_field_is_valid_enum_value.
 Domain-enum validity, suitable/unsuitable disjointness, and catalog size are
@@ -58,18 +58,12 @@ class TestMigrationRefConsistency:
             for field in ("migration_from", "migration_to"):
                 for ref in p.get(field, []):
                     is_catalog = ref in catalog
-                    is_well_formed = bool(
-                        ref and
-                        ref == ref.lower() and
-                        " " not in ref and
-                        "," not in ref
-                    )
+                    is_well_formed = bool(ref and ref == ref.lower() and " " not in ref and "," not in ref)
                     if not is_catalog and not is_well_formed:
                         bad_refs.append((name, field, ref, "malformed slug"))
 
-        assert not bad_refs, (
-            f"Found {len(bad_refs)} malformed migration refs:\n" +
-            "\n".join(f"  {n} {f}: '{r}'" for n, f, r, _ in bad_refs)
+        assert not bad_refs, f"Found {len(bad_refs)} malformed migration refs:\n" + "\n".join(
+            f"  {n} {f}: '{r}'" for n, f, r, _ in bad_refs
         )
 
     def test_all_migration_refs_point_to_existing_patterns_or_external(self) -> None:
@@ -89,9 +83,8 @@ class TestMigrationRefConsistency:
                     if ref not in catalog and not ref.islower():
                         bad_refs.append((name, field, ref))
 
-        assert not bad_refs, (
-            f"Found {len(bad_refs)} non-catalog refs with uppercase:\n" +
-            "\n".join(f"  {n} {f}: '{r}'" for n, f, r in bad_refs)
+        assert not bad_refs, f"Found {len(bad_refs)} non-catalog refs with uppercase:\n" + "\n".join(
+            f"  {n} {f}: '{r}'" for n, f, r in bad_refs
         )
 
 
@@ -113,7 +106,6 @@ class TestDomainSlugIntegrity:
                     if "," in v or " " in v:
                         bad.append((name, field, v, "contains comma or space"))
 
-        assert not bad, (
-            f"Found {len(bad)} malformed domain slugs:\n" +
-            "\n".join(f"  {n} {f}: '{v}'" for n, f, v in bad)
+        assert not bad, f"Found {len(bad)} malformed domain slugs:\n" + "\n".join(
+            f"  {n} {f}: '{v}'" for n, f, v in bad
         )

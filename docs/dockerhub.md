@@ -1,6 +1,6 @@
 # Agent-Pattern MCP server
 
-An MCP server that provides AI agent pattern expertise to AI coding agents. Analyses requirements, selects from a curated catalog of **61 agent patterns** (ReAct, supervisor-worker, reflexion, self-RAG, LLMCompiler, …), generates concrete agent system designs with agents, relationships, and tool contracts, and evaluates them against quality attributes.
+An MCP server that provides AI agent pattern expertise to AI coding agents. Analyses requirements, selects from a curated catalog of **68 agent patterns** (ReAct, supervisor-worker, reflexion, self-RAG, LLMCompiler, …), generates concrete agent system designs with agents, relationships, and tool contracts, and evaluates them against quality attributes.
 
 ## What is this?
 
@@ -13,7 +13,7 @@ This Docker image contains a complete MCP (Model Context Protocol) server that b
 
 ## Key Features
 
-- **61 Built-in Patterns** across 10 categories (reasoning, tool_use, planning, reflection, research_synthesis, multi_agent, memory, retrieval, safety_control, observability) and 8 topologies (single-agent-loop, hierarchical, pipeline, plan-execute, parallel-fan-out, evaluator-loop, graph-orchestrated, swarm)
+- **68 Built-in Patterns** across 10 categories (reasoning, tool_use, planning, reflection, research_synthesis, multi_agent, memory, retrieval, safety_control, observability) and 8 topologies (single-agent-loop, hierarchical, pipeline, plan-execute, parallel-fan-out, evaluator-loop, graph-orchestrated, swarm)
 - **Full Design Pipeline**: Analyze → Generate → Evaluate → Refine (up to 3 automatic refinement attempts)
 - **Quality Attribute Scoring**: `final_quality_score` (0–100) plus per-attribute scores (1–10)
 - **Hybrid Retrieval + Reranking**: BM25 + dense (FAISS) fusion, then a TEI cross-encoder rerank
@@ -68,7 +68,7 @@ spawned.
 | `submit_agent_design_job` | Start a background job, get `job_id` immediately — for clients with short request timeouts |
 | `get_agent_design_status` | Poll job status; returns the full design when `completed` |
 | `cancel_agent_design` | Cancel a running job (best-effort; takes effect at the next pipeline stage boundary) |
-| `list_agent_patterns` | List all 61 patterns; filter by `category` and/or `domain` |
+| `list_agent_patterns` | List all 68 patterns; filter by `category` and/or `domain` |
 | `get_agent_pattern` | Get full JSON for a specific pattern by name |
 
 **Example call:**
