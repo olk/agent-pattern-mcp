@@ -823,6 +823,7 @@ docker compose -f docker/docker-compose.yml logs agent-pattern-mcp
 
 ```bash
 make install                      # First-time setup
+uv run pre-commit install         # First-time setup: commit hook
 make check-all                    # Before pushing (lint + types + dead code + deps)
 make docker-build-all             # Build both images (first time and after code changes)
 make docker-up                    # Start services
