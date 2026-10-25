@@ -84,47 +84,27 @@ class AnalyzeAgentSystemOutput(BaseModel):
         is_fallback: True when the fallback pattern was used
     """
 
-    strengths: list[str] = Field(
-        default_factory=list,
-        description="Identified agent system strengths"
-    )
+    strengths: list[str] = Field(default_factory=list, description="Identified agent system strengths")
 
-    weaknesses: list[str] = Field(
-        default_factory=list,
-        description="Identified agent system weaknesses"
-    )
+    weaknesses: list[str] = Field(default_factory=list, description="Identified agent system weaknesses")
 
-    recommendations: list[str] = Field(
-        default_factory=list,
-        description="Agent system recommendations"
-    )
+    recommendations: list[str] = Field(default_factory=list, description="Agent system recommendations")
 
-    recommended_topology: str = Field(
-        default="",
-        description="Recommended agent topology (an AgentTopology value)"
-    )
+    recommended_topology: str = Field(default="", description="Recommended agent topology (an AgentTopology value)")
 
     recommended_pattern_name: str = Field(
         default="",
-        description="Name of the top-scored pattern that drove the topology recommendation ('' when no patterns were scored)"
+        description="Name of the top-scored pattern that drove the topology recommendation ('' when no patterns were scored)",
     )
 
-    selected_patterns: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="Selected agent patterns"
-    )
+    selected_patterns: list[dict[str, Any]] = Field(default_factory=list, description="Selected agent patterns")
 
-    quality_metrics: dict[str, Any] | None = Field(
-        default=None,
-        description="Quality assessment metrics"
-    )
+    quality_metrics: dict[str, Any] | None = Field(default=None, description="Quality assessment metrics")
     matched_domains: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="Top matched AgentDomain slugs from BM25+FAISS retrieval with fusion scores"
+        default_factory=list, description="Top matched AgentDomain slugs from BM25+FAISS retrieval with fusion scores"
     )
     is_fallback: bool = Field(
-        default=False,
-        description="True when no real domain match was found and the fallback 'react' pattern was used"
+        default=False, description="True when no real domain match was found and the fallback 'react' pattern was used"
     )
 
 
@@ -174,15 +154,20 @@ class AnalyzeAgentSystemTool:
 
         logger.debug(
             "AnalyzeAgentSystemTool initialized",
-            extra={
-                "agent_type": type(agent).__name__,
-                "pipeline_type": type(pipeline).__name__
-            }
+            extra={"agent_type": type(agent).__name__, "pipeline_type": type(pipeline).__name__},
         )
 
     @tool(
         name="analyze_agent_system",
-        description="Analyze requirements and derive agent system recommendations using pattern matching and domain similarity.",
+        description=(
+            "Analyze requirements and derive agent system recommendations using pattern matching "
+            "and domain similarity. Use this when the agent writes the implementation itself: it "
+            "returns the recommended topology, selected patterns with scores, quality_metrics "
+            "(per-attribute 0-10) and matched domains without generating a design, so it skips the "
+            "expensive generate and evaluate phases. Do not use this when the caller wants a generated "
+            "design artifact (agents, relationships, tool contracts, state models) — call "
+            "design_agent_system instead."
+        ),
         tags={"agent", "analysis"},
         annotations=ToolAnnotations(
             title="Analyze Agent System",
@@ -194,8 +179,13 @@ class AnalyzeAgentSystemTool:
     )
     async def analyze(
         self,
-        requirements: Annotated[PrintableText, Field(description="Agent system requirements description (1-100000 chars, must contain visible text)")],
-        domain: Annotated[DomainName, Field(description="Target agent domain (1-200 chars, must contain visible text)")],
+        requirements: Annotated[
+            PrintableText,
+            Field(description="Agent system requirements description (1-100000 chars, must contain visible text)"),
+        ],
+        domain: Annotated[
+            DomainName, Field(description="Target agent domain (1-200 chars, must contain visible text)")
+        ],
         ctx: Context | None = None,
     ) -> dict[str, Any]:
         """
@@ -287,9 +277,7 @@ class AnalyzeAgentSystemTool:
                 await ctx.error(f"Unexpected error during analysis: {error_msg}")
             raise
 
-    def _start_heartbeat(
-        self, ctx: Context | None, label: str
-    ) -> asyncio.Task[None] | None:
+    def _start_heartbeat(self, ctx: Context | None, label: str) -> asyncio.Task[None] | None:
         """Start a parallel heartbeat that emits progress notifications.
 
         Keeps client HTTP/stdio idle timers alive during long synchronous calls.
@@ -321,6 +309,7 @@ class AnalyzeAgentSystemTool:
         so that ``analysis_score`` and ``fusion_score`` survive the boundary.
         """
         from src.tools._adapters import analysis_to_pydantic
+
         pd_result = analysis_to_pydantic(analysis_result)
         return AnalyzeAgentSystemOutput(
             strengths=pd_result.strengths,
@@ -347,6 +336,7 @@ class AnalyzeAgentSystemTool:
             True if error is LLM-related
         """
         from src.agent import LLMError
+
         return isinstance(error, LLMError)
 
     def _is_no_patterns_error(self, error: Exception) -> bool:
@@ -364,13 +354,7 @@ class AnalyzeAgentSystemTool:
             True if error indicates no patterns found
         """
         error_msg = str(error).lower()
-        no_patterns_indicators = [
-            "no patterns",
-            "no pattern",
-            "pattern not found",
-            "empty result",
-            "no matching"
-        ]
+        no_patterns_indicators = ["no patterns", "no pattern", "pattern not found", "empty result", "no matching"]
         return any(indicator in error_msg for indicator in no_patterns_indicators)
 
 

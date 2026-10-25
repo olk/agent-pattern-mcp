@@ -13,9 +13,11 @@ write xd://mcp__agent_pattern_<tool>  <json args>
 
 ## Recipe 1 — Full design via the job trio (default)
 
-Use this whenever the user wants a design. With OMP's default 30 s deadline the job-trio calls
-are also the only ones that fit: a single `analyze_agent_system` call was aborted at 30.04 s in a
-test, and `design_agent_system` alone runs 5–10 minutes.
+Use this whenever the user wants the design artifact. With OMP's default 30 s deadline the
+job-trio calls are also the only ones that fit: `design_agent_system` alone runs 5–10 minutes,
+and even an analysis-only call needs the raised timeout when it runs long (23.3 s measured,
+aborted at 30.04 s by the default deadline). If the agent writes its own code, call `analyze_agent_system`
+instead of this recipe — topology + scored patterns, no design generated.
 
 **Step 1 — submit** (returns in ~50 ms):
 

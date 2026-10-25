@@ -1,13 +1,13 @@
 ---
 name: agent-pattern-mcp
-description: Designs AI agent systems via the agent-pattern MCP server (OMP server name `agent-pattern`). Analyses requirements and domain, selects from 68 patterns (ReAct, reflexion, plan-and-solve, multi-agent debate, supervisor-worker, agentic-RAG and 62 more), generates designs with agents, relationships, tool contracts and state models, and evaluates them across reliability, cost efficiency, latency, output quality, observability and safety. Use when designing a new agent system, comparing agent topologies, evaluating an existing agent design, or exploring the pattern catalog. Triggers on design an agent system for X, compare supervisor-worker vs swarm, evaluate this agent design, choose an agent pattern for X. Do NOT use for implementing individual features, prompt engineering for a single LLM call, or framework selection. Requires the agent-pattern MCP server connected; its synchronous pipeline takes 5-10 minutes, so under OMP's default 30 s MCP deadline use the submit / status / cancel job trio.
+description: Designs AI agent systems via the agent-pattern MCP server (OMP server name `agent-pattern`). Analyses requirements and domain, selects from 68 patterns (ReAct, reflexion, plan-and-solve, multi-agent debate, supervisor-worker, agentic-RAG and 62 more), generates designs with agents, relationships, tool contracts and state models, and evaluates them across reliability, cost efficiency, latency, output quality, observability and safety. Use when designing a new agent system, comparing agent topologies, evaluating an existing agent design, or exploring the pattern catalog. For a coding agent that writes its own code, `analyze_agent_system` returns topology and scored patterns without generating a design. Triggers on design an agent system for X, compare supervisor-worker vs swarm, evaluate this agent design, choose an agent pattern for X. Do NOT use for implementing individual features, prompt engineering for a single LLM call, or framework selection. Requires the agent-pattern MCP server connected; its synchronous pipeline takes 5-10 minutes, so under OMP's default 30 s MCP deadline use the submit / status / cancel job trio.
 ---
 
 # agent-pattern MCP
 
 Agent system design pipeline exposed by the `agent-pattern` MCP server:
 
-1. **Analyse** requirements + domain → recommended topology, top-k patterns, quality-attribute weights
+1. **Analyse** requirements + domain → recommended topology, top-k patterns, quality metrics
 2. **Generate** the design: agents (roles, tools, memory), relationships, tool contracts, state models, message contracts
 3. **Evaluate** against reliability, cost efficiency, latency, output quality, observability, safety
 4. **Refine** — retries generation while `final_quality_score < 50`, up to 3 generate attempts
@@ -16,11 +16,11 @@ Agent system design pipeline exposed by the `agent-pattern` MCP server:
 
 ## OMP constraints (read first)
 
-### 1. Default entry point is the async job trio, not `design_agent_system`
+### 1. Default entry point for a design is the async job trio, not `design_agent_system`
 
 OMP applies one MCP request deadline, resolved in this order: `OMP_MCP_TIMEOUT_MS` env → the server's `timeout` field (milliseconds) in `~/.omp/agent/mcp.json` → **30 000 ms default**. It is a single timer per request (`src/mcp/timeout.ts`, transports); server progress notifications do **not** extend it. The server's own heartbeat ("emits progress notifications every 30 s so clients stay connected") therefore buys nothing here.
 
-`design_agent_system` runs 5–10 minutes → it aborts under the default deadline. So does every other LLM tool: a single `analyze_agent_system` call was aborted at 30.04 s (OMP reports `MCP failure … failure: timeout … Request timeout after 30000ms`; the outcome is unknown). Those tools have no job variant — they need the raised timeout; only the job trio fits the default deadline. Measured on this host with the default config:
+`design_agent_system` runs 5–10 minutes → it aborts under the default deadline. So does every other LLM tool: a single `analyze_agent_system` call measured 23.3 s on the current stack but was aborted at 30.04 s by the default deadline (OMP reports `MCP failure … failure: timeout … Request timeout after 30000ms`; the outcome is unknown). Those tools have no job variant — they need the raised timeout; only the job trio fits the default deadline. `analyze_agent_system` is the analysis-only path when the agent writes the implementation itself: it returns topology + scored patterns and generates no design. Measured on this host with the default config:
 
 | Call | Device | Latency |
 |------|--------|---------|
@@ -68,6 +68,8 @@ Existing design to score?
 ├── YES → evaluate_agent_system (device mcp__agent_pattern_evaluate_agent_system)
 └── NO
     ├── Explore the catalog first           → list_agent_patterns (category?/domain?) → get_agent_pattern(name)
+    ├── Agent writes its own code             → analyze_agent_system (topology + scored patterns, NO design;
+    │                                           one LLM call — raise the server timeout first)
     ├── Full design + evaluation              → job trio: submit_agent_design_job → get_agent_design_status
     │                                           (use design_agent_system directly only when the server timeout
     │                                            in ~/.omp/agent/mcp.json is >= 600000 or 0)
@@ -78,10 +80,10 @@ Existing design to score?
 
 | Device suffix | Purpose | Latency | Notes |
 |---------------|---------|---------|-------|
-| `analyze_agent_system` | Topology + pattern recommendations | LLM call | not idempotent |
+| `analyze_agent_system` | Topology + pattern recommendations — the cheap path when the agent writes its own code (no design generated) | one LLM call (23.3 s measured) | not idempotent; no job variant |
 | `generate_agent_system` | Design from explicit `topology` + `selected_patterns` | LLM call | not idempotent |
 | `evaluate_agent_system` | Score an existing design dict | LLM call | read-only server state |
-| `design_agent_system` | Full pipeline, one call | 5–10 min | needs a raised MCP timeout |
+| `design_agent_system` | Full pipeline, one call → design artifact | 5–10 min | needs a raised MCP timeout |
 | `submit_agent_design_job` | Start pipeline, returns `job_id` | < 100 ms | default entry point |
 | `get_agent_design_status` | Poll job; `result` when `completed` | < 100 ms | idempotent |
 | `cancel_agent_design` | Best-effort cancel at stage boundary | < 100 ms | not idempotent |

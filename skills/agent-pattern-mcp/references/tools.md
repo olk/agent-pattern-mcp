@@ -46,6 +46,11 @@ next: Check server health or increase the MCP timeout; the request outcome is un
 
 Derives topology + pattern recommendations. Does not produce a design.
 
+**When to use:** the calling agent writes the implementation itself and only needs the pattern
+expertise. It returns the recommended topology, selected patterns with scores, `quality_metrics`
+(per-attribute 0–10), and matched domains — so the generate and evaluate phases never run. Use
+`design_agent_system` (or the job trio) when the caller wants the generated design artifact.
+
 ```ts
 {
   requirements: string;  // 1-100000 chars, visible text
@@ -53,7 +58,8 @@ Derives topology + pattern recommendations. Does not produce a design.
 }
 ```
 
-Latency: one LLM round trip; on this host it exceeded the default deadline (aborted at 30.04 s). Not idempotent.
+Latency: one LLM round trip; 23.3 s measured on the current stack, but it exceeded the default
+deadline in an earlier measurement (aborted at 30.04 s). Not idempotent.
 
 Output (flat object):
 
@@ -135,6 +141,10 @@ Minimum viable input:
 
 Full pipeline in one call: analyse → generate → evaluate → refine.
 
+Use this when the caller wants the design artifact itself (agents, relationships, tool
+contracts, state models). If the agent writes the code itself, `analyze_agent_system` is the
+cheaper path — it skips design generation.
+
 ```ts
 {
   requirements: string;
@@ -155,7 +165,7 @@ Output (same schema as the job's `result`):
 | `attempts` | generate attempts performed (1–3) |
 | `final_topology` | confirmed topology |
 | `final_pattern_name` | pattern matching `final_topology`; `""` when overridden or nothing scored |
-| `quality_metrics` | analysis-stage weights (0–10 per attribute) or `null` |
+| `quality_metrics` | aggregated quality-attribute scores (0–10 per attribute) from the analysis stage, or `null` |
 | `final_quality_score` | 0–100 score of the best attempt |
 | `matched_domains` | retrieval slugs + fusion scores |
 | `is_fallback` | `true` when the `react` fallback was used |

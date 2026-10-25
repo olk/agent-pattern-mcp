@@ -8,7 +8,7 @@
 [![M8ven Score](https://m8ven.ai/badge/mcp/olk/agent-pattern-mcp)](https://m8ven.ai/mcp/olk/agent-pattern-mcp)
 
 
-An MCP (Model Context Protocol) server that provides agent system design expertise to AI coding agents. Given a requirements string and a domain, it analyses the problem, selects matching agent patterns (from 68 built-in patterns), generates a concrete agent system design with agents, relationships, tool contracts, state models, and message contracts, and evaluates it against quality attributes (reliability, cost efficiency, latency, output quality, observability, safety, simplicity).
+An MCP (Model Context Protocol) server that provides agent system design expertise to AI coding agents. Given a requirements string and a domain, it analyses the problem, selects matching agent patterns (from 68 built-in patterns), generates a concrete agent system design with agents, relationships, tool contracts, state models, and message contracts, and evaluates it against quality attributes (reliability, cost efficiency, latency, output quality, observability, safety, simplicity). Coding agents that write the implementation themselves can call `analyze_agent_system` for topology and scored-pattern guidance **without** generating a design.
 
 ---
 
@@ -179,6 +179,7 @@ cp -r skills/agent-pattern-mcp ~/.omp/agent/skills/
 The skill then tells the agent:
 
 - Which entry point fits OMP's deadline: the async job trio by default, one-shot `design_agent_system` only after raising the server's `timeout` (every LLM tool aborts under the 30 s default — `submit_agent_design_job` answers in ~0.05 s)
+- That `analyze_agent_system` is the analysis-only path for coding agents that write the code themselves — topology, scored patterns, quality metrics, no design generated — while `design_agent_system` is for callers that want the design artifact
 - How to phrase `requirements`, `domain`, and `topology` as separate structured arguments
 - How to interpret `final_quality_score`, `attempts > 1`, and `evaluation.recommendations`
 - That `read mcp://pattern://…` is ambiguous while the sibling `architecture-pattern` server is connected, so the tool route (`get_agent_pattern`) is authoritative
@@ -203,6 +204,8 @@ synthesise a final cited answer.
 
 Your agent calls `design_agent_system` internally. The server returns a full agent system design: agents (planner, searcher, coder, synthesizer), quality attribute scores (reliability: 8.0, output_quality: 8.5, …), and specific recommendations.
 
+That is the **design path**: the server's LLM generates the design artifact for you, which is why a call takes minutes. If your agent writes the implementation itself and only needs the pattern expertise, call `analyze_agent_system` instead — it returns the recommended topology, the selected patterns with scores, `quality_metrics` (per-attribute 0–10), and matched domains **without** generating a design, so the generate and evaluate phases never run. Measured basis: a single live `analyze_agent_system` call on this host returned in 23.3 s, while the committed full-pipeline corpus measured p50 ≈ 304 s and p95 ≈ 375 s over 20 scenarios (`benchmarks/base/summary.json`).
+
 **Or call tools directly** from your agent:
 
 ```
@@ -226,7 +229,7 @@ Call get_agent_pattern(name="supervisor-worker")   # full pattern JSON
 
 ### Async job pattern: `submit_agent_design_job` + `get_agent_design_status`
 
-ONLY for clients with short request timeouts (Cursor, Claude Desktop, TS-SDK). The default is `design_agent_system` with heartbeat defence. `submit_agent_design_job` returns a `job_id` immediately; poll `get_agent_design_status` until done:
+ONLY for clients with short request timeouts (Cursor, Claude Desktop, TS-SDK). The default design path is `design_agent_system` with heartbeat defence. `submit_agent_design_job` returns a `job_id` immediately; poll `get_agent_design_status` until done:
 
 ```
 # Step 1: start the job
@@ -299,10 +302,10 @@ Show me details about the react agent pattern.
 
 | Tool | Description |
 |---|---|
-| `analyze_agent_system` | Analyse requirements and domain → recommended topology, patterns, quality metrics. *Long-running (LLM call). Not idempotent.* |
+| `analyze_agent_system` | **Analysis-only path for agents that write the code themselves**: requirements + domain → recommended topology, selected patterns with scores, quality metrics (per-attribute 0–10), matched domains. Generates no design. *One LLM call (23 s measured). Not idempotent.* |
 | `generate_agent_system` | Generate an agent system design from requirements and selected patterns. *Long-running (LLM call). Not idempotent.* |
 | `evaluate_agent_system` | Score an existing design against quality attributes. *Long-running (LLM call). Not idempotent.* |
-| `design_agent_system` | Default tool for full agent system design (analyse → generate → evaluate → refine, up to 3 attempts). *Long-running (5–10 min); use this unless your client has a short request timeout.* |
+| `design_agent_system` | **Design path**: full pipeline (analyse → generate → evaluate → refine, up to 3 attempts) → agents, relationships, tool contracts, state models, plus evaluation. *Long-running (5–10 min); use this when the caller wants the design artifact, or the job trio if the client has a short request timeout.* |
 | `submit_agent_design_job` | Start a background design job and return a `job_id` immediately. **ONLY for clients with short request timeouts** (Cursor, Claude Desktop, TS-SDK). For other clients use `design_agent_system`. Poll `get_agent_design_status` every 10–30 s. |
 | `get_agent_design_status` | Poll job status. Returns the current status, progress message, and the full design output when `completed`. |
 | `cancel_agent_design` | Cancel a running job (best-effort; takes effect at the next pipeline stage boundary; may take up to one LLM call). |
@@ -702,7 +705,7 @@ Full JSON Schema with all enums: `docs/pattern-schema.json`
 
 ## Long-running tools & timeouts
 
-`design_agent_system` (and to a lesser extent `analyze_agent_system`, `generate_agent_system`, `evaluate_agent_system`) run multi-stage LLM pipelines that **can take 5–10 minutes per call**. This is inherent to the workload, not a bug: the generator LLM must process a large input payload — the selected pattern definitions from the 68-pattern catalog, your requirements, and the full output of every previous stage — and produce a large, strictly structured JSON document (agents, relationships, tool contracts, state models, message contracts, quality scores) one token at a time. The `design_agent_system` pipeline repeats generate → evaluate up to three times, so a single call can comprise 9+ LLM round trips.
+`design_agent_system` runs a multi-stage LLM pipeline that **can take 5–10 minutes per call**. The single-phase tools are much cheaper: `analyze_agent_system` is one analysis LLM call (23.3 s measured on this host) that returns topology and scored patterns without generating a design, while `generate_agent_system` and `evaluate_agent_system` are one large completion each. The long design call is inherent to the workload, not a bug: the generator LLM must process a large input payload — the selected pattern definitions from the 68-pattern catalog, your requirements, and the full output of every previous stage — and produce a large, strictly structured JSON document (agents, relationships, tool contracts, state models, message contracts, quality scores) one token at a time. The `design_agent_system` pipeline repeats generate → evaluate up to three times, so a single call can comprise 9+ LLM round trips.
 
 ### The timeout problem
 

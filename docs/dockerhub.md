@@ -1,6 +1,6 @@
 # Agent-Pattern MCP server
 
-An MCP server that provides AI agent pattern expertise to AI coding agents. Analyses requirements, selects from a curated catalog of **68 agent patterns** (ReAct, supervisor-worker, reflexion, self-RAG, LLMCompiler, …), generates concrete agent system designs with agents, relationships, and tool contracts, and evaluates them against quality attributes.
+An MCP server that provides AI agent pattern expertise to AI coding agents. Analyses requirements, selects from a curated catalog of **68 agent patterns** (ReAct, supervisor-worker, reflexion, self-RAG, LLMCompiler, …), generates concrete agent system designs with agents, relationships, and tool contracts, and evaluates them against quality attributes. Agents that write the implementation themselves can call `analyze_agent_system` for topology and pattern guidance without generating a design.
 
 ## What is this?
 
@@ -61,8 +61,8 @@ spawned.
 
 | Tool | Description |
 |------|-------------|
-| `design_agent_system` | Full pipeline (analyze → generate → evaluate → refine, up to 3 attempts). **5–10 min** — use this unless your client has a short request timeout |
-| `analyze_agent_system` | Analyse requirements → recommended topology, patterns, quality metrics. *Long-running (LLM call)* |
+| `design_agent_system` | **Design path**: full pipeline (analyze → generate → evaluate → refine, up to 3 attempts). **5–10 min** — use this when the caller wants the generated design artifact |
+| `analyze_agent_system` | **Analysis-only path for agents that write the code themselves** — topology, scored patterns, quality metrics, matched domains. Generates no design. *One LLM call (23 s measured)* |
 | `generate_agent_system` | Generate an agent system design from requirements, topology, domain, and selected patterns. *Long-running (LLM call)* |
 | `evaluate_agent_system` | Score an existing design against quality attributes. *Long-running (LLM call)* |
 | `submit_agent_design_job` | Start a background job, get `job_id` immediately — for clients with short request timeouts |
@@ -106,7 +106,7 @@ In tool-only clients the prompts are also callable as tools via FastMCP's
 
 ## Long-running Tools & Timeouts
 
-`design_agent_system` runs multi-stage LLM pipelines that **can take 5–10 minutes** — the generator LLM processes the selected pattern definitions, your requirements, and the full output of every previous stage across 9+ round trips.
+`design_agent_system` runs a multi-stage LLM pipeline that **can take 5–10 minutes** — the generator LLM processes the selected pattern definitions, your requirements, and the full output of every previous stage across 9+ round trips. `analyze_agent_system` is one analysis LLM call (23.3 s measured) that returns topology and scored patterns without generating a design.
 
 ### The Timeout Problem
 
