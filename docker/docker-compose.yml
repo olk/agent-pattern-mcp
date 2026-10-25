@@ -80,7 +80,7 @@ services:
       # Server-side reasoning MCPs (Plan v5) — embedded in the image at
       # build time; defaults below. Override commands as JSON lists to point
       # elsewhere (e.g. npx) or set REASONING_ENABLED=false to opt out.
-      - REASONING_ENABLED=true
+      - REASONING_ENABLED=false
       - REASONING_SPAWN_TIMEOUT_SECONDS=10
       - REASONING_STEP_TIMEOUT_SECONDS=20
       - REASONING_MAX_TOTAL_STEPS=8
