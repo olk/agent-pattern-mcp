@@ -54,7 +54,7 @@ def mock_config_manager():
                 "query_instruction": "Instruct: Given an AI agent pattern domain tag, retrieve the most relevant existing pattern domain from the catalogue\nQuery: ",
                 "text_instruction": "",
                 "max_embedder_tokens": 3000,
-            }
+            },
         },
         "reranker": {
             "config": {
@@ -68,7 +68,7 @@ def mock_config_manager():
         "logging_format": "text",
         "transport": "stdio",
         "host": "127.0.0.1",
-        "port": 8051,
+        "port": 8050,
         "validation": {
             "max_retries": 2,
             "retry_on_fail": True,
@@ -78,7 +78,7 @@ def mock_config_manager():
     mock_cm = MagicMock()
     mock_cm.load_config.return_value = mock_config
     mock_cm.DEFAULT_CONFIG_PATH = "/tmp/test_config.json"
-    with patch('src.config.ConfigManager.load_config', mock_cm.load_config):
+    with patch("src.config.ConfigManager.load_config", mock_cm.load_config):
         yield mock_cm
 
 
@@ -91,6 +91,7 @@ def mock_tei_rerank():
     unchanged to avoid DNS/HTTP errors in the test environment.
     """
     from llama_index.postprocessor.tei_rerank import TextEmbeddingInference
+
     with patch.object(TextEmbeddingInference, "postprocess_nodes", lambda self, nodes, **kw: nodes):
         yield
 

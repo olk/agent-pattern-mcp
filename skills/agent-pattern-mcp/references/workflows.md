@@ -61,7 +61,7 @@ Only for a user who prefers one blocking call and accepts a multi-minute turn. F
 deadline for this server in `~/.omp/agent/mcp.json`:
 
 ```json
-"agent-pattern": { "type": "http", "url": "http://localhost:8051/mcp", "timeout": 900000 }
+"agent-pattern": { "type": "http", "url": "http://localhost:8811/mcp", "timeout": 900000 }
 ```
 
 - `timeout` is milliseconds; `0` disables the client-side deadline entirely.

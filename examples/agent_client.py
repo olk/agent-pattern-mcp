@@ -27,17 +27,17 @@ with a tool-use agent requirements string, and pretty-prints the
 returned JSON to stdout.
 
 Usage:
-    # Terminal 1: start the server
-    $ python -m src.main
+    # Terminal 1: start the server (dev compose serves :8821)
+    $ docker compose -f docker/docker-compose.yml up -d
+    # or natively: $ python -m src.main --port 8821
 
     # Terminal 2: run the client
     $ uv run python examples/agent_client.py
 
 Or pipe the JSON output:
-    $ uv run python examples/agent_client.py 2>/dev/null | jq '.design.overview'
 
 Requires:
-    - MCP server running on http://localhost:8051/mcp (default)
+    - MCP server running on http://localhost:8821/mcp (default; override with AGENT_CLIENT_URL)
     - Valid LLM credentials in the server's config
 """
 
@@ -51,7 +51,7 @@ from typing import Any
 
 from fastmcp import Client  # type: ignore[attr-defined]
 
-SERVER_URL = os.environ.get("AGENT_CLIENT_URL", "http://localhost:8051/mcp")
+SERVER_URL = os.environ.get("AGENT_CLIENT_URL", "http://localhost:8821/mcp")
 
 TOOL_USE_AGENT_REQUIREMENTS = """
 Build a research assistant agent that answers multi-hop questions by combining

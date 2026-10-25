@@ -57,7 +57,7 @@ docker compose -f docker/docker-compose.yml up -d
 make client
 ```
 
-Server starts on **streamable-http** at `http://localhost:8061/mcp` (dev compose host port; systemd uses 8051). Then connect your agent below.
+Server starts on **streamable-http** at `http://localhost:8821/mcp` (dev compose host port; systemd uses 8811). Then connect your agent below.
 
 ---
 
@@ -66,14 +66,14 @@ Server starts on **streamable-http** at `http://localhost:8061/mcp` (dev compose
 To have an AI coding agent install the Docker stack from prebuilt images (no local build), point it at **[INSTALL.md](INSTALL.md)** — the non-interactive agent runbook (copy-paste commands, expected outputs, verification probes).
 
 ```text
-Clone this repo, then follow INSTALL.md Path A (compose stack, port 8061).
+Clone this repo, then follow INSTALL.md Path A (compose stack, port 8821).
 My generator API key is: sk-...
 ```
 
 Pick one path in `INSTALL.md`:
 
-- **Path A — Compose stack** (`:8061`): evaluating / developing, no sudo needed. Own TEI sidecar copies.
-- **Path B — systemd stack** (`:8051`): persistent host service, starts at boot, needs `sudo`. Uses the shared `pattern-tei-infra` TEI stack.
+- **Path A — Compose stack** (`:8821`): evaluating / developing, no sudo needed. Own TEI sidecar copies.
+- **Path B — systemd stack** (`:8811`): persistent host service, starts at boot, needs `sudo`. Uses the shared `pattern-tei-infra` TEI stack.
 
 The agent needs a repo clone, Docker ≥ v2.20 with group membership, ~5 GB free, a `MINIMAXAI_API_KEY` (or another provider per `INSTALL.md#switching-the-generator-llm`), and linux/amd64 (on arm64 it builds locally via `make docker-build-all`). After install, continue with [Connect Your Agent](#-connect-your-agent) below.
 
@@ -108,9 +108,9 @@ OpenCode uses HTTP transport. Start the server first, then configure opencode:
 
 ```bash
 # Terminal 1: start the server
-docker compose -f docker/docker-compose.yml up --build
-# or locally:
-uv run python -m src.main --port 8051
+docker compose -f docker/docker-compose.yml up --build   # serves :8821
+# or locally on the same port:
+uv run python -m src.main --port 8821
 
 # Terminal 2: add to ~/.config/opencode/opencode.json
 ```
@@ -121,7 +121,7 @@ uv run python -m src.main --port 8051
   "mcp": {
     "agent-pattern": {
       "type": "remote",
-      "url": "http://localhost:8061/mcp"
+      "url": "http://localhost:8821/mcp"
     }
   }
 }
@@ -249,7 +249,7 @@ In Python (via the MCP HTTP API directly — see `examples/agent_client_async.py
 import asyncio
 from fastmcp import Client
 
-SERVER = "http://localhost:8061/mcp"
+SERVER = "http://localhost:8821/mcp"
 POLL_EVERY = 15  # seconds
 
 async def main():
@@ -416,7 +416,7 @@ cp config/config.json ~/.config/agent-pattern-mcp/config.json
 
 # Run the server
 uv run python -m src.main --transport stdio              # for Claude Code / Codex
-uv run python -m src.main --port 8051                    # for OpenCode (HTTP, default)
+uv run python -m src.main --port 8050                    # for OpenCode (HTTP, default)
 ```
 
 Or use the installed console script (after `make install`):
@@ -471,7 +471,7 @@ The server reads `~/.config/agent-pattern-mcp/config.json` (override with `--con
   "pattern_directory": "~/.config/agent-pattern-mcp/pattern",
   "transport": "streamable-http",
   "host": "0.0.0.0",
-  "port": 8051,
+  "port": 8050,
   "logging_level": "INFO",
   "logging_format": "json"
 }
@@ -549,7 +549,7 @@ If the configured model already contains a provider prefix (e.g. `openai/gpt-4o-
 | `TASKS_HEARTBEAT_INTERVAL_SECONDS` | `30` | Heartbeat interval in seconds (keep below client idle timeout) |
 | `TRANSPORT` | `streamable-http` | Transport mode: `stdio`, `streamable-http` |
 | `HOST` | `0.0.0.0` | HTTP bind host |
-| `PORT` | `8051` | HTTP bind port (in-container; the dev compose publishes host port 8061, systemd publishes 8051) |
+| `PORT` | `8050` | HTTP bind port (in-container; the dev compose publishes host port 8821, systemd publishes 8811) |
 | `LOGGING_LEVEL` | `INFO` | Logging level |
 | `LOGGING_FORMAT` | `json` | Logging format: `json`, `text` |
 | `CONFIG_PATH` | `~/.config/agent-pattern-mcp/config.json` | Config file path |
@@ -562,7 +562,7 @@ If the configured model already contains a provider prefix (e.g. `openai/gpt-4o-
 |---|---|
 | `--transport {stdio,streamable-http}` | Override transport mode |
 | `--host` | Override HTTP bind host (default: 0.0.0.0) |
-| `--port` | Override HTTP port (default: 8051) |
+| `--port` | Override HTTP port (default: 8050) |
 | `--config-path` | Path to config file |
 | `--health` | Run health check and exit |
 
@@ -932,7 +932,6 @@ sudo $EDITOR /etc/agent-pattern-mcp/.env
 # Contents:
 #   MINIMAXAI_API_KEY=sk-...
 #   COMPOSE_PROJECT_NAME=agpmcp-systemd
-#   MCP_HOST_PORT=8051          # change to avoid port conflicts with other MCP servers
 
 # 4. Install and enable the service.
 sudo install -m 644 systemd/agent-pattern-mcp.service /etc/systemd/system/
@@ -957,7 +956,7 @@ journalctl -u agent-pattern-mcp -n 50
 docker compose -p agpmcp-systemd -f /etc/agent-pattern-mcp/docker-compose.yml ps
 docker inspect -f '{{.State.Health.Status}}' agent-pattern-mcp  # "healthy"
 # Probe the MCP endpoint — must print 200 (GET /health is 404 by design).
-curl -s -o /dev/null -w '%{http_code}\n' -X POST "http://localhost:${MCP_HOST_PORT:-8051}/mcp" \
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "http://localhost:8811/mcp" \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"probe","version":"0.0.0"}},"id":1}'

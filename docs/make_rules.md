@@ -193,7 +193,7 @@ toolchain-less boxes because the gated members self-skip (see Conventions).
 
 ### `client`
 Runs the pipes-and-filters MCP client demo
-(`examples/agent_client.py`) against `http://localhost:8061/mcp` —
+(`examples/agent_client.py`) against `http://localhost:8821/mcp` —
 synchronous `design_agent_system`. Development tool proving the server
 completes long requests; the timeout issue it demonstrates is client-side.
 
@@ -236,7 +236,7 @@ failed push is safe — already-uploaded layers are cache hits.
 ### `docker-up` / `docker-down`
 Start (`up -d --build`; the compose file has no `build:` sections, so images
 come from the repo's `docker-build*` targets and `--build` is a no-op) / stop
-the compose stack (`docker/docker-compose.yml`); serves on :8061.
+the compose stack (`docker/docker-compose.yml`); serves on :8821.
 
 ### `docker-logs` / `docker-logs-follow`
 One-time / following logs of the MCP server service.
@@ -281,7 +281,7 @@ make test-oracles               # pre-push
 make test-mutations             # occasionally / before risky merges (slow)
 make verify-fizz                # after control-flow changes (needs fizz)
 make docker-build-all           # before first docker-up or after dep changes
-make docker-up                  # serve on :8061
+make docker-up                  # serve on :8821
 make docker-logs-follow         # tail logs
 make docker-down                # stop
 make clean                      # clear caches

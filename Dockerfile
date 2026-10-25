@@ -25,10 +25,10 @@ FROM python:3.12-slim-bookworm AS build
 COPY --from=ghcr.io/astral-sh/uv:0.7.0 /uv /uvx /bin/
 
 ENV UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy \
-    UV_NO_CACHE=1 \
-    UV_PYTHON_DOWNLOADS=0 \
-    PYTHONDONTWRITEBYTECODE=1
+  UV_LINK_MODE=copy \
+  UV_NO_CACHE=1 \
+  UV_PYTHON_DOWNLOADS=0 \
+  PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
@@ -40,7 +40,7 @@ COPY pyproject.toml uv.lock ./
 # uses PYTHONPATH=/app/src.  --no-install-project also avoids hatchling
 # attempting to build a wheel before src/ is copied.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project
+  uv sync --frozen --no-dev --no-install-project
 
 # Source + pattern assets — copied after deps so a src/ edit does not bust
 # the dependency cache layer.
@@ -60,16 +60,16 @@ ARG SHANNON_NPM_PKG=server-shannon-thinking@0.1.1
 ARG CODE_REASONING_NPM_PKG=@mettamatt/code-reasoning@0.8.1
 
 RUN --mount=type=cache,target=/root/.npm \
-    npm install -g --omit=dev "${SHANNON_NPM_PKG}" "${CODE_REASONING_NPM_PKG}" && \
-    test -f /usr/local/lib/node_modules/server-shannon-thinking/dist/index.js && \
-    test -f /usr/local/lib/node_modules/@mettamatt/code-reasoning/dist/index.js
+  npm install -g --omit=dev "${SHANNON_NPM_PKG}" "${CODE_REASONING_NPM_PKG}" && \
+  test -f /usr/local/lib/node_modules/server-shannon-thinking/dist/index.js && \
+  test -f /usr/local/lib/node_modules/@mettamatt/code-reasoning/dist/index.js
 
 # ---- Production stage ------------------------------------------------------
 FROM python:3.12-slim-bookworm AS production
 
 # Non-root user (TECH-7)
 RUN groupadd --gid 1000 mcpgroup && \
-    useradd --uid 1000 --gid 1000 --shell /bin/bash --create-home mcpuser
+  useradd --uid 1000 --gid 1000 --shell /bin/bash --create-home mcpuser
 
 WORKDIR /app
 
@@ -77,8 +77,8 @@ WORKDIR /app
 # copied from build-mcps below, guaranteeing version parity with the
 # packages installed there (no apt nodejs / Debian-Node-18 mismatch).
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libstdc++6 ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+  apt-get install -y --no-install-recommends libstdc++6 ca-certificates && \
+  rm -rf /var/lib/apt/lists/*
 
 # --chown creates files owned by mcpuser in a single filesystem operation.
 # Unlike a separate `RUN chown -R`, this does NOT duplicate the multi-GB venv
@@ -97,9 +97,9 @@ COPY --from=build-mcps --chown=1000:1000 /usr/local/lib/node_modules /usr/local/
 
 # Build-time contract: node runs and both reasoning entry points exist.
 RUN node --version && \
-    test -f /usr/local/lib/node_modules/server-shannon-thinking/dist/index.js && \
-    test -f /usr/local/lib/node_modules/@mettamatt/code-reasoning/dist/index.js && \
-    echo "Reasoning MCPs embedded: shannon + code-reasoning"
+  test -f /usr/local/lib/node_modules/server-shannon-thinking/dist/index.js && \
+  test -f /usr/local/lib/node_modules/@mettamatt/code-reasoning/dist/index.js && \
+  echo "Reasoning MCPs embedded: shannon + code-reasoning"
 
 # PATTERN_DIRECTORY: the catalog is baked at /app/pattern (COPY above). Without
 # this the config.json default (~/.config/agent-pattern-mcp/pattern) resolves
@@ -107,18 +107,18 @@ RUN node --version && \
 # with 0 patterns and, because an empty catalog skips retrieval warmup entirely,
 # it does so silently. Mirrors the server.json env default (/app/pattern).
 ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONPATH="/app/src" \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    CONFIG_PATH=/app/config/config.json \
-    PATTERN_DIRECTORY=/app/pattern \
-    PIPELINE_TIMEOUT_SECONDS=1200
+  PYTHONPATH="/app/src" \
+  PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONUNBUFFERED=1 \
+  CONFIG_PATH=/app/config/config.json \
+  PATTERN_DIRECTORY=/app/pattern \
+  PIPELINE_TIMEOUT_SECONDS=1200
 
 USER 1000:1000
 
-# HEALTHCHECK: verifies the app responds on port 8051.
+# HEALTHCHECK: verifies the app responds on port 8050.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8051/health')" || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8050/health')" || exit 1
 
 # IC-42: python -m src.main for running the MCP server.
 # ENTRYPOINT/CMD split (MCP Registry OCI convention): container launchers that
@@ -130,10 +130,10 @@ ENTRYPOINT ["/app/.venv/bin/python", "-m", "src.main"]
 CMD ["--transport", "streamable-http"]
 
 LABEL org.opencontainers.image.title="agent-pattern-mcp" \
-      org.opencontainers.image.description="MCP server providing AI agent pattern expertise with embedded structured reasoning" \
-      org.opencontainers.image.version="1.0.4" \
-      org.opencontainers.image.authors="Oliver Kowalke" \
-      org.opencontainers.image.source="https://github.com/olk/agent-pattern-mcp" \
-      org.opencontainers.image.licenses="MIT" \
-      io.agent-pattern-mcp.reasoning-mcps="shannon,code-reasoning" \
-      io.modelcontextprotocol.server.name="io.github.olk/agent-pattern-mcp"
+  org.opencontainers.image.description="MCP server providing AI agent pattern expertise with embedded structured reasoning" \
+  org.opencontainers.image.version="1.0.4" \
+  org.opencontainers.image.authors="Oliver Kowalke" \
+  org.opencontainers.image.source="https://github.com/olk/agent-pattern-mcp" \
+  org.opencontainers.image.licenses="MIT" \
+  io.agent-pattern-mcp.reasoning-mcps="shannon,code-reasoning" \
+  io.modelcontextprotocol.server.name="io.github.olk/agent-pattern-mcp"

@@ -50,6 +50,7 @@ import click
 
 from src.server import server_main
 
+
 @click.command()
 @click.option(
     "--config-path",
@@ -71,7 +72,7 @@ from src.server import server_main
     "--port",
     type=int,
     default=None,
-    help="Port to bind for HTTP transport (default: 8051)",
+    help="Port to bind for HTTP transport (default: 8050)",
 )
 @click.option(
     "--health",
@@ -98,12 +99,14 @@ def cli(
         force=True,
     )
 
-    asyncio.run(server_main(
-        config_path=config_path,
-        transport=transport,
-        host=host,
-        port=port,
-    ))
+    asyncio.run(
+        server_main(
+            config_path=config_path,
+            transport=transport,
+            host=host,
+            port=port,
+        )
+    )
 
 
 if __name__ == "__main__":

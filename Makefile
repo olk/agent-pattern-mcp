@@ -220,10 +220,10 @@ test-all: ## Run the fast test gates (PR-time; test-mutations is nightly-only)
 
 ##@ Demo
 client: ## Run the agent-patterns MCP client demo
-	@AGENT_CLIENT_URL=http://localhost:8061/mcp uv run python examples/agent_client.py
+	@AGENT_CLIENT_URL=http://localhost:8821/mcp uv run python examples/agent_client.py
 
 client-async: ## Run the async job trio demo (submit_agent_design_job + get_agent_design_status + cancel_agent_design)
-	@AGENT_CLIENT_URL=http://localhost:8061/mcp uv run python examples/agent_client_async.py
+	@AGENT_CLIENT_URL=http://localhost:8821/mcp uv run python examples/agent_client_async.py
 
 ##@ Docker
 docker-build: ## Build MCP server Docker image with dev dependencies

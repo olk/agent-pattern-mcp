@@ -142,7 +142,9 @@ class RerankerConfig(BaseModel):
         default_factory=lambda: RerankerInnerConfig(base_url="http://pattern-tei-rerank:8080")
     )
     rerank_top_n: int = Field(
-        default=10, ge=1, le=100,
+        default=10,
+        ge=1,
+        le=100,
         description=(
             "Max candidates kept AFTER cross-encoder reranking. Bounds the slug "
             "pool fed to pattern resolution and matched_domains reporting. "
@@ -191,7 +193,9 @@ class RetrievalConfig(BaseModel):
     bm25_top_k: int = Field(default=0, ge=0, le=1000)
     dense_top_k: int = Field(default=0, ge=0, le=1000)
     dense_weight: float = Field(
-        default=0.7, gt=0.0, le=1.0,
+        default=0.7,
+        gt=0.0,
+        le=1.0,
         description=(
             "Stage-1 fusion weight on the dense leg. Pairs with bm25_weight; "
             "must sum to 1.0 (±1e-3, validated). Upstream QueryFusionRetriever "
@@ -199,12 +203,16 @@ class RetrievalConfig(BaseModel):
         ),
     )
     bm25_weight: float = Field(
-        default=0.3, gt=0.0, le=1.0,
+        default=0.3,
+        gt=0.0,
+        le=1.0,
         description="Stage-1 fusion weight on the BM25 leg. See dense_weight.",
     )
     top_k_patterns: int = Field(default=5, ge=1, le=100)
     min_fusion_score: float = Field(
-        default=0.0, ge=0.0, le=RANK_FUSION_BLEND_MAX,
+        default=0.0,
+        ge=0.0,
+        le=RANK_FUSION_BLEND_MAX,
         description=(
             "Relevance floor on the best fused score for the recall set "
             "(0.0 disables — the default, since the blend scale is tiny "
@@ -216,10 +224,12 @@ class RetrievalConfig(BaseModel):
             "floor, NOT absolute relevance — see docs/retrieval-fusion-modes.md. "
             "A `ServerConfig` validator rejects values above the blend "
             "maximum (e.g. a leftover 0.25 from an older config.json)."
-        )
+        ),
     )
     min_quality_score: float = Field(
-        default=50.0, ge=0.0, le=100.0,
+        default=50.0,
+        ge=0.0,
+        le=100.0,
         description=(
             "Early-stop threshold for the design loop on the 0-100 quality "
             "scale. Below this, the loop runs to max_tries. Above this, "
@@ -237,14 +247,18 @@ class RetrievalConfig(BaseModel):
         ),
     )
     topology_score_threshold: float = Field(
-        default=50.0, ge=0.0, le=100.0,
+        default=50.0,
+        ge=0.0,
+        le=100.0,
         description="Minimum deterministic analysis_score (0-100) required for "
-                    "the top-scoring pattern's name to be used as "
-                    "recommended_topology; below this, falls back to "
-                    "react.",
+        "the top-scoring pattern's name to be used as "
+        "recommended_topology; below this, falls back to "
+        "react.",
     )
     analysis_blend_weight: float = Field(
-        default=0.7, ge=0.0, le=1.0,
+        default=0.7,
+        ge=0.0,
+        le=1.0,
         description=(
             "Weight on analysis_score in the blended selection score (0.0-1.0). "
             "Default 0.7. BREAKING default change from prior implicit value 1.0. "
@@ -252,7 +266,9 @@ class RetrievalConfig(BaseModel):
         ),
     )
     fusion_blend_weight: float = Field(
-        default=0.3, ge=0.0, le=1.0,
+        default=0.3,
+        ge=0.0,
+        le=1.0,
         description=(
             "Weight on min-max-normalized fusion_score in the blended selection "
             "score (0.0-1.0). Default 0.3. BREAKING default change from prior "
@@ -260,7 +276,9 @@ class RetrievalConfig(BaseModel):
         ),
     )
     weight_smoothing_alpha: float = Field(
-        default=0.7, ge=0.0, le=1.0,
+        default=0.7,
+        ge=0.0,
+        le=1.0,
         description=(
             "Convex smoothing for RequirementWeights: w' = alpha*w + (1-alpha)*(1/n). "
             "Default 0.7. BREAKING default change from prior implicit value 1.0 "
@@ -281,22 +299,17 @@ class RetrievalConfig(BaseModel):
     def _check_score_blend_weights(self) -> "RetrievalConfig":
         s = self.analysis_blend_weight + self.fusion_blend_weight
         if abs(s - 1.0) > 1e-3:
-            raise ValueError(
-                f"analysis_blend_weight + fusion_blend_weight must sum to 1.0, got {s}"
-            )
+            raise ValueError(f"analysis_blend_weight + fusion_blend_weight must sum to 1.0, got {s}")
         return self
 
     @model_validator(mode="after")
     def _check_leg_weights_sum_to_one(self) -> "RetrievalConfig":
         s = self.dense_weight + self.bm25_weight
         if abs(s - 1.0) > 1e-3:
-            raise ValueError(
-                f"dense_weight + bm25_weight must sum to 1.0 (±1e-3), got {s}"
-            )
+            raise ValueError(f"dense_weight + bm25_weight must sum to 1.0 (±1e-3), got {s}")
         if min(self.dense_weight, self.bm25_weight) < 0.05:
             logger.warning(
-                "Extreme stage-1 fusion leg weights (dense=%.3f, bm25=%.3f); "
-                "one retrieval leg is effectively disabled",
+                "Extreme stage-1 fusion leg weights (dense=%.3f, bm25=%.3f); one retrieval leg is effectively disabled",
                 self.dense_weight,
                 self.bm25_weight,
             )
@@ -329,14 +342,14 @@ class TasksConfig(BaseModel):
     heartbeat_enabled: bool = Field(
         default=True,
         description="Emit progress notifications from a parallel coroutine during long tool calls. "
-                    "Keeps client HTTP/stdio idle timers alive; works for every client.",
+        "Keeps client HTTP/stdio idle timers alive; works for every client.",
     )
     heartbeat_interval_seconds: int = Field(
         default=30,
         ge=5,
         le=600,
         description="Heartbeat emit interval in seconds. Must be shorter than the "
-                    "client's idle timeout (5 minutes for HTTP transport).",
+        "client's idle timeout (5 minutes for HTTP transport).",
     )
 
 
@@ -469,7 +482,7 @@ class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
 
     # Server bind port for HTTP transport
-    port: int = 8051
+    port: int = 8050
 
     @field_validator("litellm_log_level")
     @classmethod
@@ -477,18 +490,12 @@ class ServerConfig(BaseModel):
         valid = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         v_up = v.upper().strip()
         if v_up not in valid:
-            raise ValueError(
-                f"litellm_log_level must be one of {sorted(valid)}, got {v!r}"
-            )
+            raise ValueError(f"litellm_log_level must be one of {sorted(valid)}, got {v!r}")
         return v_up
 
     @model_validator(mode="after")
     def _check_reranker_configured(self) -> "ServerConfig":
-        if (
-            self.reranker is None
-            or self.reranker.config is None
-            or not self.reranker.config.base_url.strip()
-        ):
+        if self.reranker is None or self.reranker.config is None or not self.reranker.config.base_url.strip():
             raise ValueError(
                 "Reranking is mandatory; `reranker.config.base_url` "
                 "must be a non-empty URL. Set RERANKER_BASE_URL and ensure the "
@@ -575,15 +582,9 @@ class ConfigManager:
 
         if not os.path.exists(expanded_path):
             logger.error(
-                "Configuration file not found",
-                extra={
-                    "config_path": abs_path,
-                    "error_code": ERROR_CONFIG_NOT_FOUND
-                }
+                "Configuration file not found", extra={"config_path": abs_path, "error_code": ERROR_CONFIG_NOT_FOUND}
             )
-            raise FileNotFoundError(
-                f"Configuration file not found at path: {abs_path}"
-            )
+            raise FileNotFoundError(f"Configuration file not found at path: {abs_path}")
 
         try:
             with open(expanded_path, encoding="utf-8") as f:
@@ -591,11 +592,7 @@ class ConfigManager:
         except json.JSONDecodeError as e:
             logger.error(
                 "Invalid JSON in configuration file",
-                extra={
-                    "config_path": abs_path,
-                    "error_code": ERROR_INVALID_CONFIG,
-                    "json_error": str(e)
-                }
+                extra={"config_path": abs_path, "error_code": ERROR_INVALID_CONFIG, "json_error": str(e)},
             )
             raise ValueError(f"Invalid JSON configuration: {e}")
 
@@ -606,21 +603,14 @@ class ConfigManager:
         except ValidationError as e:
             logger.error(
                 "Configuration structure invalid",
-                extra={
-                    "config_path": abs_path,
-                    "error_code": ERROR_INVALID_CONFIG,
-                    "validation_error": str(e)
-                }
+                extra={"config_path": abs_path, "error_code": ERROR_INVALID_CONFIG, "validation_error": str(e)},
             )
             raise
 
         cls._config = validated_config.model_dump()
         cls._config_path = abs_path
 
-        logger.info(
-            "Configuration loaded successfully",
-            extra={"config_path": cls._config_path}
-        )
+        logger.info("Configuration loaded successfully", extra={"config_path": cls._config_path})
 
         return cls._config
 

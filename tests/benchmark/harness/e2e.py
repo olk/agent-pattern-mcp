@@ -28,7 +28,7 @@ from tests.benchmark.harness.probes import (
 from tests.benchmark.harness.scoring import ScenarioScore, score_failure, score_scenario
 
 #: Exit-code-neutral default endpoint (plan S7: env BENCH_MCP_URL override).
-DEFAULT_MCP_URL = "http://localhost:8061/mcp"
+DEFAULT_MCP_URL = "http://localhost:8821/mcp"
 
 _CATALOG: dict[str, dict[str, Any]] | None = None
 
@@ -40,8 +40,7 @@ def _catalog() -> dict[str, dict[str, Any]]:
         _CATALOG = {
             data["name"]: data
             for data in (
-                json.loads(path.read_text(encoding="utf-8"))
-                for path in sorted(PATTERN_DIR.glob("*-pattern.json"))
+                json.loads(path.read_text(encoding="utf-8")) for path in sorted(PATTERN_DIR.glob("*-pattern.json"))
             )
         }
     return _CATALOG
@@ -101,9 +100,7 @@ async def run_e2e_scenario(
                 meta={"url": mcp_url},
             )
         )
-    output: dict[str, Any] = (
-        result.data if hasattr(result, "data") else json.loads(str(result))
-    )
+    output: dict[str, Any] = result.data if hasattr(result, "data") else json.loads(str(result))
     e2e_ms = round((time.monotonic_ns() - total_start) / 1e6, 3)
 
     selected_names = _selected_names_from_output(output)
@@ -123,7 +120,10 @@ async def run_e2e_scenario(
         confidence=max(0.0, min(1.0, float(output.get("final_quality_score", 0.0)) / 100.0)),
     )
     return E2ERun(
-        scenario=scenario, output=output, score=score, recorder=recorder,
+        scenario=scenario,
+        output=output,
+        score=score,
+        recorder=recorder,
         e2e_ms=e2e_ms,
     )
 
@@ -143,11 +143,7 @@ def _selected_names_from_output(output: dict[str, Any]) -> list[str]:
     """Extract selected-pattern names from the wire output."""
     candidates = _quality_candidates(output)
     if candidates is not None:
-        names = [
-            str(c.get("name", ""))
-            for c in candidates
-            if isinstance(c, dict) and c.get("name")
-        ]
+        names = [str(c.get("name", "")) for c in candidates if isinstance(c, dict) and c.get("name")]
         if names:
             return names
     final = str(output.get("final_pattern_name", ""))

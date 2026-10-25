@@ -296,7 +296,7 @@ uv run python -m tests.benchmark.harness.selfcheck
 `--no-warmup` (live), `--log-level` (`warning`; applied to the root logger, its
 handlers, and `bm25s`, which re-pins itself at import), `--output-root`
 (`data/benchmark-runs`), `--call-timeout` (e2e, default 1500 s), `--mcp-url` (e2e;
-beats the `BENCH_MCP_URL` env var, default `http://localhost:8061/mcp`),
+beats the `BENCH_MCP_URL` env var, default `http://localhost:8821/mcp`),
 `--out` (write the run into exactly this directory, sibling-style: artifacts
 land directly in it, no generated child), `--force` (allow writing into a
 non-empty `--out`; otherwise the run refuses with exit 2), `--dry-run` (load and
@@ -388,4 +388,4 @@ Environment requirements:
   without them the pipeline degrades per call (visible as `reasoning_health` in
   the manifest).
 - **e2e** — a deployed MCP server at the endpoint (`MCP_URL` / `BENCH_MCP_URL` /
-  default `http://localhost:8061/mcp`).
+  default `http://localhost:8821/mcp`).

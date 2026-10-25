@@ -14,7 +14,7 @@ read   xd://mcp__agent_pattern_<tool>     device doc + live input schema
 - Device names come from the server name lowercased with `-` → `_`; `agent-pattern` owns `mcp__agent_pattern_*`.
 - Args and results are JSON. On a schema mismatch the error echoes the schema — fix the JSON and retry the same device.
 - Server-side failures surface as `MCP error: <message>` tool text; the codes below identify the class.
-- Every call is bounded by OMP's MCP deadline (`OMP_MCP_TIMEOUT_MS` → per-server `timeout` → 30 s). Measured against `http://localhost:8051/mcp` with the default deadline: the job-trio calls return in ≤ 50 ms, while a single LLM tool ran past the deadline and was aborted:
+- Every call is bounded by OMP's MCP deadline (`OMP_MCP_TIMEOUT_MS` → per-server `timeout` → 30 s). Measured against `http://localhost:8811/mcp` with the default deadline: the job-trio calls return in ≤ 50 ms, while a single LLM tool ran past the deadline and was aborted:
 
 ```text
 MCP failure

@@ -14,7 +14,7 @@ deep-dive, troubleshooting).
 
 | Component | Image (Docker Hub — public registry) | Role |
 |---|---|---|
-| MCP server | `olkowa/agent-pattern-mcp` | Tool server, streamable-http on container port 8051 |
+| MCP server | `olkowa/agent-pattern-mcp` | Tool server, streamable-http on container port 8050 |
 | TEI embedder | `olkowa/pattern-tei-embed` | Qwen3-Embedding-0.6B sidecar; required for retrieval |
 | TEI reranker | `olkowa/pattern-tei-rerank` | Reranker sidecar; required for retrieval |
 
@@ -30,7 +30,7 @@ Pick exactly ONE path:
 |---|---|---|
 | Use when | evaluating / developing; no sudo available | persistent host service, starts at boot |
 | Needs root | no (Docker group membership only) | yes (`sudo`) |
-| Host port | 8061 | 8051 |
+| Host port | 8821 | 8811 |
 | TEI sidecars | own copies inside the compose project | shared `pattern-tei-infra` stack |
 | Survives reboot | no (manual `up -d`) | yes (systemd unit) |
 
@@ -59,8 +59,8 @@ the install steps below stay the same.
 ## Path A — Compose stack (repo clone, no build, no root)
 
 `docker/docker-compose.yml` has no `build:` sections; images are parameterized
-(`${MCP_IMAGE}`, `${TEI_IMAGE}`, `${TEI_RERANK_IMAGE}`, `${MINIMAXAI_API_KEY}`,
-`${MCP_HOST_PORT}`) and resolved from an env file.
+(`${MCP_IMAGE}`, `${TEI_IMAGE}`, `${TEI_RERANK_IMAGE}`, `${MINIMAXAI_API_KEY}`)
+and resolved from an env file.
 
 ```bash
 # A1. Resolve the MCP release version and pull the images. TEI pins differ
@@ -80,7 +80,6 @@ MCP_IMAGE=olkowa/agent-pattern-mcp:${VERSION}
 TEI_IMAGE=olkowa/pattern-tei-embed:${TEI_VERSION}
 TEI_RERANK_IMAGE=olkowa/pattern-tei-rerank:${TEI_VERSION}
 MINIMAXAI_API_KEY=sk-REPLACE-ME
-MCP_HOST_PORT=8061
 EOF
 
 # A3. Sanity check: interpolation resolved to the Hub refs (each printed image:
@@ -98,13 +97,13 @@ docker inspect -f '{{.Name}} {{.State.Health.Status}}' \
 
 # A6. Probe the MCP endpoint — must print 200.
 #     (GET /health is 404 by design; the JSON-RPC initialize POST is the probe.)
-curl -s -o /dev/null -w '%{http_code}\n' -X POST "http://localhost:8061/mcp" \
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "http://localhost:8821/mcp" \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"probe","version":"0.0.0"}},"id":1}'
 ```
 
-Installed endpoint: `http://localhost:8061/mcp` (streamable-http).
+Installed endpoint: `http://localhost:8821/mcp` (streamable-http).
 
 Stop / remove the stack:
 
@@ -186,7 +185,6 @@ sudo install -m 644 config/config.json /etc/agent-pattern-mcp/config/
 sudo tee /etc/agent-pattern-mcp/.env > /dev/null <<EOF
 MINIMAXAI_API_KEY=sk-REPLACE-ME
 COMPOSE_PROJECT_NAME=agpmcp-systemd
-MCP_HOST_PORT=8051
 EOF
 sudo chown root:docker /etc/agent-pattern-mcp/.env
 sudo chmod 640 /etc/agent-pattern-mcp/.env
@@ -207,14 +205,14 @@ sudo systemctl enable --now agent-pattern-mcp.service
 ```bash
 systemctl is-active agent-pattern-mcp                          # "active" (Type=oneshot → active (exited) is correct)
 docker inspect -f '{{.State.Health.Status}}' agent-pattern-mcp # "healthy" (≤ ~40 s after start)
-curl -s -o /dev/null -w '%{http_code}\n' -X POST "http://localhost:8051/mcp" \
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "http://localhost:8811/mcp" \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"probe","version":"0.0.0"}},"id":1}'   # 200
 docker exec agent-pattern-mcp python -c "import urllib.request; print(urllib.request.urlopen('http://pattern-tei-embed:8080/health').status)"  # 200 = TEI reachable
 ```
 
-Installed endpoint: `http://localhost:8051/mcp` (streamable-http).
+Installed endpoint: `http://localhost:8811/mcp` (streamable-http).
 
 ### B5 — day-2 operations
 

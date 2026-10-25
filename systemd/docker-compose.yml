@@ -83,7 +83,7 @@ services:
       - TASKS_HEARTBEAT_INTERVAL_SECONDS=30
       - TRANSPORT=streamable-http
       - HOST=0.0.0.0
-      - PORT=8051
+      - PORT=8050
       - LOGGING_LEVEL=INFO
       - LOGGING_FORMAT=json
       - LITELLM_LOG_LEVEL=WARNING
@@ -91,7 +91,7 @@ services:
     depends_on: []
 
     ports:
-      - "${MCP_HOST_PORT:-8051}:8051"
+      - "8811:8050"
     volumes:
       - /etc/agent-pattern-mcp/config:/app/config
     restart: on-failure

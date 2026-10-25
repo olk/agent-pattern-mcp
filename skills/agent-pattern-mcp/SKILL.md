@@ -31,7 +31,7 @@ OMP applies one MCP request deadline, resolved in this order: `OMP_MCP_TIMEOUT_M
 To run the one-shot pipeline instead, raise the deadline for this server — edit `~/.omp/agent/mcp.json`:
 
 ```json
-"agent-pattern": { "type": "http", "url": "http://localhost:8051/mcp", "timeout": 900000 }
+"agent-pattern": { "type": "http", "url": "http://localhost:8811/mcp", "timeout": 900000 }
 ```
 
 `"timeout": 0` disables client-side MCP timeouts for the server. Then `/mcp reload`. A project `.omp/mcp.json` entry shadows the user entry; the user file's `disabledServers`/`enabledServers` win over both.

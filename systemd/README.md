@@ -66,13 +66,13 @@ The systemd-managed project is given a distinct name (`agpmcp-systemd`, set via
 sibling architecture-pattern-mcp stack's `apmcp-systemd`, since sharing a
 project label would make each `up -d --remove-orphans` delete the sibling
 container as an orphan). The dev compose uses unique TEI
-container names (`agent-pattern-tei*`) and a different host port (8061 vs
-8051). Both stacks can now run **concurrently** — no need to stop one before
+container names (`agent-pattern-tei*`) and a different host port (8821 vs
+8811). Both stacks can now run **concurrently** — no need to stop one before
 starting the other:
 
 ```bash
-make docker-up                          # dev on :8061
-sudo systemctl start agent-pattern-mcp  # prod on :8051
+make docker-up                          # dev on :8821
+sudo systemctl start agent-pattern-mcp  # prod on :8811
 ```
 
 ## Step 2 — Install
@@ -104,7 +104,6 @@ sudo $EDITOR /etc/agent-pattern-mcp/.env
 # File contents:
 #   MINIMAXAI_API_KEY=sk-...
 #   COMPOSE_PROJECT_NAME=agpmcp-systemd
-#   MCP_HOST_PORT=8051          # change to avoid port conflicts with other MCP servers
 
 # 5. Install the unit file.
 sudo install -m 644 systemd/agent-pattern-mcp.service \
@@ -144,7 +143,7 @@ journalctl -u agent-pattern-mcp -n 50                     # last 50 log lines
 docker compose -p agpmcp-systemd -f /etc/agent-pattern-mcp/docker-compose.yml ps
 docker inspect -f '{{.State.Health.Status}}' agent-pattern-mcp  # "healthy" (≤ ~40 s after start)
 # Probe the MCP endpoint — must print 200 (GET /health is 404 by design).
-curl -s -o /dev/null -w '%{http_code}\n' -X POST "http://localhost:${MCP_HOST_PORT:-8051}/mcp" \
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "http://localhost:8811/mcp" \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"probe","version":"0.0.0"}},"id":1}'

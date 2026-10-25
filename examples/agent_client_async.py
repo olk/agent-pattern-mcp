@@ -28,15 +28,15 @@ async job pattern using the FastMCP Client. Unlike the synchronous
 returns a job_id immediately and lets you poll for the result.
 
 Usage:
-    # Terminal 1: start the server
-    $ python -m src.main
-
+    # Terminal 1: start the server (dev compose serves :8821)
+    $ docker compose -f docker/docker-compose.yml up -d
+    # or natively: $ python -m src.main --port 8821
     # Terminal 2: run the client
-    $ AGENT_CLIENT_URL=http://localhost:8061/mcp \\
+    $ AGENT_CLIENT_URL=http://localhost:8821/mcp \\
         uv run python examples/agent_client_async.py
 
 Requires:
-    - MCP server running at AGENT_CLIENT_URL (default http://localhost:8061/mcp)
+    - MCP server running at AGENT_CLIENT_URL (default http://localhost:8821/mcp)
     - Valid LLM credentials in the server's config
 """
 
@@ -51,7 +51,7 @@ from typing import Any
 
 from fastmcp import Client
 
-SERVER_URL = os.environ.get("AGENT_CLIENT_URL", "http://localhost:8061/mcp")
+SERVER_URL = os.environ.get("AGENT_CLIENT_URL", "http://localhost:8821/mcp")
 
 POLL_EVERY = int(os.environ.get("ARCHITECTURE_CLIENT_POLL_SECONDS", "15"))
 
@@ -124,9 +124,7 @@ async def amain() -> int:
         except Exception as exc:
             print(f"Error: {exc}", file=sys.stderr)
             print(
-                f"\nIs the MCP server running?\n"
-                f"  Start it with:  python -m src.main\n"
-                f"  Expected URL:   {SERVER_URL}",
+                f"\nIs the MCP server running?\n  Start it with:  python -m src.main\n  Expected URL:   {SERVER_URL}",
                 file=sys.stderr,
             )
             return 1

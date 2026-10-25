@@ -10,7 +10,7 @@
 #   - TEI sidecars use unique container names (agent-pattern-tei*) so the dev
 #     stack can run concurrently with the systemd stack and/or the shared
 #     tei-infra stack without container-name conflicts.
-#   - Default host port is 8061 (systemd uses 8051) so dev and prod can coexist.
+#   - Default host port is 8821 (systemd uses 8811) so dev and prod can coexist.
 #
 # Usage:
 #   export MINIMAXAI_API_KEY=sk-...    # or put it in docker/.env (gitignored —
@@ -86,7 +86,7 @@ services:
       - TASKS_HEARTBEAT_INTERVAL_SECONDS=30
       - TRANSPORT=streamable-http
       - HOST=0.0.0.0
-      - PORT=8051
+      - PORT=8050
       - LOGGING_LEVEL=INFO
       - LOGGING_FORMAT=json
       - LITELLM_LOG_LEVEL=WARNING
@@ -97,7 +97,7 @@ services:
       pattern-tei-rerank:
         condition: service_healthy
     ports:
-      - "${MCP_HOST_PORT:-8061}:8051"
+      - "8821:8050"
     volumes:
       - ../config:/app/config
     restart: on-failure

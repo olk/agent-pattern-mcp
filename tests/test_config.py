@@ -51,7 +51,7 @@ def test_load_config_real_file():
     config_dict = ConfigManager.load_config("config/config.json")
     config = ServerConfig.model_validate(config_dict)
     assert config.generator.provider == "openai"
-    assert config.port == 8051
+    assert config.port == 8050
     assert config.transport == "streamable-http"
     assert config.pattern_directory.endswith("agent-pattern-mcp/pattern")
 
@@ -155,7 +155,10 @@ class TestMigrationValidator:
     def test_reranker_missing_gets_default(self):
         """Config without reranker validates with the TEI default base_url."""
         cfg = {
-            "generator": {"provider": "openai", "config": {"model": "gpt-4o-mini", "base_url": "https://api.openai.com/v1"}},
+            "generator": {
+                "provider": "openai",
+                "config": {"model": "gpt-4o-mini", "base_url": "https://api.openai.com/v1"},
+            },
             "embedder": {"provider": "tei", "config": {"base_url": "http://localhost:8080"}},
         }
         result = ServerConfig.model_validate(cfg)
@@ -166,7 +169,10 @@ class TestMigrationValidator:
     def test_reranker_new_format_passes(self):
         """New top-level reranker format passes validation."""
         cfg = {
-            "generator": {"provider": "openai", "config": {"model": "gpt-4o-mini", "base_url": "https://api.openai.com/v1"}},
+            "generator": {
+                "provider": "openai",
+                "config": {"model": "gpt-4o-mini", "base_url": "https://api.openai.com/v1"},
+            },
             "embedder": {"provider": "tei", "config": {"base_url": "http://localhost:8080"}},
             "reranker": {"config": {"base_url": "http://rerank:8080", "timeout": 30.0}},
         }
@@ -182,11 +188,12 @@ class TestMigrationValidator:
         rejects the unknown nested `reranker` key with an actionable error.
         """
         cfg = {
-            "generator": {"provider": "openai", "config": {"model": "gpt-4o-mini", "base_url": "https://api.openai.com/v1"}},
-            "embedder": {"provider": "tei", "config": {"base_url": "http://localhost:8080"}},
-            "retrieval": {
-                "reranker": {"enabled": True, "config": {"base_url": "http://rerank:8080", "timeout": 30.0}}
+            "generator": {
+                "provider": "openai",
+                "config": {"model": "gpt-4o-mini", "base_url": "https://api.openai.com/v1"},
             },
+            "embedder": {"provider": "tei", "config": {"base_url": "http://localhost:8080"}},
+            "retrieval": {"reranker": {"enabled": True, "config": {"base_url": "http://rerank:8080", "timeout": 30.0}}},
         }
         with pytest.raises(ValidationError, match="reranker"):
             ServerConfig.model_validate(cfg)
@@ -198,7 +205,10 @@ class TestMigrationValidator:
         configured reranker whose config.base_url is empty.
         """
         cfg = {
-            "generator": {"provider": "openai", "config": {"model": "gpt-4o-mini", "base_url": "https://api.openai.com/v1"}},
+            "generator": {
+                "provider": "openai",
+                "config": {"model": "gpt-4o-mini", "base_url": "https://api.openai.com/v1"},
+            },
             "embedder": {"provider": "tei", "config": {"base_url": "http://localhost:8080"}},
             "reranker": {"config": {"base_url": "", "timeout": 30.0}},
         }
@@ -230,6 +240,7 @@ class TestMinFusionScoreScaleInteraction:
     def test_field_validator_rejects_floor_above_blend_max(self) -> None:
         """Field-level le=RANK_FUSION_BLEND_MAX rejects values like 0.25."""
         from src.config import RANK_FUSION_BLEND_MAX
+
         with pytest.raises(ValidationError):
             RetrievalConfig(min_fusion_score=RANK_FUSION_BLEND_MAX + 1e-9)
 
@@ -240,12 +251,14 @@ class TestMinFusionScoreScaleInteraction:
     def test_floor_at_blend_max_accepted(self) -> None:
         """Floor exactly at RANK_FUSION_BLEND_MAX (theoretical max) is the upper bound."""
         from src.config import RANK_FUSION_BLEND_MAX
+
         cfg = RetrievalConfig(min_fusion_score=RANK_FUSION_BLEND_MAX)
         assert cfg.min_fusion_score == RANK_FUSION_BLEND_MAX
 
     def test_floor_just_above_blend_max_rejected(self) -> None:
         """One ulp above the blend maximum fails the field validator."""
         from src.config import RANK_FUSION_BLEND_MAX
+
         with pytest.raises(ValidationError):
             RetrievalConfig(min_fusion_score=RANK_FUSION_BLEND_MAX * (1 + 1e-9))
 
@@ -311,21 +324,15 @@ class TestLegWeights:
         with caplog.at_level(logging.WARNING, logger="src.config"):
             config = RetrievalConfig(dense_weight=0.97, bm25_weight=0.03)
         assert config.dense_weight == 0.97
-        assert any(
-            "effectively disabled" in record.message for record in caplog.records
-        )
+        assert any("effectively disabled" in record.message for record in caplog.records)
 
-    def test_normal_leg_weights_do_not_warn(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_normal_leg_weights_do_not_warn(self, caplog: pytest.LogCaptureFixture) -> None:
         """Default weights must not trigger the extreme-ratio warning."""
         import logging
 
         with caplog.at_level(logging.WARNING, logger="src.config"):
             RetrievalConfig()
-        assert not any(
-            "effectively disabled" in record.message for record in caplog.records
-        )
+        assert not any("effectively disabled" in record.message for record in caplog.records)
 
 
 class TestPipelineTimeoutConfig:

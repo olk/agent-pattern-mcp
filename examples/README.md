@@ -10,7 +10,7 @@ and pretty-prints the full JSON result to stdout.
 
 ```bash
 python -m src.main
-# Server listens on http://0.0.0.0:8051/mcp
+# Server listens on http://0.0.0.0:8050/mcp
 ```
 
 **Terminal 2 — run the client:**
@@ -41,7 +41,7 @@ will decompose into planner → searcher/executor → synthesiser roles.
 Edit these constants at the top of `examples/agent_client.py`:
 
 ```python
-SERVER_URL = "http://localhost:8051/mcp"
+SERVER_URL = "http://localhost:8821/mcp"
 TOOL_USE_AGENT_REQUIREMENTS = "..."     # your own requirements text
 DOMAIN = "tool-use-tasks"                # e.g. "rag-applications", "code-generation"
 ```

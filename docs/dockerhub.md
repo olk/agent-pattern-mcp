@@ -24,7 +24,7 @@ This Docker image contains a complete MCP (Model Context Protocol) server that b
 ```
 ┌───────────────────────────────────────────────────────────────────┐
 │  OpenCode / Claude Code / VS Code / any MCP client                │
-│        ────────── HTTP ──────────► :8061/mcp                      │
+│        ────────── HTTP ──────────► :8821/mcp                      │
 │                                                                   │
 │        ┌──────────────────────────────┐                           │
 │        │      agent-pattern-mcp       │                           │
@@ -52,7 +52,7 @@ into this image (`EMBEDDER_BASE_URL=http://pattern-tei-embed:8080/v1`,
 needs no URL overrides.
 
 The MCP server itself runs as a non-root user and serves StreamableHTTP on
-container port `8051` (path `/mcp`). Startup takes **up to ~40 s**: retrieval
+container port `8050` (path `/mcp`). Startup takes **up to ~40 s**: retrieval
 indexes (FAISS + BM25) are built at startup, and the server refuses to start
 when the TEI sidecars are unreachable or the embedded reasoning MCPs cannot be
 spawned.
@@ -159,7 +159,7 @@ services:
       start_period: 60s
   agent-pattern-mcp:
     image: olkowa/agent-pattern-mcp:${TAG:-latest}
-    ports: ["${MCP_HOST_PORT:-8061}:8051"]
+    ports: ["8821:8050"]
     environment:
       - GENERATOR_API_KEY=${GENERATOR_API_KEY:?Set GENERATOR_API_KEY in .env}
       # The TEI sidecar needs no key, but the client library requires one.
@@ -184,7 +184,7 @@ docker compose up -d
 docker compose ps
 ```
 
-The server starts on **streamable-http** at `http://localhost:8061/mcp`. First
+The server starts on **streamable-http** at `http://localhost:8821/mcp`. First
 run pulls ~2.2 GB of image layers (~5 GB on disk); the TEI embedder needs
 **~1–2 minutes** to become healthy (healthcheck `start_period: 120s`) and the
 MCP server **up to ~40 s** after that. `docker compose ps` shows all three
@@ -291,7 +291,7 @@ Add to `~/.config/opencode/opencode.json`:
   "mcp": {
     "agent-pattern-mcp": {
       "type": "remote",
-      "url": "http://localhost:8061/mcp",
+      "url": "http://localhost:8821/mcp",
       "enabled": true
     }
   }
@@ -306,7 +306,7 @@ Add to `.vscode/mcp.json`:
 {
   "servers": {
     "agent-pattern-mcp": {
-      "url": "http://localhost:8061/mcp",
+      "url": "http://localhost:8821/mcp",
       "type": "http"
     }
   }
@@ -319,7 +319,7 @@ Add to `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.agent-pattern-mcp]
-url = "http://localhost:8061/mcp"
+url = "http://localhost:8821/mcp"
 ```
 
 ### Claude Code (stdio transport)
@@ -380,12 +380,12 @@ chmod 600 .env
 | Symptom | Fix |
 |---|---|
 | `401 Unauthorized` from LLM | Check `GENERATOR_API_KEY` in `.env`; verify the key is active |
-| Tools not visible in the client | Verify the client URL matches `http://localhost:8061/mcp` (note the `/mcp` path); check `docker compose logs agent-pattern-mcp` |
+| Tools not visible in the client | Verify the client URL matches `http://localhost:8821/mcp` (note the `/mcp` path); check `docker compose logs agent-pattern-mcp` |
 | Pattern catalog empty (`list_agent_patterns` returns nothing, log shows `Patterns directory does not exist`) | The image bakes the catalog at `/app/pattern` and sets `PATTERN_DIRECTORY` to it; if you override the variable, point it at a directory that actually contains `*-pattern.json` files (a bind mount must exist inside the container) |
 | Startup fails with `OpenAIException - Missing credentials` (not a generator problem) | The embedder client requires an API key even against keyless TEI — set `EMBEDDER_API_KEY=not-needed`. The compose quick start sets this; a bare `docker run` must pass it (`-e EMBEDDER_API_KEY=not-needed`) |
 | TEI connection errors / startup fails fast | Ensure both sidecar containers are healthy (`docker compose ps`); verify `pattern-tei-embed` and `pattern-tei-rerank` resolve on the shared network; override `EMBEDDER_BASE_URL` / `RERANKER_BASE_URL` if your network differs |
 | Startup exits with reasoning errors | The embedded reasoning MCPs could not be spawned; check `docker compose logs`, or set `REASONING_ENABLED=false` to run degraded |
-| Port 8061 already in use | `MCP_HOST_PORT=8062 docker compose up -d`, then update your client URL |
+| Port 8821 already in use | Edit the `ports:` mapping in the compose file (e.g. `"8822:8050"`), then update your client URL |
 | `design_agent_system` times out in the client | Expected for 60 s TS-SDK clients — use the async job trio (`submit_agent_design_job` + `get_agent_design_status`) |
 
 ## Links
