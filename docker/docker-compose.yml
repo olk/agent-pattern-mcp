@@ -119,7 +119,7 @@ services:
 
   pattern-tei-embed:
     image: ${TEI_IMAGE:-pattern-tei-embed:latest}
-    container_name: agent-pattern-tei-dev
+    container_name: agent-pattern-tei-embed-dev
     restart: unless-stopped
     environment:
       - HF_HUB_OFFLINE=1
