@@ -211,6 +211,7 @@ verify-all: ## Run every verify-* target (nightly entry point)
 	@echo "==> [3/5] verify-fizz-garden";       $(MAKE) --no-print-directory verify-fizz-garden
 	@echo "==> [4/5] verify-ledger";            $(MAKE) --no-print-directory verify-ledger
 	@echo "==> [5/5] verify-cross-consistency"; $(MAKE) --no-print-directory verify-cross-consistency
+	@echo "==> [6/6] verify-patterns";          $(MAKE) --no-print-directory verify-patterns
 
 # Fast-path aggregator: unit + oracles only. test-mutations is deliberately
 # outside — mutmut is a manual/nightly gate (ephemeral toolchain, long runtime).
