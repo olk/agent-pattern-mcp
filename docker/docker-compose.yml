@@ -102,7 +102,16 @@ services:
       - ../config:/app/config
     restart: on-failure
     healthcheck:
-      test: ["CMD", "python", "-m", "src.main", "--health"]
+      # TCP probe on the container port (8050): the server binds only AFTER
+      # lifespan warmup, so connect = fully ready. No GET /health route
+      # exists (404 by design); --health only prints OK and proves nothing.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import socket; socket.create_connection(('127.0.0.1', 8050), timeout=5).close()",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

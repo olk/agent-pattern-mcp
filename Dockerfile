@@ -116,9 +116,12 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 USER 1000:1000
 
-# HEALTHCHECK: verifies the app responds on port 8050.
+# Readiness = the MCP HTTP surface accepts connections. The server binds its
+# port only AFTER lifespan warmup (retrieval index), so a successful TCP
+# connect implies full readiness. There is no GET /health route (404 by
+# design) — an HTTP probe can never pass.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8050/health')" || exit 1
+  CMD python -c "import socket; socket.create_connection(('127.0.0.1', 8050), timeout=5).close()" || exit 1
 
 # IC-42: python -m src.main for running the MCP server.
 # ENTRYPOINT/CMD split (MCP Registry OCI convention): container launchers that

@@ -172,7 +172,9 @@ services:
         condition: service_healthy
     restart: on-failure
     healthcheck:
-      test: ["CMD", "python", "-m", "src.main", "--health"]
+      # TCP probe: the server binds its port only AFTER lifespan warmup, so
+      # connect = fully ready. No GET /health route exists (404 by design).
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8050), timeout=5).close()"]
       interval: 30s
       timeout: 10s
       retries: 3
