@@ -16,7 +16,7 @@
 	docker-build-all docker-publish docker-publish-tei \
 	docker-publish-all \
 	docker-up docker-down docker-logs docker-logs-follow \
-	docker-rm clean benchmark-selfcheck benchmark-offline benchmark-live \
+	docker-rm clean benchmark-selfcheck benchmark-offline benchmark-live benchmark-analyze \
 	benchmark-e2e benchmark-draft benchmark-compare benchmark-sidecars-up
 
 COMPOSE := docker compose -f docker/docker-compose.yml
@@ -333,6 +333,8 @@ BENCH_COMMON_ARGS   := $(if $(SPLIT),--split $(SPLIT),) $(if $(LOG_LEVEL),--log-
 	$(if $(FAIL_FAST),--fail-fast,)
 BENCH_RUN_ARGS      := $(if $(OUTPUT_ROOT),--output-root $(OUTPUT_ROOT),) \
 	$(if $(OUT),--out $(OUT),) $(if $(FORCE),--force,)
+# `benchmark-analyze` reuses the live env bootstrap with the mode swapped.
+BENCH_MODE          ?= live
 
 benchmark-selfcheck: ## Run benchmark harness self-checks
 	$(UV) run python -m tests.benchmark.harness.selfcheck
@@ -364,9 +366,12 @@ benchmark-live: ## Live in-process benchmark (LIMIT=n; sidecars up + MINIMAXAI_A
 		export EMBEDDER_BASE_URL="$(BENCH_EMBED_URL)"; \
 		export EMBEDDER_API_KEY="$${EMBEDDER_API_KEY:-tei-noauth}"; \
 		export RERANKER_BASE_URL="$(BENCH_RERANK_URL)"; \
-		exec $(UV) run python -m tests.benchmark.harness.main run --mode live \
+		exec $(UV) run python -m tests.benchmark.harness.main run --mode $(BENCH_MODE) \
 			$(if $(LIMIT),--limit $(LIMIT),) $(if $(REPEAT),--repeat $(REPEAT),) $(if $(NO_WARMUP),--no-warmup,) \
 			$(BENCH_COMMON_ARGS) $(BENCH_RUN_ARGS)'
+
+benchmark-analyze: BENCH_MODE := analyze
+benchmark-analyze: benchmark-live ## Analyze-only live arm (same env as benchmark-live; LIMIT=n SPLIT=holdout OUT=dir)
 
 benchmark-draft: ## Draft new scenarios from run evidence (RUN_DIR=<dir> [RUN_DIR2=…])
 	$(UV) run python -m tests.benchmark.harness.main draft --run-dir $(RUN_DIR) \

@@ -35,31 +35,29 @@ _ENV_KEYS: tuple[str, ...] = (
     "REASONING_FAIL_FAST",
 )
 
-_MODE_NOTES: dict[str, str] = (
-    {
-        "offline": (
-            "Offline arm: retrieval legs are single-slug stubs and the agent is"
-            " scripted; timings measure harness overhead only — do not read them"
-            " as pipeline performance."
-        ),
-        "live": (
-            "Live arm: real LLM + embedder + sidecars in-process; stage table"
-            " attributes wall time to analyze/generate/evaluate/reasoning."
-        ),
-        "e2e": (
-            "E2E arm: MCP wire calls to a deployed server; per-call HTTP wall"
-            " time includes the full server pipeline."
-        ),
-    }
-)
+_MODE_NOTES: dict[str, str] = {
+    "offline": (
+        "Offline arm: retrieval legs are single-slug stubs and the agent is"
+        " scripted; timings measure harness overhead only — do not read them"
+        " as pipeline performance."
+    ),
+    "live": (
+        "Live arm: real LLM + embedder + sidecars in-process; stage table"
+        " attributes wall time to analyze/generate/evaluate/reasoning."
+    ),
+    "analyze": (
+        "Analyze arm: the real pipeline's analysis leg only — retrieval + one"
+        " analysis LLM call, scored on recommended_pattern_name/topology;"
+        " no design is generated."
+    ),
+    "e2e": ("E2E arm: MCP wire calls to a deployed server; per-call HTTP wall time includes the full server pipeline."),
+}
 
 
 class RunHandle:
     """Owns one run directory and its aggregate artifacts."""
 
-    def __init__(
-        self, output_root: Path, mode: str, *, out_dir: Path | None = None, force: bool = False
-    ) -> None:
+    def __init__(self, output_root: Path, mode: str, *, out_dir: Path | None = None, force: bool = False) -> None:
         self.mode = mode
         self.run_id = new_run_id(mode)
         if out_dir is None:
@@ -118,9 +116,7 @@ class RunHandle:
 
     def env_snapshot(self) -> dict[str, Any]:
         """Unprefixed env names + secret presence flags (never values)."""
-        snapshot: dict[str, Any] = {
-            key: os.environ.get(key) for key in _ENV_KEYS if os.environ.get(key) is not None
-        }
+        snapshot: dict[str, Any] = {key: os.environ.get(key) for key in _ENV_KEYS if os.environ.get(key) is not None}
         snapshot["secret_presence"] = {name: name in os.environ for name in SECRETS_FLAGS}
         return snapshot
 
@@ -185,9 +181,7 @@ class RunHandle:
         lines.append("")
         lines.append("## Stage attribution")
         lines.append("")
-        lines.append(
-            "`stage` is the latency bucket, `op` the seam method that produced it."
-        )
+        lines.append("`stage` is the latency bucket, `op` the seam method that produced it.")
         lines.append("")
         lines.append("| stage | n | failures | total ms | p50 ms | p95 ms | ops |")
         lines.append("|---|---|---|---|---|---|---|")
@@ -207,6 +201,8 @@ class RunHandle:
                 f"{summary.hit_rate:.3f} (Wilson {summary.wilson_low:.3f} - {summary.wilson_high:.3f})"
             )
             lines.append(f"- MRR mean={summary.mrr_mean:.3f}")
+            recall = "/".join(f"{summary.recall_mean.get(k, 0.0):.3f}" for k in range(1, 6))
+            lines.append(f"- recall mean@1..5={recall}")
             lines.append(f"- topology_hit rate={summary.topology_rate:.3f}")
             lines.append(
                 f"- Brier={summary.brier:.4f}, ECE={summary.ece:.4f}"
@@ -216,10 +212,7 @@ class RunHandle:
                 "- acceptable-primary F1="
                 f"{summary.acceptable_primary_f1:.3f}, AURC="
                 + ("n/a" if summary.aurc is None else f"{summary.aurc:.4f}")
-                + (
-                    ", risk@100="
-                    + ("n/a" if summary.risk_at_100 is None else f"{summary.risk_at_100:.3f}")
-                )
+                + (", risk@100=" + ("n/a" if summary.risk_at_100 is None else f"{summary.risk_at_100:.3f}"))
             )
             if summary.failures:
                 lines.append("")

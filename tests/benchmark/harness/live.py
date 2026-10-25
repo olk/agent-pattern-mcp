@@ -46,6 +46,20 @@ class ProviderDeathError(RuntimeError):
     """Generator provider permanently failed (balance/quota/auth) — abort the arm."""
 
 
+class DesignPhaseError(RuntimeError):
+    """The design leg raised after the analysis leg had already succeeded.
+
+    Carries the analysis so the paired analyze arm keeps its own result when
+    the full arm records a failed scenario; without it a design-phase fault
+    would zero a selection the analysis actually produced.
+    """
+
+    def __init__(self, cause: BaseException, analysis: Any) -> None:
+        super().__init__(f"{type(cause).__name__}: {cause}")
+        self.cause = cause
+        self.analysis = analysis
+
+
 #: Substrings (lowercased) that mark a provider as dead for money/auth reasons.
 #: Deliberately phrase-anchored: bare numeric tokens ('401','403') would
 #: false-positive on request ids like 'b5b0466d-1ced-...'.
@@ -214,6 +228,37 @@ async def build_live_components(recorder: StageRecorder) -> LiveComponents:
     )
 
 
+def score_analysis(
+    scenario: BenchmarkScenario,
+    analysis: Any,
+    catalog: dict[str, dict[str, Any]],
+) -> ScenarioScore:
+    """Score the analysis leg's own recommendation (no generated design).
+
+    The analyze-only arm's "final" selection is whatever the analysis
+    recommends; ``score_scenario`` already derives hit/recall/MRR from those
+    fields, so the arm needs no separate metric code. Confidence stays the
+    top-1 blended analysis score (there is no ``final_quality_score``).
+    """
+    selected_names = [str(p.get("name", "")) for p in analysis.selected_patterns]
+    top_score: float | None = None
+    if analysis.selected_patterns:
+        blended = analysis.selected_patterns[0].get("blended_score")
+        if blended is not None:
+            top_score = float(blended)
+    winner = scenario.acceptable_primary[0]
+    return score_scenario(
+        scenario_id=scenario.scenario_id,
+        primaries=scenario.acceptable_primary,
+        winner_topology=str(catalog[winner]["topology"]),
+        selected_names=selected_names,
+        top_blended_score=top_score,
+        final_pattern_name=analysis.recommended_pattern_name,
+        final_topology=analysis.recommended_topology,
+        is_fallback=analysis.is_fallback,
+    )
+
+
 async def run_live_scenario(
     scenario: BenchmarkScenario,
     components: LiveComponents,
@@ -233,10 +278,13 @@ async def run_live_scenario(
             requirements=scenario.requirements,
             domain=scenario.domain,
         )
-        result = await components.pipeline.run_design(
-            requirements=scenario.requirements,
-            domain=scenario.domain,
-        )
+        try:
+            result = await components.pipeline.run_design(
+                requirements=scenario.requirements,
+                domain=scenario.domain,
+            )
+        except Exception as exc:  # noqa: BLE001 — re-raised with the analysis attached
+            raise DesignPhaseError(exc, analysis) from exc
     window = master.records[offset:]
     for record in window:
         if record.op == "retriever.retrieve" and not record.meta.get("scenario_id"):
@@ -283,6 +331,7 @@ class LiveOutcome:
     scenario: BenchmarkScenario
     run: ScenarioRun | None
     score: ScenarioScore
+    analysis_score: ScenarioScore
     records: list[StageRecord]
     error: str | None
     e2e_ms: float
@@ -324,14 +373,21 @@ async def run_live_corpus(
             except Exception as exc:  # noqa: BLE001 — recorded, then the arm continues
                 if fail_fast:
                     raise
-                error = f"{type(exc).__name__}: {exc}"
+                error = str(exc) if isinstance(exc, DesignPhaseError) else f"{type(exc).__name__}: {exc}"
                 if is_permanent_provider_death(error):
                     raise ProviderDeathError(f"generator provider died mid-run: {error}") from exc
+                failure = score_failure(scenario.scenario_id, error)
+                failed_analysis = getattr(exc, "analysis", None)
                 outcomes.append(
                     LiveOutcome(
                         scenario=scenario,
                         run=None,
-                        score=score_failure(scenario.scenario_id, error),
+                        score=failure,
+                        analysis_score=(
+                            score_analysis(scenario, failed_analysis, _catalog())
+                            if failed_analysis is not None
+                            else failure
+                        ),
                         records=records_window(recorder, offset),
                         error=error,
                         e2e_ms=round((time.monotonic_ns() - started_ns) / 1e6, 3),
@@ -343,7 +399,122 @@ async def run_live_corpus(
                     scenario=scenario,
                     run=run,
                     score=run.score,
+                    analysis_score=score_analysis(scenario, run.analysis, _catalog()),
                     records=records_window(recorder, offset),
+                    error=None,
+                    e2e_ms=round((time.monotonic_ns() - started_ns) / 1e6, 3),
+                )
+            )
+        return outcomes, components, warmup_record
+    finally:
+        await shutdown_live_components(components)
+
+
+@dataclass(frozen=True)
+class AnalyzeRun:
+    """One scenario's analysis-only run (no design generated)."""
+
+    scenario: BenchmarkScenario
+    analysis: Any
+    score: ScenarioScore
+    records: list[StageRecord]
+
+
+@dataclass(frozen=True)
+class AnalyzeOutcome:
+    """One scenario's analysis-only outcome, successful or failed.
+
+    A failed run is recorded as a zeroed miss (see :func:`score_failure`) so
+    the arm continues; ``fail_fast`` restores abort-on-first-failure.
+    """
+
+    scenario: BenchmarkScenario
+    analysis: Any | None
+    score: ScenarioScore
+    records: list[StageRecord]
+    error: str | None
+    e2e_ms: float
+
+
+async def run_analyze_scenario(
+    scenario: BenchmarkScenario,
+    components: LiveComponents,
+    master: StageRecorder,
+) -> AnalyzeRun:
+    """Run the real pipeline's analysis leg only; return the scored run.
+
+    The analyze-only arm exists to price the path a coding agent takes when it
+    writes the implementation itself: retrieval + one analysis LLM call, then
+    the agent implements. No generate/evaluate/refine phases run.
+    """
+    offset = len(master.records)
+    with apply_live_probes(master):
+        analysis = await components.pipeline.analyze(
+            requirements=scenario.requirements,
+            domain=scenario.domain,
+        )
+    window = master.records[offset:]
+    for record in window:
+        if record.op == "retriever.retrieve" and not record.meta.get("scenario_id"):
+            record.meta["scenario_id"] = scenario.scenario_id
+    return AnalyzeRun(
+        scenario=scenario,
+        analysis=analysis,
+        score=score_analysis(scenario, analysis, _catalog()),
+        records=window,
+    )
+
+
+async def run_analyze_corpus(
+    scenarios: list[BenchmarkScenario],
+    recorder: StageRecorder,
+    *,
+    warmup: bool = True,
+    fail_fast: bool = False,
+) -> tuple[list[AnalyzeOutcome], LiveComponents, dict[str, Any]]:
+    """Build the live pipeline once, warm up, then run the analysis leg only.
+
+    Shares :func:`build_live_components`, preflight, warmup accounting and
+    shutdown with the full live arm; only the per-scenario call differs.
+    """
+    components = await build_live_components(recorder)
+    try:
+        await preflight_generator(components.config)
+        warmup_record = (
+            await _run_warmup(scenarios, components, recorder, fail_fast=fail_fast, analyze_only=True)
+            if warmup
+            else {"enabled": False, "measured": False, "reason": "--no-warmup"}
+        )
+
+        outcomes: list[AnalyzeOutcome] = []
+        for scenario in scenarios:
+            offset = len(recorder.records)
+            started_ns = time.monotonic_ns()
+            try:
+                run = await run_analyze_scenario(scenario, components, recorder)
+            except Exception as exc:  # noqa: BLE001 — recorded, then the arm continues
+                if fail_fast:
+                    raise
+                error = f"{type(exc).__name__}: {exc}"
+                if is_permanent_provider_death(error):
+                    raise ProviderDeathError(f"generator provider died mid-run: {error}") from exc
+                outcomes.append(
+                    AnalyzeOutcome(
+                        scenario=scenario,
+                        analysis=None,
+                        score=score_failure(scenario.scenario_id, error),
+                        records=records_window(recorder, offset),
+                        error=error,
+                        e2e_ms=round((time.monotonic_ns() - started_ns) / 1e6, 3),
+                    )
+                )
+                continue
+            outcomes.append(
+                AnalyzeOutcome(
+                    scenario=scenario,
+                    analysis=run.analysis,
+                    score=run.score,
+                    records=run.records,
                     error=None,
                     e2e_ms=round((time.monotonic_ns() - started_ns) / 1e6, 3),
                 )
@@ -379,6 +550,7 @@ async def _run_warmup(
     recorder: StageRecorder,
     *,
     fail_fast: bool,
+    analyze_only: bool = False,
 ) -> dict[str, Any]:
     """Run the first scenario untimed so caches and processes are hot."""
     if not scenarios:
@@ -388,7 +560,10 @@ async def _run_warmup(
     started_ns = time.monotonic_ns()
     error: str | None = None
     try:
-        await run_live_scenario(scenario, components, recorder)
+        if analyze_only:
+            await run_analyze_scenario(scenario, components, recorder)
+        else:
+            await run_live_scenario(scenario, components, recorder)
     except Exception as exc:  # noqa: BLE001 — recorded; the arm still runs
         if fail_fast:
             raise

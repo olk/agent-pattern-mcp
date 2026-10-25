@@ -53,6 +53,7 @@ Run directories land in `data/benchmark-runs/` (gitignored).
 |---------|--------------------------------------------------------|-------------------|
 | offline | scripted agent + single-slug stub retrieval legs       | scripted stubs    |
 | live    | real pipeline in-process over probe-wrapped seams      | yes               |
+| analyze | real pipeline, analysis leg only (no design generated) | yes               |
 | e2e     | fastmcp Client → deployed stack (`design_agent_system`) | wall times only  |
 
 - **offline** (`harness/offline.py`) — deterministic plumbing proof, zero network.
@@ -67,10 +68,30 @@ Run directories land in `data/benchmark-runs/` (gitignored).
   `AgentPatternPipeline`) with probe wrappers on the agent, the reasoning client,
   and the retriever/reranker call sites. The manifest records a `reasoning_health`
   check; a missing reasoning server degrades per call instead of failing the run.
+  Every live run also writes a paired **`analyze` arm** scored from the same
+  `pipeline.analyze()` call (no second LLM call), so the analysis recommendation's
+  hit/recall is comparable to the full design arm on identical scenarios.
+- **analyze** — the analysis leg only: retrieval + `pipeline.analyze()` per
+  scenario, no generate/evaluate/refine and no design artifact. The arm's "final"
+  selection is the analysis recommendation (`recommended_pattern_name`,
+  `recommended_topology`), which is what an agent gets when it writes the
+  implementation itself; `pipeline.analyze()`'s output is scored with the same
+  `score_scenario` code as the full arm. Use it to price the cheap path, or
+  `make benchmark-analyze` for the same env bootstrap as live.
 - **e2e** — black-box: what a deployed stack costs *in total*. One MCP
   `design_agent_system` call per scenario; the tool output (selected patterns,
   `final_pattern_name`, `final_topology`, `is_fallback`, `final_quality_score`) is
   scored, and a failed call is recorded, never dropped.
+
+Artifact distinction: a `live` scenario artifact carries the design fields
+(`final_pattern_name`, `final_quality_score`, `attempts`) plus a nested
+`analysis_arm` block; a standalone `analyze` artifact carries
+`recommended_topology`, `recommended_pattern_name`, `selected_pattern_names`
+and **no** design fields. hit@1 therefore compares `final_pattern_name` (live)
+with `recommended_pattern_name` (analyze), while recall/MRR are computed from
+the same analysis `selected_patterns` and are identical per scenario when both
+arms run. A live run's `analyze` arm is the paired same-run score, written to
+`summary.json` — not a second set of scenario artifacts.
 
 ## Metrics (`harness/scoring.py`, pinned by `harness/selfcheck.py`)
 
@@ -78,7 +99,8 @@ Run directories land in `data/benchmark-runs/` (gitignored).
   and the run did not fall back; a fallback poisons the hit even with the correct
   name.
 - **recall@1..5** — fraction of acceptable primaries inside the top-K analyze-phase
-  selected patterns.
+  selected patterns; `summary.json` reports each arm's mean via `recall_mean`, so
+  an analyze-only arm and the full arm are directly comparable.
 - **MRR** — reciprocal rank of the first acceptable primary in the selected
   patterns (0.0 when none appear).
 - **topology_hit** — the pipeline's final topology equals the winner's catalog
@@ -86,8 +108,9 @@ Run directories land in `data/benchmark-runs/` (gitignored).
 - **acceptable-primary F1** — hit ⇒ P=1, R=1/|A| (|A| = acceptable-primary count);
   a miss scores 0.
 - **confidence** — calibration input for Brier/ECE. `score_scenario` defaults it
-  to the top-1 blended analyze score (0.5 when unavailable), but every mode then
-  replaces it with `final_quality_score/100`; a failed run carries 0.0.
+  to the top-1 blended analyze score (0.5 when unavailable). Offline, live and
+  e2e then replace it with `final_quality_score/100`; the analyze arm keeps the
+  blended score because no design was generated. A failed run carries 0.0.
 - **Brier / ECE(10) / reliability curve** — confidence-vs-hit diagnostics over 10
   equal-width bins.
 - **risk-coverage curve + elbow** — miss rate over confidence-sorted coverage
@@ -280,7 +303,7 @@ client per scenario before treating those two rows as a cost measure.
 
 ```sh
 # run one arm (writes data/benchmark-runs/<run-id>/)
-uv run python -m tests.benchmark.harness.main run --mode {offline,live,e2e} [flags]
+uv run python -m tests.benchmark.harness.main run --mode {offline,live,analyze,e2e} [flags]
 # A/B verdict over two run directories
 uv run python -m tests.benchmark.harness.main compare BASELINE_DIR CANDIDATE_DIR [--allow-mismatch]
 # draft scenarios from run evidence (placeholders for human review, never auto-committed)
@@ -311,16 +334,19 @@ An offline run whose integrity gate trips exits 2; `compare` exits 0/1/2 as abov
 - `manifest.json` — run id, mode, UTC timestamp, `corpus_sha256` +
   `scenario_set_sha256`, effective config, env snapshot (unprefixed names +
   secret *presence* flags, never values), Python/platform fingerprint, wall secs
-- `summary.json` — per-arm summary (metrics above, plus `failures`) and a
-  `latency` block: `e2e_ms` / `residual_ms` distributions, `negative_residual_scenarios`
-  with its `residual_note`, and `per_scenario` rows (`e2e_ms`,
-  `stage_total_ms`, `residual_ms` per scenario run)
+- `summary.json` — per-arm summary (metrics above, plus `recall_mean` and
+  `failures`) and a `latency` block: `e2e_ms` / `residual_ms` distributions,
+  `negative_residual_scenarios` with its `residual_note`, and `per_scenario` rows
+  (`e2e_ms`, `stage_total_ms`, `residual_ms` per scenario run). A live run carries
+  two arms: `live` and `analyze`.
 - `report.md` — mode note, stage table (bucket, n, failures, total, p50, p95, ops),
   per-arm metrics, failure table, fixture-integrity section
 - `scenarios/<id>#<repeat>.json` — one artifact per scenario run: score fields,
   `provenance`, this scenario's raw `stage_records`, and the latency block
-  (`e2e_ms`, `stages`, `stage_total_ms`, `residual_ms`, `residual_note`)
-- `warmup.json` — live only: the warmup scenario's provenance
+  (`e2e_ms`, `stages`, `stage_total_ms`, `residual_ms`, `residual_note`). A live
+  artifact also carries `analysis_arm` — the paired analyze score for the same
+  scenario (present even when the design leg failed).
+- `warmup.json` — live/analyze only: the warmup scenario's provenance
 - `aborted.json` — written instead of a summary when the run aborts
 
 ## Corpus
@@ -360,13 +386,15 @@ make benchmark-offline [LIMIT=n] [FLIP=1] [REPEAT=n]        # deterministic, no 
 make benchmark-sidecars-up                      # TEI on 127.0.0.1:18081/18082
 make benchmark-live LIMIT=n [REPEAT=n] [SPLIT=holdout] [NO_WARMUP=1] [LOG_LEVEL=info] \
     [FAIL_FAST=1] [OUTPUT_ROOT=dir]  # needs sidecars + MINIMAXAI_API_KEY
+make benchmark-analyze LIMIT=n [SPLIT=holdout] [NO_WARMUP=1] [OUTPUT_ROOT=dir] \
+    [GENERATOR_PROVIDER=deepseek]  # analysis leg only, same env bootstrap as live
 make benchmark-e2e LIMIT=n [SPLIT=holdout] [CALL_TIMEOUT=s] [MCP_URL=url]  # needs a stack
 make benchmark-draft RUN_DIR=dir [RUN_DIR2=dir] [RUN_DIR3=dir]
 make benchmark-compare A=dir B=dir [ALLOW_MISMATCH=1]
 ```
 
 `SPLIT`, `REPEAT`, `LOG_LEVEL`, `FAIL_FAST`, `NO_WARMUP`, `OUT` and `FORCE` are
-pass-through make variables for the three run modes; anything not set is simply
+pass-through make variables for the four run modes; anything not set is simply
 not passed, so the CLI defaults apply. `OUT=benchmarks/base FORCE=1` therefore
 writes one run into that exact directory (refused without `FORCE` when it already
 holds a run).
@@ -376,7 +404,7 @@ Environment requirements:
 - **offline / selfcheck** — nothing: scripted stubs, zero network (the offline
   reranker URL is an `offline-invalid` tripwire — a regression that re-enables
   reranking fails loudly instead of silently changing semantics).
-- **live** — `make benchmark-sidecars-up` first (an additive compose override
+- **live / analyze** — `make benchmark-sidecars-up` first (an additive compose override
   publishing the TEI embedder on `127.0.0.1:18081/v1` and the reranker on
   `127.0.0.1:18082`), plus a generator key: the recipe defaults to MiniMax
   (`GENERATOR_PROVIDER=minimax`, `GENERATOR_MODEL=minimax/MiniMax-M2.7`,

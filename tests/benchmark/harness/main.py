@@ -3,7 +3,7 @@
 
 """Benchmark CLI entry point (S6).
 
-Runs a benchmark corpus in one of three modes (offline / live / e2e),
+Runs a benchmark corpus in one of four modes (offline / live / analyze / e2e),
 writes the run directory (manifest, per-scenario artifacts, summary,
 report), and enforces fixture integrity for the offline mode.
 """
@@ -54,7 +54,7 @@ def main() -> None:
 @click.command(name="run")
 @click.option(
     "--mode",
-    type=click.Choice(["offline", "live", "e2e"]),
+    type=click.Choice(["offline", "live", "analyze", "e2e"]),
     default="offline",
     show_default=True,
     help="Benchmark mode.",
@@ -154,6 +154,19 @@ def run(
         return
     if mode == "live":
         _run_live(
+            corpus=corpus,
+            limit=limit,
+            repeat=repeat,
+            output_root=output_root,
+            out=out,
+            force=force,
+            warmup=not no_warmup,
+            fail_fast=fail_fast,
+            split=split,
+        )
+        return
+    if mode == "analyze":
+        _run_analyze(
             corpus=corpus,
             limit=limit,
             repeat=repeat,
@@ -310,6 +323,21 @@ def _offline_retrieval_config_dump() -> dict[str, Any]:
     return offline_retrieval_config().model_dump()
 
 
+def _effective_live_config(components: Any, limit: int | None, repeat: int) -> dict[str, Any]:
+    """Effective generator/retriever config recorded in the manifest."""
+    return {
+        "generator_provider": components.config.generator.provider,
+        "generator_model": components.config.generator.config.model,
+        "embedder_provider": components.config.embedder.provider,
+        "embedder_base_url": components.config.embedder.config.base_url,
+        "reranker_base_url": components.config.reranker.config.base_url,
+        "reasoning_enabled": components.config.reasoning.enabled,
+        "reasoning_fail_fast": components.config.reasoning.fail_fast,
+        "limit": limit,
+        "repeat": repeat,
+    }
+
+
 def _run_live(
     corpus: Any,
     limit: int | None,
@@ -331,6 +359,7 @@ def _run_live(
     handle.note("fail_fast", fail_fast)
     handle.note("split", split)
     scores: list[Any] = []
+    analysis_scores: list[Any] = []
     all_records: list[StageRecord] = []
     reasoning_health: dict[str, str] = {}
     effective_config: dict[str, Any] = {}
@@ -347,19 +376,10 @@ def _run_live(
                 )
             )
             reasoning_health = components.reasoning_health
-            effective_config = {
-                "generator_provider": components.config.generator.provider,
-                "generator_model": components.config.generator.config.model,
-                "embedder_provider": components.config.embedder.provider,
-                "embedder_base_url": components.config.embedder.config.base_url,
-                "reranker_base_url": components.config.reranker.config.base_url,
-                "reasoning_enabled": components.config.reasoning.enabled,
-                "reasoning_fail_fast": components.config.reasoning.fail_fast,
-                "limit": limit,
-                "repeat": repeat,
-            }
+            effective_config = _effective_live_config(components, limit, repeat)
             for outcome in outcomes:
                 scores.append(outcome.score)
+                analysis_scores.append(outcome.analysis_score)
                 all_records.extend(outcome.records)
                 handle.write_scenario(
                     outcome.scenario.scenario_id,
@@ -368,7 +388,14 @@ def _run_live(
                 )
                 latency_rows.append(_latency_row(outcome, repeat_index))
         arm_summary = summarize_arm("live", scores)
-        handle.write_summary({"live": arm_summary.to_dict(), "latency": _latency_summary(latency_rows)})
+        analyze_summary = summarize_arm("analyze", analysis_scores)
+        handle.write_summary(
+            {
+                "live": arm_summary.to_dict(),
+                "analyze": analyze_summary.to_dict(),
+                "latency": _latency_summary(latency_rows),
+            }
+        )
         handle.write_warmup(warmup_record)
         handle.write_manifest(
             corpus_sha=corpus.stats.corpus_sha256,
@@ -377,10 +404,16 @@ def _run_live(
             extra={
                 "reasoning_health": reasoning_health,
                 "warmup": warmup_record,
+                "arms": ["live", "analyze"],
+                "analyze_arm_provenance": (
+                    "paired same-run analysis score (no extra LLM call); scored on "
+                    "recommended_pattern_name/topology and preserved when the design leg fails"
+                ),
                 "failures": arm_summary.failures,
+                "analyze_failures": analyze_summary.failures,
             },
         )
-        handle.write_report({"live": arm_summary}, build_stage_table(all_records), [])
+        handle.write_report({"live": arm_summary, "analyze": analyze_summary}, build_stage_table(all_records), [])
     except ProviderDeathError as exc:
         handle.mark_aborted(f"ProviderDeathError: {exc}")
         click.echo(f"ABORTED — generator provider permanently failed: {exc}")
@@ -390,6 +423,7 @@ def _run_live(
         handle.mark_aborted(f"{type(exc).__name__}: {exc}")
         raise
     _echo_arm_summary(arm_summary)
+    _echo_arm_summary(analyze_summary, label="analyze (same-run, analysis leg only)")
     click.echo(f"reasoning_health: {reasoning_health or 'disabled'}")
     click.echo(f"run dir: {handle.dir}")
 
@@ -407,6 +441,17 @@ def _live_payload(outcome: Any) -> dict[str, Any]:
         "stage_records": [_record_dict(record) for record in outcome.records],
     }
     payload.update(_latency_block(outcome.records, outcome.e2e_ms))
+    analysis_score = outcome.analysis_score
+    payload["analysis_arm"] = {
+        "hit_at_1": analysis_score.hit_at_1,
+        "recall": {str(k): v for k, v in analysis_score.recall.items()},
+        "mrr": analysis_score.mrr,
+        "topology_hit": analysis_score.topology_hit,
+        "confidence": analysis_score.confidence,
+        "final_pattern_name": analysis_score.final_pattern_name,
+        "is_fallback": analysis_score.is_fallback,
+        "error": analysis_score.error,
+    }
     if outcome.run is not None:
         result = outcome.run.result
         payload.update(
@@ -422,6 +467,125 @@ def _live_payload(outcome: Any) -> dict[str, Any]:
                 "attempts": getattr(result, "attempts", None),
                 "matched_domains": [
                     dict(m) if not isinstance(m, dict) else m for m in (getattr(result, "matched_domains", None) or [])
+                ],
+            }
+        )
+    return payload
+
+
+def _run_analyze(
+    corpus: Any,
+    limit: int | None,
+    repeat: int,
+    output_root: Path,
+    out: Path | None = None,
+    force: bool = False,
+    warmup: bool = True,
+    fail_fast: bool = False,
+    split: str = "all",
+) -> None:
+    """Analyze mode: real pipeline, analysis leg only (no design generated).
+
+    The arm a coding agent takes when it writes the implementation itself:
+    retrieval + one analysis LLM call, then the agent codes. Scored on the
+    analysis recommendation (``recommended_pattern_name`` /
+    ``recommended_topology``) with the same hit/recall/MRR code as the full arm.
+    """
+    from tests.benchmark.harness.live import ProviderDeathError, run_analyze_corpus
+
+    mode = "analyze"
+    handle = RunHandle(output_root, mode, out_dir=out, force=force)
+    handle.note("repeat", repeat)
+    handle.note("warmup", warmup)
+    handle.note("fail_fast", fail_fast)
+    handle.note("split", split)
+    scores: list[Any] = []
+    all_records: list[StageRecord] = []
+    reasoning_health: dict[str, str] = {}
+    effective_config: dict[str, Any] = {}
+    warmup_record: dict[str, Any] = {"enabled": False}
+    latency_rows: list[dict[str, Any]] = []
+    try:
+        for repeat_index in range(1, repeat + 1):
+            outcomes, components, warmup_record = asyncio.run(
+                run_analyze_corpus(
+                    _select(corpus, limit, split),
+                    handle.recorder,
+                    warmup=warmup,
+                    fail_fast=fail_fast,
+                )
+            )
+            reasoning_health = components.reasoning_health
+            effective_config = _effective_live_config(components, limit, repeat)
+            for outcome in outcomes:
+                scores.append(outcome.score)
+                all_records.extend(outcome.records)
+                handle.write_scenario(
+                    outcome.scenario.scenario_id,
+                    repeat_index,
+                    _analyze_payload(outcome),
+                )
+                latency_rows.append(_latency_row(outcome, repeat_index))
+        arm_summary = summarize_arm("analyze", scores)
+        handle.write_summary({"analyze": arm_summary.to_dict(), "latency": _latency_summary(latency_rows)})
+        handle.write_warmup(warmup_record)
+        handle.write_manifest(
+            corpus_sha=corpus.stats.corpus_sha256,
+            scenario_set_sha=corpus.scenario_set_sha256(),
+            effective_config=effective_config,
+            extra={
+                "reasoning_health": reasoning_health,
+                "warmup": warmup_record,
+                "arms": ["analyze"],
+                "failures": arm_summary.failures,
+            },
+        )
+        handle.write_report({"analyze": arm_summary}, build_stage_table(all_records), [])
+    except ProviderDeathError as exc:
+        handle.mark_aborted(f"ProviderDeathError: {exc}")
+        click.echo(f"ABORTED — generator provider permanently failed: {exc}")
+        click.echo("Fix: top up the provider account or switch GENERATOR_* env (see tests/benchmark/README.md).")
+        raise SystemExit(EXIT_PROVIDER_DEAD) from exc
+    except Exception as exc:
+        handle.mark_aborted(f"{type(exc).__name__}: {exc}")
+        raise
+    _echo_arm_summary(arm_summary)
+    click.echo(f"reasoning_health: {reasoning_health or 'disabled'}")
+    click.echo(f"run dir: {handle.dir}")
+
+
+def _analyze_payload(outcome: Any) -> dict[str, Any]:
+    """Per-scenario analyze-arm artifact: analysis leg only, no design."""
+    scenario = outcome.scenario
+    score = outcome.score
+    payload: dict[str, Any] = {
+        "scenario_id": scenario.scenario_id,
+        "arm": "analyze",
+        "category": scenario.category,
+        "split": scenario.split,
+        "final_pattern_name": score.final_pattern_name,
+        "is_fallback": score.is_fallback,
+        "hit_at_1": score.hit_at_1,
+        "recall": {str(k): v for k, v in score.recall.items()},
+        "mrr": score.mrr,
+        "topology_hit": score.topology_hit,
+        "confidence": score.confidence,
+        "provenance": {"error": outcome.error},
+        "stage_records": [_record_dict(record) for record in outcome.records],
+    }
+    payload.update(_latency_block(outcome.records, outcome.e2e_ms))
+    if outcome.analysis is not None:
+        analysis = outcome.analysis
+        quality = getattr(analysis, "quality_metrics", None)
+        payload.update(
+            {
+                "recommended_topology": analysis.recommended_topology,
+                "recommended_pattern_name": analysis.recommended_pattern_name,
+                "selected_pattern_names": [str(p.get("name", "")) for p in analysis.selected_patterns],
+                "quality_metrics": quality.model_dump() if quality is not None else None,
+                "matched_domains": [
+                    m.model_dump() if hasattr(m, "model_dump") else dict(m)
+                    for m in (getattr(analysis, "matched_domains", None) or [])
                 ],
             }
         )
@@ -581,10 +745,11 @@ def _select(corpus: Any, limit: int | None, split: str) -> list[Any]:
 def _echo_arm_summary(summary: Any, label: str | None = None) -> None:
     """Print one arm's headline metrics, including recorded failures."""
     name = label or summary.arm
+    recall = "/".join(f"{summary.recall_mean.get(k, 0.0):.3f}" for k in range(1, 6))
     click.echo(
         f"{name}: n={summary.n} hits={summary.hits} hit_rate={summary.hit_rate:.3f}"
         f" mrr={summary.mrr_mean:.3f} topology={summary.topology_rate:.3f}"
-        f" f1={summary.acceptable_primary_f1:.3f}"
+        f" recall@1..5={recall} f1={summary.acceptable_primary_f1:.3f}"
     )
     if summary.failures:
         click.echo(f"  failed scenario runs: {len(summary.failures)}")

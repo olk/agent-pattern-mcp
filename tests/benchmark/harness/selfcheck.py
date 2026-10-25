@@ -66,7 +66,9 @@ def anchor_percentiles() -> bool:
 def anchor_wilson() -> bool:
     """Anchor 4: Wilson interval against known values."""
     lo, hi = wilson_interval(8, 10)
-    ok = _check("Wilson 8/10 in [0.490, 0.943]", abs(lo - 0.490) < 1e-3 and abs(hi - 0.943) < 1e-3, f"got {lo:.4f}, {hi:.4f}")
+    ok = _check(
+        "Wilson 8/10 in [0.490, 0.943]", abs(lo - 0.490) < 1e-3 and abs(hi - 0.943) < 1e-3, f"got {lo:.4f}, {hi:.4f}"
+    )
     return bool(ok)
 
 
@@ -179,9 +181,7 @@ def anchor_topology_catalog() -> bool:
         entry = catalog.get(winner)
         if entry is None or entry.get("topology") != catalog.get(winner, {}).get("topology"):
             ok = False
-    ok &= _check(
-        f"primary topology readable from catalog for all {len(corpus.scenarios)} scenarios", ok
-    )
+    ok &= _check(f"primary topology readable from catalog for all {len(corpus.scenarios)} scenarios", ok)
     return bool(ok)
 
 
@@ -196,12 +196,9 @@ def anchor_offline_fixture() -> bool:
     """
     corpus = load_corpus()
     results = asyncio.run(run_corpus(corpus, ["normal", "flipped"]))
-    violations = check_integrity(
-        [(item.run.arm, item.run.scenario, item.run.score) for item in results]
-    )
+    violations = check_integrity([(item.run.arm, item.run.scenario, item.run.score) for item in results])
     ok = _check(
-        f"offline fixture over all {len(corpus.scenarios)} scenarios: "
-        "normal hits / flipped misses",
+        f"offline fixture over all {len(corpus.scenarios)} scenarios: normal hits / flipped misses",
         not violations,
         "; ".join(violations[:3]),
     )
@@ -245,7 +242,7 @@ def anchor_provider_death() -> bool:
 
     dead = [
         (
-            'LLMError: LLM provider deepseek error: ERR_009 - litellm.BadRequestError: DeepseekException - '
+            "LLMError: LLM provider deepseek error: ERR_009 - litellm.BadRequestError: DeepseekException - "
             '{"error":{"message":"Insufficient Balance (request_id: b5b0466d-1ced-4e03-960e-bec2955f2ccd)",'
             '"type":"unknown_error","param":null,"code":"invalid_request_error"}}'
         ),
@@ -254,7 +251,7 @@ def anchor_provider_death() -> bool:
         (
             "litellm.APIConnectionError: MinimaxException - "
             '{"type":"error","error":{"type":"authorized_error","message":"login fail: Please carry '
-            'the API secret key in the \'Authorization\' field of the request header (1004)",'
+            "the API secret key in the 'Authorization' field of the request header (1004)\","
             '"http_code":"401"},"request_id":"070c5d498c49c2f41ef47782c804279e"}.'
         ),
     ]
@@ -292,9 +289,7 @@ def anchor_tolerant_runner() -> bool:
 
     offline._run_single = _boom  # type: ignore[assignment]
     try:
-        outcomes = asyncio.run(
-            offline.run_corpus_tolerant(corpus.scenarios[:2], ["normal"])
-        )
+        outcomes = asyncio.run(offline.run_corpus_tolerant(corpus.scenarios[:2], ["normal"]))
     finally:
         offline._run_single = original  # type: ignore[assignment]
     ok = _check(
@@ -304,9 +299,7 @@ def anchor_tolerant_runner() -> bool:
     )
     offline._run_single = _boom  # type: ignore[assignment]
     try:
-        asyncio.run(
-            offline.run_corpus_tolerant(corpus.scenarios[:1], ["normal"], fail_fast=True)
-        )
+        asyncio.run(offline.run_corpus_tolerant(corpus.scenarios[:1], ["normal"], fail_fast=True))
     except RuntimeError:
         raised = True
     else:
@@ -321,9 +314,7 @@ def anchor_compare_verdicts() -> bool:
     """Pre-registered rule: holdout-scoped floor, unmeasured speed = inconclusive."""
     from tests.benchmark.harness.compare import CompareRefusal, compare_runs
 
-    def _run(
-        sid: str, split: str, hit: bool, ms: float | None, *, error: str | None = None
-    ) -> dict[str, Any]:
+    def _run(sid: str, split: str, hit: bool, ms: float | None, *, error: str | None = None) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "scenario_id": sid,
             "category": "c",
@@ -349,32 +340,33 @@ def anchor_compare_verdicts() -> bool:
         }
         cand = {
             "manifest": {"run_id": "cand", "mode": "e2e", "corpus_sha256": "x"},
-            "scenarios": {
-                f"h{i}#1": _run(f"h{i}", split, cand_hit, cand_ms, error=error)
-                for i in range(4)
-            },
+            "scenarios": {f"h{i}#1": _run(f"h{i}", split, cand_hit, cand_ms, error=error) for i in range(4)},
         }
         return base, cand
 
     base, cand = _arms(cand_ms=500.0, cand_hit=True)
     win = compare_runs(base, cand)
-    ok = _check("win: 50% holdout p95 gain + matching hit rate",
-                win.verdict == "candidate_wins", win.verdict)
+    ok = _check("win: 50% holdout p95 gain + matching hit rate", win.verdict == "candidate_wins", win.verdict)
 
     base, cand = _arms(cand_ms=950.0, cand_hit=True)
     loss = compare_runs(base, cand)
-    ok &= _check("loss: a 5% gain is below the 15% threshold",
-                 loss.verdict == "candidate_loses", loss.verdict)
+    ok &= _check("loss: a 5% gain is below the 15% threshold", loss.verdict == "candidate_loses", loss.verdict)
 
     base, cand = _arms(cand_ms=None, cand_hit=True)
     unmeasured = compare_runs(base, cand)
-    ok &= _check("inconclusive (never a loss) when p95 was not measured",
-                  unmeasured.verdict == "inconclusive", unmeasured.verdict)
+    ok &= _check(
+        "inconclusive (never a loss) when p95 was not measured",
+        unmeasured.verdict == "inconclusive",
+        unmeasured.verdict,
+    )
 
     base, cand = _arms(cand_ms=500.0, cand_hit=False)
     below = compare_runs(base, cand)
-    ok &= _check("loss when the holdout hit rate falls below the baseline floor",
-                 below.verdict == "candidate_loses", below.verdict)
+    ok &= _check(
+        "loss when the holdout hit rate falls below the baseline floor",
+        below.verdict == "candidate_loses",
+        below.verdict,
+    )
 
     base, cand = _arms(cand_ms=500.0, cand_hit=True, error="LLMError: boom")
     try:
@@ -385,13 +377,13 @@ def anchor_compare_verdicts() -> bool:
         refused = False
     ok &= _check("refusal when an arm recorded failed runs", refused)
     allowed = compare_runs(base, cand, allow_mismatch=True)
-    ok &= _check("--allow-mismatch overrides the failed-run refusal",
-                 allowed.verdict != "")
+    ok &= _check("--allow-mismatch overrides the failed-run refusal", allowed.verdict != "")
 
     train_only, cand_train = _arms(cand_ms=500.0, cand_hit=True, split="train")
     no_holdout = compare_runs(train_only, cand_train)
-    ok &= _check("inconclusive when the holdout split has no pairs",
-                 no_holdout.verdict == "inconclusive", no_holdout.verdict)
+    ok &= _check(
+        "inconclusive when the holdout split has no pairs", no_holdout.verdict == "inconclusive", no_holdout.verdict
+    )
     return bool(ok)
 
 
@@ -414,12 +406,13 @@ def anchor_nested_attribution() -> bool:
     time.sleep(0.02)
     add_nested_time(12_000_000)  # 12 ms of nested (separately attributed) work
     record = exclusive_record(
-        STAGE_RETRIEVAL_FUSED, "HybridPatternRetriever.retrieve", started,
-        ok=True, meta={"user_domain": "d"},
+        STAGE_RETRIEVAL_FUSED,
+        "HybridPatternRetriever.retrieve",
+        started,
+        ok=True,
+        meta={"user_domain": "d"},
     )
-    nested = StageRecord(
-        STAGE_RERANKING, "SafeTEIReranker.postprocess_nodes", started, 12.0, True, {}
-    )
+    nested = StageRecord(STAGE_RERANKING, "SafeTEIReranker.postprocess_nodes", started, 12.0, True, {})
     ok = _check(
         "enclosing record subtracts nested time",
         record.meta.get("nested_ms") == 12.0 and abs(record.duration_ms - 8.0) < 5.0,
@@ -437,9 +430,7 @@ def anchor_nested_attribution() -> bool:
     )
     ok &= _check(
         "a top-level call keeps its own duration (no open frame, no charge)",
-        pop_nested_frame_ns() == 0
-        and add_nested_time(5_000_000) is None
-        and pop_nested_frame_ns() == 0,
+        pop_nested_frame_ns() == 0 and add_nested_time(5_000_000) is None and pop_nested_frame_ns() == 0,
     )
     return bool(ok)
 
@@ -497,8 +488,9 @@ def anchor_live_dispatch() -> bool:
         out_dir = Path(tmp) / "explicit"
         live_module.run_live_corpus = _capture  # type: ignore[assignment]
         try:
-            _run_live(corpus=corpus, limit=1, repeat=1, output_root=Path(tmp),
-                      out=out_dir, warmup=False, split="holdout")
+            _run_live(
+                corpus=corpus, limit=1, repeat=1, output_root=Path(tmp), out=out_dir, warmup=False, split="holdout"
+            )
         finally:
             live_module.run_live_corpus = original  # type: ignore[assignment]
         ok &= _check(
@@ -531,8 +523,7 @@ def anchor_f1_and_aurc() -> bool:
         abs(area_under_risk_coverage(scores) - 0.25) < 1e-9,
         f"aurc={area_under_risk_coverage(scores)}",
     )
-    ok &= _check("risk@100 = full-coverage miss rate",
-                 abs(risk_at_coverage(scores, 1.0) - 0.5) < 1e-9)
+    ok &= _check("risk@100 = full-coverage miss rate", abs(risk_at_coverage(scores, 1.0) - 0.5) < 1e-9)
     ok &= _check("AURC of an empty arm is None (not 0.0)", area_under_risk_coverage([]) is None)
     return bool(ok)
 
@@ -551,8 +542,13 @@ def _scenario(scenario_id: str) -> Any:
         decoy_domains=["e-commerce"],
         scripted_weights=dict.fromkeys(
             (
-                "reliability", "cost_efficiency", "latency", "output_quality",
-                "observability", "safety", "simplicity",
+                "reliability",
+                "cost_efficiency",
+                "latency",
+                "output_quality",
+                "observability",
+                "safety",
+                "simplicity",
             ),
             1 / 7,
         ),
@@ -572,13 +568,23 @@ def anchor_stage_residual() -> bool:
     )
 
     recorder = StageRecorder()
-    samples = [("llm.weights", 10.0), ("llm.generate", 5.0), ("llm.weights", 20.0),
-               ("llm.weights", 30.0), ("llm.weights", 40.0), (STAGE_BUILD_EMBED, 900.0)]
+    samples = [
+        ("llm.weights", 10.0),
+        ("llm.generate", 5.0),
+        ("llm.weights", 20.0),
+        ("llm.weights", 30.0),
+        ("llm.weights", 40.0),
+        (STAGE_BUILD_EMBED, 900.0),
+    ]
     for index, (stage, ms) in enumerate(samples):
         recorder.add(
             StageRecord(
-                stage=stage, op=f"{stage}.seam", started_ns=index,
-                duration_ms=ms, ok=True, meta={},
+                stage=stage,
+                op=f"{stage}.seam",
+                started_ns=index,
+                duration_ms=ms,
+                ok=True,
+                meta={},
             )
         )
     table = stage_table(recorder.records)
@@ -590,8 +596,7 @@ def anchor_stage_residual() -> bool:
     )
     ok &= _check(
         "residual = e2e - stage total (negative only on overlap)",
-        abs(residual_ms(205.0, table) - 100.0) < 1e-6
-        and abs(residual_ms(50.0, table) + 55.0) < 1e-6,
+        abs(residual_ms(205.0, table) - 100.0) < 1e-6 and abs(residual_ms(50.0, table) + 55.0) < 1e-6,
     )
     ok &= _check(
         "negative residual carries an overlap note",
@@ -607,6 +612,165 @@ def anchor_stage_residual() -> bool:
         and row["ops"] == {"llm.weights.seam": 4},
         f"row={row}",
     )
+    return bool(ok)
+
+
+def anchor_arm_recall_mean() -> bool:
+    """Arm-level recall is the mean of the per-scenario recall@K curves."""
+    a = score_scenario("a", ["p1", "p2"], "t", ["p1", "x"], 0.9, "p1", "t", False)
+    b = score_scenario("b", ["p1", "p2"], "t", ["p2", "p1"], 0.8, "", "t", False)
+    summary = summarize_arm("analyze", [a, b])
+    expected = {1: 0.5, 2: 0.75, 3: 0.75, 4: 0.75, 5: 0.75}
+    ok = _check(
+        "arm recall@1..5 averages per-scenario recall",
+        all(abs(summary.recall_mean[k] - expected[k]) < 1e-12 for k in expected),
+        str(summary.recall_mean),
+    )
+    ok &= _check("arm summary carries recall_mean in to_dict", "recall_mean" in summary.to_dict())
+    return bool(ok)
+
+
+def anchor_analyze_dispatch() -> bool:
+    """``--mode analyze`` runs the analysis corpus and scores its recommendation.
+
+    Mirrors the live-dispatch anchor: a mode that is accepted but never
+    forwarded (or a scorer that reads the design fields) must fail here.
+    """
+    import tempfile
+
+    from tests.benchmark.harness import live as live_module
+    from tests.benchmark.harness.main import _run_analyze
+
+    corpus = load_corpus()
+    scenario = next(s for s in corpus.scenarios if s.split == "holdout")
+    analysis = SimpleNamespace(
+        selected_patterns=[{"name": scenario.acceptable_primary[0], "blended_score": 0.9}],
+        recommended_pattern_name=scenario.acceptable_primary[0],
+        recommended_topology="single-agent-loop",
+        is_fallback=False,
+        quality_metrics=None,
+        matched_domains=[],
+    )
+    score = score_scenario(
+        scenario_id=scenario.scenario_id,
+        primaries=scenario.acceptable_primary,
+        winner_topology="single-agent-loop",
+        selected_names=[scenario.acceptable_primary[0]],
+        top_blended_score=0.9,
+        final_pattern_name=analysis.recommended_pattern_name,
+        final_topology=analysis.recommended_topology,
+        is_fallback=False,
+    )
+    outcome = live_module.AnalyzeOutcome(
+        scenario=scenario,
+        analysis=analysis,
+        score=score,
+        records=[],
+        error=None,
+        e2e_ms=1.0,
+    )
+
+    def _stub_config() -> SimpleNamespace:
+        return SimpleNamespace(
+            generator=SimpleNamespace(provider="deepseek", config=SimpleNamespace(model="m")),
+            embedder=SimpleNamespace(provider="tei", config=SimpleNamespace(base_url="u")),
+            reranker=SimpleNamespace(config=SimpleNamespace(base_url="r")),
+            reasoning=SimpleNamespace(enabled=False, fail_fast=False),
+        )
+
+    async def _capture(scenarios: Any, recorder: Any, **kwargs: Any) -> tuple[Any, Any, Any]:
+        return (
+            [outcome],
+            SimpleNamespace(reasoning_health={}, config=_stub_config()),
+            {"enabled": False},
+        )
+
+    original_analyze = live_module.run_analyze_corpus
+    original_live = live_module.run_live_corpus
+    live_module.run_analyze_corpus = _capture  # type: ignore[assignment]
+
+    async def _must_not_run(scenarios: Any, recorder: Any, **kwargs: Any) -> None:
+        raise AssertionError("analyze mode must not run the full design arm")
+
+    live_module.run_live_corpus = _must_not_run  # type: ignore[assignment]
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            _run_analyze(
+                corpus=corpus,
+                limit=1,
+                repeat=1,
+                output_root=Path(tmp),
+                warmup=False,
+                split="holdout",
+            )
+            run_dir = next(Path(tmp).glob("bench-analyze-*"))
+            manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+            summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+            artifact = json.loads(
+                (run_dir / "scenarios" / f"{scenario.scenario_id}#1.json").read_text(encoding="utf-8")
+            )
+    finally:
+        live_module.run_analyze_corpus = original_analyze  # type: ignore[assignment]
+        live_module.run_live_corpus = original_live  # type: ignore[assignment]
+
+    ok = _check("analyze mode records mode=analyze", manifest.get("mode") == "analyze")
+    ok &= _check(
+        "analyze mode summarizes only the analyze arm",
+        "analyze" in summary and "live" not in summary,
+        str(sorted(summary)),
+    )
+    ok &= _check(
+        "analyze artifact scores the recommendation, not a design",
+        artifact.get("arm") == "analyze"
+        and artifact.get("recommended_pattern_name") == scenario.acceptable_primary[0]
+        and artifact.get("hit_at_1") is True,
+        str(artifact.get("recommended_pattern_name")),
+    )
+    return bool(ok)
+
+
+def anchor_design_failure_keeps_analysis() -> bool:
+    """A design-phase failure must not erase the analysis arm's score."""
+    from tests.benchmark.harness import live as live_module
+    from tests.benchmark.harness.probes import StageRecorder
+
+    corpus = load_corpus()
+    scenario = corpus.scenarios[0]
+    analysis = SimpleNamespace(
+        selected_patterns=[{"name": scenario.acceptable_primary[0], "blended_score": 0.9}],
+        recommended_pattern_name=scenario.acceptable_primary[0],
+        recommended_topology="single-agent-loop",
+        is_fallback=False,
+    )
+
+    class _Pipeline:
+        async def analyze(self, **kwargs: Any) -> Any:
+            return analysis
+
+        async def run_design(self, **kwargs: Any) -> Any:
+            raise RuntimeError("design exploded")
+
+    class _Components:
+        pipeline = _Pipeline()
+        config = SimpleNamespace()
+        reasoning_health: dict[str, str] = {}
+        reasoning_client = None
+
+    try:
+        asyncio.run(live_module.run_live_scenario(scenario, _Components(), StageRecorder()))  # type: ignore[arg-type]
+    except live_module.DesignPhaseError as exc:
+        ok = _check(
+            "design failure carries the successful analysis",
+            exc.analysis is analysis,
+            str(exc),
+        )
+        ok &= _check(
+            "design failure keeps the original cause text",
+            str(exc) == "RuntimeError: design exploded",
+            str(exc),
+        )
+    else:
+        ok = _check("design failure carries the successful analysis", False, "no exception raised")
     return bool(ok)
 
 
@@ -632,6 +796,9 @@ def run_selfchecks() -> bool:
     ok &= anchor_compare_verdicts()
     ok &= anchor_nested_attribution()
     ok &= anchor_live_dispatch()
+    ok &= anchor_arm_recall_mean()
+    ok &= anchor_analyze_dispatch()
+    ok &= anchor_design_failure_keeps_analysis()
     return bool(ok)
 
 

@@ -216,6 +216,7 @@ class ArmSummary:
     risk_at_80: float | None = None
     risk_at_90: float | None = None
     risk_at_100: float | None = None
+    recall_mean: dict[int, float] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, object]:
         """JSON-safe dict for manifest/report writing."""
@@ -248,6 +249,7 @@ class ArmSummary:
             "risk_at_80": self.risk_at_80,
             "risk_at_90": self.risk_at_90,
             "risk_at_100": self.risk_at_100,
+            "recall_mean": {str(k): v for k, v in self.recall_mean.items()},
             "failures": self.failures,
         }
 
@@ -256,9 +258,19 @@ def summarize_arm(arm: str, scores: list[ScenarioScore]) -> ArmSummary:
     """Aggregate one arm's scores into summary statistics."""
     n = len(scores)
     if n == 0:
-        return ArmSummary(arm=arm, n=0, hits=0, hit_rate=0.0, wilson_low=0.0,
-                          wilson_high=0.0, mrr_mean=0.0, topology_rate=0.0,
-                          brier=0.0, ece=0.0)
+        return ArmSummary(
+            arm=arm,
+            n=0,
+            hits=0,
+            hit_rate=0.0,
+            wilson_low=0.0,
+            wilson_high=0.0,
+            mrr_mean=0.0,
+            topology_rate=0.0,
+            brier=0.0,
+            ece=0.0,
+            recall_mean=dict.fromkeys(range(1, 6), 0.0),
+        )
     hits = sum(1 for s in scores if s.hit_at_1)
     low, high = wilson_interval(hits, n)
     p50, p95, note = percentiles([s.mrr for s in scores])
@@ -279,14 +291,13 @@ def summarize_arm(arm: str, scores: list[ScenarioScore]) -> ArmSummary:
         mrr_p50=p50,
         mrr_p95=p95,
         percentile_note=note,
-        failures=[
-            f"{s.scenario_id}: {s.error}" for s in scores if s.error is not None
-        ],
+        failures=[f"{s.scenario_id}: {s.error}" for s in scores if s.error is not None],
         acceptable_primary_f1=sum(s.acceptable_primary_f1 for s in scores) / n,
         aurc=area_under_risk_coverage(scores),
         risk_at_80=risk_at_coverage(scores, 0.80),
         risk_at_90=risk_at_coverage(scores, 0.90),
         risk_at_100=risk_at_coverage(scores, 1.00),
+        recall_mean={k: sum(s.recall.get(k, 0.0) for s in scores) / n for k in range(1, 6)},
     )
 
 
@@ -361,14 +372,10 @@ def brier_score(confidences: list[float], correctness: list[float]) -> float:
     """Mean squared error of confidence against binary correctness."""
     if not confidences or len(confidences) != len(correctness):
         return 0.0
-    return sum((c - y) ** 2 for c, y in zip(confidences, correctness, strict=True)) / len(
-        confidences
-    )
+    return sum((c - y) ** 2 for c, y in zip(confidences, correctness, strict=True)) / len(confidences)
 
 
-def reliability_curve(
-    confidences: list[float], correctness: list[float], bins: int = 10
-) -> list[ReliabilityBin]:
+def reliability_curve(confidences: list[float], correctness: list[float], bins: int = 10) -> list[ReliabilityBin]:
     """Equal-width reliability bins over [0, 1] confidence."""
     if not confidences or len(confidences) != len(correctness):
         return []
@@ -396,9 +403,7 @@ def reliability_curve(
     return curve
 
 
-def expected_calibration_error(
-    confidences: list[float], correctness: list[float], bins: int = 10
-) -> float:
+def expected_calibration_error(confidences: list[float], correctness: list[float], bins: int = 10) -> float:
     """ECE: confidence-weighted absolute gap between accuracy and confidence."""
     curve = reliability_curve(confidences, correctness, bins)
     total = len(confidences)
@@ -442,9 +447,7 @@ def risk_coverage_curve(scores: list[ScenarioScore]) -> list[RiskCoveragePoint]:
     return curve
 
 
-def risk_coverage_elbow(
-    scores: list[ScenarioScore], risk_budget: float = 0.0
-) -> RiskCoveragePoint | None:
+def risk_coverage_elbow(scores: list[ScenarioScore], risk_budget: float = 0.0) -> RiskCoveragePoint | None:
     """Highest-coverage point whose risk stays within ``risk_budget``.
 
     Returns ``None`` when even full coverage exceeds the budget.
