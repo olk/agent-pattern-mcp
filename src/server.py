@@ -411,6 +411,7 @@ class MCPAgentPatternServer:
                 agent=self._agent,
                 pattern_loader=self._pattern_loader,
                 embedder=embedder,
+                embedder_config=embedder_cfg,
                 retrieval_config=self._config.retrieval,
                 reasoning_client=self._reasoning_client,
                 pipeline_config=self._config.pipeline,

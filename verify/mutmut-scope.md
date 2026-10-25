@@ -16,6 +16,7 @@
 | `src/design_normalization.py` | `tests/unit/test_normalization.py`, `tests/verification/test_normalization_idempotence.py` | N-1..N-4 dedup/idempotence over the agent contract keys |
 | `src/tools/jobs.py` | `tests/unit/test_jobs.py` (exhaustive 4×5 guarded transition matrix), `tests/verification/test_jobs_properties.py` | W0-1 guard automaton; J-1..J-4 |
 | `src/validation.py` | `tests/unit/test_validation.py`, `tests/verification/test_jobs_properties.py` (E5 retry oracle) | self-healing retry bounding + error formatting |
+| `src/patterns/embedding_cache.py` *(new — embedding-index snapshot)* | `tests/unit/test_embedding_cache.py` (direct kill oracle: env/off-switch resolution, per-field fingerprint sensitivity, manifest shape/version validation, probe cosine/dim/zero-norm, warm-start embed accounting through `_build_retrievers`) + L4 `embedding_cache.fizz` (EMB-1..4, FG-34..37) | invalidation IS a correctness contract: a dropped guard silently reuses foreign vectors (probe mismatch) or never rebuilds (corpus/fingerprint change); a persist failure must never discard the built index. Scope entered 2026-10-25 with its dedicated oracle; baseline refreshed the same day (161/245 killed, 65.7%). |
 
 ## Deferred — awaiting dedicated kill oracles (scope growth backlog)
 

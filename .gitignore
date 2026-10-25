@@ -185,3 +185,8 @@ verify/fizz/out/
 # benchmark run artifacts (regenerable per run)
 data/benchmark-runs/
 benchmarks/
+
+# embedding-index cache snapshots (runtime artifact of the dense retrieval leg).
+# Containers use the named `embedding-index` volume, not this path; the rule
+# covers host runs and deployments still carrying the pre-volume env value.
+config/embedding-index/

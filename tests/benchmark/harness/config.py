@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import secrets
 from datetime import UTC, datetime
 from pathlib import Path
@@ -44,6 +45,23 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.config import RerankerConfig, RerankerInnerConfig, RetrievalConfig
+
+#: Env var of the dense-leg embedding-index snapshot cache
+#: (src/patterns/embedding_cache.py).
+EMBEDDING_CACHE_ENV = "EMBEDDING_CACHE"
+
+
+def disable_embedding_cache() -> None:
+    """Pin the embedding-index snapshot cache OFF for this process.
+
+    The cache is a warm-start optimisation, not a benchmark variable: an arm
+    that loaded the previous arm's snapshot would skip ``build.embed``, so
+    arm-vs-arm timing would compare a cold start against a warm one, and the
+    snapshot would be written into (and later invalidated in) the operator's
+    own ``~/.config/agent-pattern-mcp/embedding-index``.
+    """
+    os.environ[EMBEDDING_CACHE_ENV] = "0"
+
 
 _HARNESS_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _HARNESS_DIR.parents[2]
@@ -115,9 +133,7 @@ def _resolve_ref(schema: dict[str, Any], ref: str) -> dict[str, Any]:
     return target
 
 
-def _validate_leaf(
-    instance: Any, schema: dict[str, Any], path: str
-) -> list[str] | None:
+def _validate_leaf(instance: Any, schema: dict[str, Any], path: str) -> list[str] | None:
     """Validate scalar keywords (``type``/``enum``/``minLength``/``minItems``).
 
     Returns the error list when a ``type`` mismatch short-circuits the walk,
@@ -131,9 +147,7 @@ def _validate_leaf(
             raise TypeError(msg)
         if not _type_ok(instance, expected_type):
             rendered = expected_type if isinstance(expected_type, str) else "/".join(expected_type)
-            return [
-                f"{path or '<root>'}: expected type {rendered}, got {type(instance).__name__}"
-            ]
+            return [f"{path or '<root>'}: expected type {rendered}, got {type(instance).__name__}"]
 
     if "enum" in schema and instance not in schema["enum"]:
         errors.append(f"{path or '<root>'}: {instance!r} not in enum {schema['enum']!r}")
@@ -240,9 +254,9 @@ class Corpus:
 
     def scenario_set_sha256(self) -> str:
         """Stable hash over the canonical JSON of the scenario list."""
-        payload = json.dumps(
-            [s.model_dump() for s in self.scenarios], sort_keys=True, separators=(",", ":")
-        ).encode("utf-8")
+        payload = json.dumps([s.model_dump() for s in self.scenarios], sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
         return hashlib.sha256(payload).hexdigest()
 
 
@@ -303,9 +317,7 @@ def _slug_categories(pattern_dir: Path) -> dict[str, set[str]]:
     return slug_cats
 
 
-def _cross_check(
-    scenarios: list[BenchmarkScenario], pattern_dir: Path
-) -> list[str]:
+def _cross_check(scenarios: list[BenchmarkScenario], pattern_dir: Path) -> list[str]:
     """Semantic checks the JSON schema cannot express."""
     problems: list[str] = []
     catalog = _load_catalog(pattern_dir)
@@ -326,30 +338,21 @@ def _cross_check(
             # Only the winner (primary[0]) must carry the scenario category:
             # listed alternates exist as supporting candidates and may come
             # from other categories.
-            if name == scenario.acceptable_primary[0] and catalog[name].get(
-                "category"
-            ) != scenario.category:
+            if name == scenario.acceptable_primary[0] and catalog[name].get("category") != scenario.category:
                 problems.append(
                     f"{sid}: primary {name!r} category {catalog[name].get('category')!r}"
                     f" != scenario category {scenario.category!r}"
                 )
 
-        if scenario.domain not in catalog.get(primaries_next(scenario), {}).get(
-            "suitable_domains", []
-        ):
+        if scenario.domain not in catalog.get(primaries_next(scenario), {}).get("suitable_domains", []):
             problems.append(
-                f"{sid}: domain {scenario.domain!r} not in suitable_domains of"
-                f" primary {primaries_next(scenario)!r}"
+                f"{sid}: domain {scenario.domain!r} not in suitable_domains of primary {primaries_next(scenario)!r}"
             )
 
         # A decoy must not carry ANY pattern whose category is one of the
         # categories of this scenario's acceptable_primary patterns: the
         # labelled primary's own category must not be reachable via a decoy.
-        primary_categories = {
-            str(catalog[name].get("category", ""))
-            for name in primaries
-            if name in catalog
-        }
+        primary_categories = {str(catalog[name].get("category", "")) for name in primaries if name in catalog}
         for slug in scenario.decoy_domains:
             leak = slug_cats.get(slug, set()) & primary_categories
             if leak:

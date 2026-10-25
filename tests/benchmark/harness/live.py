@@ -20,7 +20,7 @@ from typing import Any
 
 import litellm
 
-from tests.benchmark.harness.config import PATTERN_DIR, BenchmarkScenario
+from tests.benchmark.harness.config import PATTERN_DIR, BenchmarkScenario, disable_embedding_cache
 from tests.benchmark.harness.offline import ScenarioRun, _catalog
 from tests.benchmark.harness.probes import (
     OP_WARMUP_INDEXES,
@@ -117,9 +117,7 @@ async def preflight_generator(config: Any, timeout_s: float = 90.0) -> None:
     except Exception as exc:  # noqa: BLE001 — classified, else conservative pass
         text = f"{type(exc).__name__}: {exc}"
         if is_permanent_provider_death(text):
-            raise ProviderDeathError(
-                f"generator provider permanently failed preflight: {text}"
-            ) from exc
+            raise ProviderDeathError(f"generator provider permanently failed preflight: {text}") from exc
 
 
 @dataclass(frozen=True)
@@ -146,6 +144,9 @@ def load_server_config() -> Any:
 
 async def build_live_components(recorder: StageRecorder) -> LiveComponents:
     """Assemble the real pipeline with probes attached (mirrors server init)."""
+    # Every arm measures the cold embed path; a snapshot hit would report a
+    # warm start under ``build.embed`` and leak into the operator's cache dir.
+    disable_embedding_cache()
     from src.agent import AgentSystemArchitect
     from src.pipeline import AgentPatternPipeline
     from src.patterns.embedder import build_embedder
@@ -188,6 +189,7 @@ async def build_live_components(recorder: StageRecorder) -> LiveComponents:
         # resolve_embed_model), which any __getattr__ wrapper fails. Embedding
         # call attribution is covered indirectly by retriever/rerank stages.
         embedder=embedder,
+        embedder_config=embedder_cfg,
         retrieval_config=config.retrieval,
         reranker_config=config.reranker,
         reasoning_client=reasoning_probe,  # type: ignore[arg-type]
@@ -324,9 +326,7 @@ async def run_live_corpus(
                     raise
                 error = f"{type(exc).__name__}: {exc}"
                 if is_permanent_provider_death(error):
-                    raise ProviderDeathError(
-                        f"generator provider died mid-run: {error}"
-                    ) from exc
+                    raise ProviderDeathError(f"generator provider died mid-run: {error}") from exc
                 outcomes.append(
                     LiveOutcome(
                         scenario=scenario,

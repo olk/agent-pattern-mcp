@@ -25,7 +25,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LEDGER = REPO_ROOT / "verify/fizz/README.md"
 
-ID_PATTERN = re.compile(r"\b(?:J|P|FP|FC|RUN|C|E5F|TEI|RET|FUS|DL|N)-\d+\b")
+ID_PATTERN = re.compile(r"\b(?:J|P|FP|FC|RUN|C|E5F|TEI|RET|FUS|DL|N|EMB)-\d+\b")
 # A ledger row is a table row whose FIRST cell is a backticked property ID
 # (possibly a range, e.g. `N-1..N-4`). Anchoring on the first cell keeps the
 # Models table (whose first cell is a backticked model name) from shadowing
@@ -85,9 +85,7 @@ def main() -> int:
         for prop_id in ids:
             referenced.add(prop_id)
             if prop_id not in rows:
-                failures.append(
-                    f"UNMAPPED: {prop_id} referenced in {path} has no ledger row"
-                )
+                failures.append(f"UNMAPPED: {prop_id} referenced in {path} has no ledger row")
 
     for prop_id, row in sorted(rows.items()):
         lowered = row.lower()
@@ -95,8 +93,7 @@ def main() -> int:
         appears = any(prop_id in ids for ids in artifacts.values())
         if not appears and not deferred:
             failures.append(
-                f"DANGLING: ledger row {prop_id} references no existing artifact "
-                "and is not marked planned/n/a"
+                f"DANGLING: ledger row {prop_id} references no existing artifact and is not marked planned/n/a"
             )
 
     if failures:
@@ -106,10 +103,7 @@ def main() -> int:
         print(f"\nLedger rows: {len(rows)}; artifact references: {len(referenced)}")
         return 1
 
-    print(
-        f"ledger consistent: {len(rows)} rows, "
-        f"{len(referenced)} referenced IDs, {len(artifacts)} artifacts checked"
-    )
+    print(f"ledger consistent: {len(rows)} rows, {len(referenced)} referenced IDs, {len(artifacts)} artifacts checked")
     return 0
 
 

@@ -427,7 +427,7 @@ agent-pattern-mcp --transport stdio
 
 The TEI embedder (Qwen3-Embedding-0.6B) is required for domain-scoped pattern retrieval. Without it, the server falls back to the default pattern. Docker compose starts it automatically; local users must run it separately on port 8080.
 
-The retrieval indexes (FAISS + BM25) are built at server startup so a misconfigured or unreachable TEI sidecar prevents startup (fail-fast) rather than breaking the user's first design request. Docker compose's `service_healthy` dependency ordering guarantees TEI is ready before the app starts.
+The retrieval legs are built at server startup: BM25 always, the FAISS dense leg from the [embedding-index cache](#embedding-index-cache-dense-retrieval-snapshot) when a valid snapshot exists (otherwise embedded from scratch). Startup stays fail-fast — every start makes one probe embedding call, so a misconfigured or unreachable TEI sidecar aborts warmup rather than breaking the user's first design request. Docker compose's `service_healthy` dependency ordering guarantees TEI is ready before the app starts.
 
 > **TEI startup:** both sidecar images (`docker/Dockerfile.tei-embed`, `docker/Dockerfile.tei-rerank`) ship a self-built TEI router (v1.9.4 + unmerged [PR #884](https://github.com/huggingface/text-embeddings-inference/pull/884)) with `WARMUP_TOKENS=0` by default — this skips the synthetic warmup pass (measured ~131 s embed / ~78 s rerank) so containers become ready after weight load only. Override per sidecar via `TEI_WARMUP_TOKENS` / `TEI_RERANK_WARMUP_TOKENS` (positive N warms with N tokens instead; values > `MAX_BATCH_TOKENS` are rejected at startup).
 
@@ -514,6 +514,7 @@ If the configured model already contains a provider prefix (e.g. `openai/gpt-4o-
 | `EMBEDDER_BATCH_SIZE` | `16` | Embedding batch size |
 | `EMBEDDER_QUERY_INSTRUCTION` | *(empty)* | Query instruction prefix |
 | `EMBEDDER_TEXT_INSTRUCTION` | *(empty)* | Text instruction prefix |
+| `EMBEDDING_CACHE` | image: `/var/cache/agent-pattern-mcp/embedding-index` · host: `~/.config/agent-pattern-mcp/embedding-index` | Dense-leg snapshot path: reloaded on restart (zero corpus re-embedding), rebuilt on any embedder/corpus/probe change. `0`/`false`/`off`/`no` disables. See [Embedding-index cache](#embedding-index-cache-dense-retrieval-snapshot) |
 | `RETRIEVAL_BM25_TOP_K` | `0` | BM25 stage-1 recall cap (0=full corpus) |
 | `RETRIEVAL_DENSE_TOP_K` | `0` | Dense stage-1 recall cap (0=full corpus) |
 | `RETRIEVAL_DENSE_WEIGHT` | `0.7` | Stage-1 fusion leg weight on the dense leg. Pairs with `RETRIEVAL_BM25_WEIGHT`; both must be > 0 and sum to 1.0. |
@@ -555,6 +556,45 @@ If the configured model already contains a provider prefix (e.g. `openai/gpt-4o-
 | `CONFIG_PATH` | `~/.config/agent-pattern-mcp/config.json` | Config file path |
 
 > **Note:** the dev and systemd compose files set `RETRIEVAL_BM25_TOP_K=20` / `RETRIEVAL_DENSE_TOP_K=20` (per-leg stage-1 caps) and `RETRIEVAL_MIN_FUSION_SCORE=0.015`, overriding the config defaults above. The deployed MiniMax generator block (`GENERATOR_PROVIDER=minimax`, `GENERATOR_MODEL=minimax/MiniMax-M2.7`, `GENERATOR_BASE_URL=https://api.minimax.io/v1`, `RETRIEVAL_USE_LEAN_WIRE_SCHEMA=true`) also differs from the OpenAI config defaults.
+
+### Embedding-index cache (dense retrieval snapshot)
+
+The dense retrieval leg is one FAISS index over every catalogue domain slug
+(36 on the shipped 68-pattern catalogue). Its embeddings are snapshotted to
+disk after a cold build and reloaded on the next start, so a warm start costs
+one probe embedding instead of a full corpus pass (measured on a dev TEI
+sidecar container, 36 slugs: 3.3 s → 0.28 s). BM25 is cheap and rebuilt every
+start.
+
+- **Path**: `EMBEDDING_CACHE`. The image bakes
+  `/var/cache/agent-pattern-mcp/embedding-index`; host runs (`uv`) use
+  `~/.config/agent-pattern-mcp/embedding-index`.
+- **Where the files live**: the logged path is the *in-container* view. Docker
+  stores the named volume at `/var/lib/docker/volumes/<volume-name>/_data`
+  (root-owned), so `/var/cache` on the host stays empty by design. Inspect
+  without sudo: `docker exec <container> ls
+  /var/cache/agent-pattern-mcp/embedding-index`, or
+  `docker volume inspect -f '{{.Mountpoint}}' <volume-name>` for the host side.
+- **Containers persist it in a named volume**
+  (`agent-pattern-mcp-dev-embedding-index` /
+  `agent-pattern-mcp-systemd-embedding-index`), so the snapshot survives
+  image rebuilds, container recreation and `docker compose down`. Reset it with
+  `docker compose down -v` or `docker volume rm <name>`; a bare `docker run`
+  needs `-v agent-pattern-mcp-embedding-index:/var/cache/agent-pattern-mcp/embedding-index`.
+- **Rebuilt automatically** when the embedding function changes (provider,
+  `base_url`, resolved model name, query/text instruction prefixes), when the slug
+  corpus changes, or when a probe vector shows a *different model behind an
+  unchanged config* (e.g. a redeployed TEI sidecar). Log lines:
+  `Embedding index cache hit: N slugs, 0 corpus embed calls (snapshot
+  <cache-dir>)` / `Embedding index cache miss (<reason>); embedding corpus` /
+  `Embedding index snapshot written: N slugs (path <cache-dir>)` — emitted
+  immediately after the embedding pass, before any other startup step — and,
+  with the cache switched off, `Embedding index cache disabled; embedding corpus`
+  (never reported as a miss).
+- **Single writer**: no locking — run one server process per cache directory.
+  A failed snapshot write only logs a warning; the server runs cacheless and
+  never fails the start.
+- Operations notes (volumes, permissions, disable switch): [INSTALL.md](INSTALL.md#embedding-index-cache).
 
 ### CLI flags
 

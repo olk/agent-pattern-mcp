@@ -35,6 +35,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import re
 import sys
 import time
@@ -47,9 +48,7 @@ _QA_FORMAT_RE = re.compile(r"^(10|[1-9])(\.\d+)?/10$")
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the GENERATE prompt benchmark.")
     parser.add_argument("--src", default=".", help="Repository root (default: current directory)")
-    parser.add_argument(
-        "--out", default="benchmark_results.json", help="Output results JSON path"
-    )
+    parser.add_argument("--out", default="benchmark_results.json", help="Output results JSON path")
     parser.add_argument(
         "--cases",
         default=None,
@@ -93,6 +92,12 @@ def load_cases(path: str, only: list[str] | None, limit: int | None) -> list[dic
 
 
 def build_pipeline() -> Any:
+    # The embedding-index snapshot cache is off: with it on, the first arm
+    # writes a snapshot and every later arm loads it, so the arms would
+    # measure a warm start instead of the cold embed the comparison assumes
+    # (and the operator's own cache directory would be overwritten).
+    os.environ["EMBEDDING_CACHE"] = "0"
+
     from src.agent import AgentSystemArchitect
     from src.config import ConfigManager, RerankerConfig, RetrievalConfig, ServerConfig
     from src.patterns.loader import PatternLoader
@@ -119,11 +124,7 @@ def extract_metrics(case_id: str, result: Any, duration_s: float) -> dict[str, A
     agents = list(design.agents)
     agent_ids = {a.id for a in agents}
 
-    dangling = sum(
-        1
-        for rel in design.relationships
-        if rel.source not in agent_ids or rel.target not in agent_ids
-    )
+    dangling = sum(1 for rel in design.relationships if rel.source not in agent_ids or rel.target not in agent_ids)
 
     qa_values = list(design.quality_attributes.values())
 

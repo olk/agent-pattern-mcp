@@ -328,6 +328,8 @@ pytest_add_cli_args_test_selection = [
     "tests/unit/test_jobs.py",
     "tests/unit/test_reasoning_client.py",
     "tests/unit/test_reasoning_prompts.py",
+    # dedicated kill oracle for the newly in-scope embedding-index cache
+    "tests/unit/test_embedding_cache.py",
     "tests/verification/test_text_validation_properties.py",
     "tests/verification/test_config_properties.py",
     "tests/verification/test_loader_properties.py",

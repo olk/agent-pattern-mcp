@@ -31,6 +31,198 @@
       ],
       "total": 29
     },
+    "src/patterns/embedding_cache.py::_length_prefixed": {
+      "classified": 11,
+      "kill_ratio": 0.8182,
+      "killed": 9,
+      "other": 0,
+      "survived": 2,
+      "survivor_keys": [
+        "src.patterns.embedding_cache.x__length_prefixed__mutmut_10",
+        "src.patterns.embedding_cache.x__length_prefixed__mutmut_4"
+      ],
+      "total": 11
+    },
+    "src/patterns/embedding_cache.py::_manifest_from_object": {
+      "classified": 78,
+      "kill_ratio": 0.641,
+      "killed": 50,
+      "other": 0,
+      "survived": 28,
+      "survivor_keys": [
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_11",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_12",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_19",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_2",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_3",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_31",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_32",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_33",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_38",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_4",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_40",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_41",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_42",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_48",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_49",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_5",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_50",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_52",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_56",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_57",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_58",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_60",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_61",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_62",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_66",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_67",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_68",
+        "src.patterns.embedding_cache.x__manifest_from_object__mutmut_7"
+      ],
+      "total": 78
+    },
+    "src/patterns/embedding_cache.py::_write_manifest": {
+      "classified": 19,
+      "kill_ratio": 0.7368,
+      "killed": 14,
+      "other": 0,
+      "survived": 5,
+      "survivor_keys": [
+        "src.patterns.embedding_cache.x__write_manifest__mutmut_10",
+        "src.patterns.embedding_cache.x__write_manifest__mutmut_12",
+        "src.patterns.embedding_cache.x__write_manifest__mutmut_15",
+        "src.patterns.embedding_cache.x__write_manifest__mutmut_7",
+        "src.patterns.embedding_cache.x__write_manifest__mutmut_8"
+      ],
+      "total": 19
+    },
+    "src/patterns/embedding_cache.py::compute_fingerprint": {
+      "classified": 5,
+      "kill_ratio": 0.8,
+      "killed": 4,
+      "other": 0,
+      "survived": 1,
+      "survivor_keys": [
+        "src.patterns.embedding_cache.x_compute_fingerprint__mutmut_2"
+      ],
+      "total": 5
+    },
+    "src/patterns/embedding_cache.py::corpus_fingerprint": {
+      "classified": 6,
+      "kill_ratio": 0.8333,
+      "killed": 5,
+      "other": 0,
+      "survived": 1,
+      "survivor_keys": [
+        "src.patterns.embedding_cache.x_corpus_fingerprint__mutmut_4"
+      ],
+      "total": 6
+    },
+    "src/patterns/embedding_cache.py::load_cached_index": {
+      "classified": 28,
+      "kill_ratio": 0.6071,
+      "killed": 17,
+      "other": 0,
+      "survived": 11,
+      "survivor_keys": [
+        "src.patterns.embedding_cache.x_load_cached_index__mutmut_14",
+        "src.patterns.embedding_cache.x_load_cached_index__mutmut_15",
+        "src.patterns.embedding_cache.x_load_cached_index__mutmut_16",
+        "src.patterns.embedding_cache.x_load_cached_index__mutmut_17",
+        "src.patterns.embedding_cache.x_load_cached_index__mutmut_18",
+        "src.patterns.embedding_cache.x_load_cached_index__mutmut_22",
+        "src.patterns.embedding_cache.x_load_cached_index__mutmut_23",
+        "src.patterns.embedding_cache.x_load_cached_index__mutmut_24",
+        "src.patterns.embedding_cache.x_load_cached_index__mutmut_25",
+        "src.patterns.embedding_cache.x_load_cached_index__mutmut_26",
+        "src.patterns.embedding_cache.x_load_cached_index__mutmut_28"
+      ],
+      "total": 28
+    },
+    "src/patterns/embedding_cache.py::load_manifest": {
+      "classified": 18,
+      "kill_ratio": 0.3889,
+      "killed": 7,
+      "other": 0,
+      "survived": 11,
+      "survivor_keys": [
+        "src.patterns.embedding_cache.x_load_manifest__mutmut_10",
+        "src.patterns.embedding_cache.x_load_manifest__mutmut_11",
+        "src.patterns.embedding_cache.x_load_manifest__mutmut_12",
+        "src.patterns.embedding_cache.x_load_manifest__mutmut_13",
+        "src.patterns.embedding_cache.x_load_manifest__mutmut_14",
+        "src.patterns.embedding_cache.x_load_manifest__mutmut_15",
+        "src.patterns.embedding_cache.x_load_manifest__mutmut_16",
+        "src.patterns.embedding_cache.x_load_manifest__mutmut_17",
+        "src.patterns.embedding_cache.x_load_manifest__mutmut_18",
+        "src.patterns.embedding_cache.x_load_manifest__mutmut_4",
+        "src.patterns.embedding_cache.x_load_manifest__mutmut_6"
+      ],
+      "total": 18
+    },
+    "src/patterns/embedding_cache.py::persist_index": {
+      "classified": 32,
+      "kill_ratio": 0.4688,
+      "killed": 15,
+      "other": 0,
+      "survived": 17,
+      "survivor_keys": [
+        "src.patterns.embedding_cache.x_persist_index__mutmut_1",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_15",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_16",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_17",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_18",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_19",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_22",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_23",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_24",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_25",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_26",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_27",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_28",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_29",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_3",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_30",
+        "src.patterns.embedding_cache.x_persist_index__mutmut_6"
+      ],
+      "total": 32
+    },
+    "src/patterns/embedding_cache.py::probe_matches": {
+      "classified": 35,
+      "kill_ratio": 0.7714,
+      "killed": 27,
+      "other": 0,
+      "survived": 8,
+      "survivor_keys": [
+        "src.patterns.embedding_cache.x_probe_matches__mutmut_12",
+        "src.patterns.embedding_cache.x_probe_matches__mutmut_14",
+        "src.patterns.embedding_cache.x_probe_matches__mutmut_21",
+        "src.patterns.embedding_cache.x_probe_matches__mutmut_29",
+        "src.patterns.embedding_cache.x_probe_matches__mutmut_34",
+        "src.patterns.embedding_cache.x_probe_matches__mutmut_35",
+        "src.patterns.embedding_cache.x_probe_matches__mutmut_7",
+        "src.patterns.embedding_cache.x_probe_matches__mutmut_9"
+      ],
+      "total": 35
+    },
+    "src/patterns/embedding_cache.py::remove_manifest": {
+      "classified": 4,
+      "kill_ratio": 1.0,
+      "killed": 4,
+      "other": 0,
+      "survived": 0,
+      "survivor_keys": [],
+      "total": 4
+    },
+    "src/patterns/embedding_cache.py::resolve_cache_dir": {
+      "classified": 9,
+      "kill_ratio": 1.0,
+      "killed": 9,
+      "other": 0,
+      "survived": 0,
+      "survivor_keys": [],
+      "total": 9
+    },
     "src/patterns/loader.py::__init__": {
       "classified": 12,
       "kill_ratio": 1.0,
@@ -42,12 +234,11 @@
     },
     "src/patterns/loader.py::_normalize_domain_slug": {
       "classified": 26,
-      "kill_ratio": 0.9231,
-      "killed": 24,
+      "kill_ratio": 0.9615,
+      "killed": 25,
       "other": 0,
-      "survived": 2,
+      "survived": 1,
       "survivor_keys": [
-        "src.patterns.loader.x__normalize_domain_slug__mutmut_13",
         "src.patterns.loader.x__normalize_domain_slug__mutmut_22"
       ],
       "total": 26
@@ -1136,11 +1327,18 @@
       "survived": 3,
       "total": 29
     },
+    "src/patterns/embedding_cache.py": {
+      "classified": 245,
+      "kill_ratio": 0.6571,
+      "killed": 161,
+      "survived": 84,
+      "total": 245
+    },
     "src/patterns/loader.py": {
       "classified": 152,
-      "kill_ratio": 0.6776,
-      "killed": 103,
-      "survived": 49,
+      "kill_ratio": 0.6842,
+      "killed": 104,
+      "survived": 48,
       "total": 157
     },
     "src/reasoning/client.py": {
@@ -1182,19 +1380,19 @@
   "run": {
     "config_fingerprint": {
       "test_execution": "7229183f5cf8",
-      "test_selection": "ad29c8c45a27",
+      "test_selection": "2f24649c84e7",
       "timeout": "938eb71709f6",
       "type_check": "2e38e77b22c3"
     },
-    "git_commit": "24dca705c024830364c3001c0c06831062bc6a1a",
+    "git_commit": "5f9aeef3e139489e4e202ba762c969a32e0ebdce",
     "scratch_dir": "/home/graemer/Projekte/Python/agent-pattern-mcp/mutants",
-    "stats_time": 20.383002942
+    "stats_time": 25.423489103999998
   },
   "schema": 1,
   "totals": {
-    "classified": 1387,
-    "killed": 925,
-    "survived": 462,
-    "total": 1403
+    "classified": 1632,
+    "killed": 1087,
+    "survived": 545,
+    "total": 1648
   }
 }

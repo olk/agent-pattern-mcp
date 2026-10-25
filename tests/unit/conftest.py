@@ -97,6 +97,22 @@ def mock_tei_rerank():
 
 
 @pytest.fixture(autouse=True)
+def embedding_cache_dir(tmp_path, monkeypatch):
+    """Point the embedding-index cache at a throwaway dir for every unit test.
+
+    ``AgentPatternPipeline._build_retrievers`` persists a snapshot whenever the
+    pipeline was constructed with an embedder config; without this guard such a
+    test would write into the developer's
+    ``~/.config/agent-pattern-mcp/embedding-index``. Cache tests override the
+    variable with their own ``tmp_path``.
+    """
+    cache_dir = tmp_path / "embedding-index"
+    monkeypatch.setenv("EMBEDDING_CACHE", str(cache_dir))
+    yield str(cache_dir)
+    monkeypatch.delenv("EMBEDDING_CACHE", raising=False)
+
+
+@pytest.fixture(autouse=True)
 async def jobs_store(tmp_path, monkeypatch):
     """Isolate JobsStore to a per-test tmp_path SQLite database.
 

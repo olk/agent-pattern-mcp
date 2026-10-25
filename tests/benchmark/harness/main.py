@@ -17,7 +17,7 @@ from typing import Any
 
 import click
 
-from tests.benchmark.harness.config import load_corpus
+from tests.benchmark.harness.config import disable_embedding_cache, load_corpus
 from tests.benchmark.harness.offline import EXIT_INTEGRITY_FAILURE
 from tests.benchmark.harness.probes import (
     StageRecord,
@@ -127,10 +127,12 @@ def run(
 ) -> None:
     """Run the Stage-0 selection benchmark and write a run directory."""
     _configure_logging(log_level)
+    # Cache off for EVERY mode, before anything builds retrievers: a snapshot hit
+    # would turn a warm start into a measured stage, and offline/live arms would
+    # no longer be comparable.
+    disable_embedding_cache()
     if out is not None and out.is_dir() and any(out.iterdir()) and not force:
-        click.echo(
-            f"refusal: --out {out} is not empty; pass FORCE=1 to overwrite it in place"
-        )
+        click.echo(f"refusal: --out {out} is not empty; pass FORCE=1 to overwrite it in place")
         raise SystemExit(EXIT_REFUSAL)
     corpus = load_corpus()
     if dry_run:
@@ -216,9 +218,7 @@ def _run_offline(
     integrity: list[str] = []
     try:
         for repeat_index in range(1, repeat + 1):
-            repeat_outcomes = asyncio.run(
-                run_corpus_tolerant(scenarios, arms, fail_fast=fail_fast)
-            )
+            repeat_outcomes = asyncio.run(run_corpus_tolerant(scenarios, arms, fail_fast=fail_fast))
             outcomes.extend(repeat_outcomes)
             for item in repeat_outcomes:
                 handle.write_scenario(
@@ -227,10 +227,7 @@ def _run_offline(
                     _offline_payload(item),
                 )
                 latency_rows.append(_latency_row(item, repeat_index))
-        arm_summaries = {
-            arm: summarize_arm(arm, [o.score for o in outcomes if o.arm == arm])
-            for arm in arms
-        }
+        arm_summaries = {arm: summarize_arm(arm, [o.score for o in outcomes if o.arm == arm]) for arm in arms}
         integrity = _offline_integrity(outcomes, arms)
         handle.write_summary(
             {
@@ -301,8 +298,7 @@ def _offline_payload(outcome: Any) -> dict[str, Any]:
         payload["final_quality_score"] = getattr(result, "final_quality_score", None)
         payload["attempts"] = getattr(result, "attempts", None)
         payload["matched_domains"] = [
-            dict(m) if not isinstance(m, dict) else m
-            for m in (getattr(result, "matched_domains", None) or [])
+            dict(m) if not isinstance(m, dict) else m for m in (getattr(result, "matched_domains", None) or [])
         ]
     return payload
 
@@ -372,9 +368,7 @@ def _run_live(
                 )
                 latency_rows.append(_latency_row(outcome, repeat_index))
         arm_summary = summarize_arm("live", scores)
-        handle.write_summary(
-            {"live": arm_summary.to_dict(), "latency": _latency_summary(latency_rows)}
-        )
+        handle.write_summary({"live": arm_summary.to_dict(), "latency": _latency_summary(latency_rows)})
         handle.write_warmup(warmup_record)
         handle.write_manifest(
             corpus_sha=corpus.stats.corpus_sha256,
@@ -390,10 +384,7 @@ def _run_live(
     except ProviderDeathError as exc:
         handle.mark_aborted(f"ProviderDeathError: {exc}")
         click.echo(f"ABORTED — generator provider permanently failed: {exc}")
-        click.echo(
-            "Fix: top up the provider account or switch GENERATOR_* env "
-            "(see tests/benchmark/README.md)."
-        )
+        click.echo("Fix: top up the provider account or switch GENERATOR_* env (see tests/benchmark/README.md).")
         raise SystemExit(EXIT_PROVIDER_DEAD) from exc
     except Exception as exc:
         handle.mark_aborted(f"{type(exc).__name__}: {exc}")
@@ -430,8 +421,7 @@ def _live_payload(outcome: Any) -> dict[str, Any]:
                 "final_quality_score": getattr(result, "final_quality_score", None),
                 "attempts": getattr(result, "attempts", None),
                 "matched_domains": [
-                    dict(m) if not isinstance(m, dict) else m
-                    for m in (getattr(result, "matched_domains", None) or [])
+                    dict(m) if not isinstance(m, dict) else m for m in (getattr(result, "matched_domains", None) or [])
                 ],
             }
         )
@@ -466,11 +456,7 @@ def _run_e2e(
     latency_rows: list[dict[str, Any]] = []
     try:
         for repeat_index in range(1, repeat + 1):
-            e2e_outcomes = asyncio.run(
-                run_e2e_corpus_tolerant(
-                    scenarios, url, call_timeout, fail_fast=fail_fast
-                )
-            )
+            e2e_outcomes = asyncio.run(run_e2e_corpus_tolerant(scenarios, url, call_timeout, fail_fast=fail_fast))
             outcomes.extend(e2e_outcomes)
             for item in e2e_outcomes:
                 handle.write_scenario(
@@ -480,9 +466,7 @@ def _run_e2e(
                 )
                 latency_rows.append(_latency_row(item, repeat_index))
         arm_summary = summarize_arm("e2e", [o.score for o in outcomes])
-        handle.write_summary(
-            {"e2e": arm_summary.to_dict(), "latency": _latency_summary(latency_rows)}
-        )
+        handle.write_summary({"e2e": arm_summary.to_dict(), "latency": _latency_summary(latency_rows)})
         all_records = [r for item in outcomes for r in item.recorder.records]
         handle.write_manifest(
             corpus_sha=corpus.stats.corpus_sha256,
@@ -549,9 +533,7 @@ def _latency_block(records: list[StageRecord], e2e_ms: float | None) -> dict[str
 
 def _latency_row(outcome: Any, repeat: int) -> dict[str, Any]:
     """One scenario's latency row for the run-level summary."""
-    records = (
-        outcome.records if hasattr(outcome, "records") else outcome.recorder.records
-    )
+    records = outcome.records if hasattr(outcome, "records") else outcome.recorder.records
     table = build_stage_table(records)
     e2e = getattr(outcome, "e2e_ms", None)
     return {
@@ -592,11 +574,7 @@ def _record_dict(record: StageRecord) -> dict[str, Any]:
 
 def _select(corpus: Any, limit: int | None, split: str) -> list[Any]:
     """Corpus scenarios filtered by split, then capped by ``limit``."""
-    scenarios = (
-        list(corpus.scenarios)
-        if split == "all"
-        else [s for s in corpus.scenarios if s.split == split]
-    )
+    scenarios = list(corpus.scenarios) if split == "all" else [s for s in corpus.scenarios if s.split == split]
     return scenarios if limit is None else scenarios[:limit]
 
 

@@ -61,7 +61,7 @@ from workflows import Context, Workflow, step
 from workflows.events import StartEvent, StopEvent
 
 from src.agent import AgentSystemArchitect
-from src.config import PipelineConfig, RetrievalConfig, RerankerConfig
+from src.config import EmbedderConfig, PipelineConfig, RetrievalConfig, RerankerConfig
 from src.design_normalization import denormalize_contracts
 from src.errors import ERROR_INVALID_AGENT_SYSTEM, MalformedAgentSystemOverviewError
 from src.patterns.loader import PatternLoader
@@ -132,8 +132,7 @@ async def _timed_phase(phase: str, domain: str = "", *, verbose: bool = False) -
         yield
     finally:
         duration_s = round(time.monotonic() - start, 2)
-        logger.log(log_level, f"Phase '{phase}' completed",
-                   extra=_phase_extra(phase, domain, duration_s))
+        logger.log(log_level, f"Phase '{phase}' completed", extra=_phase_extra(phase, domain, duration_s))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -184,6 +183,7 @@ def _effective_pattern_score(p: dict[str, Any]) -> float:
     """
     return float(p.get("analysis_score", 0.0))
 
+
 def _render_analysis_summary(
     analysis_result: AnalysisResult | None,
     *,
@@ -203,22 +203,13 @@ def _render_analysis_summary(
     """
     if analysis_result is None:
         return ""
-    strengths = (
-        "\n".join(f"  - {s}" for s in analysis_result.strengths)
-        or "  (none identified)"
-    )
-    weaknesses = (
-        "\n".join(f"  - {w}" for w in analysis_result.weaknesses)
-        or "  (none identified)"
-    )
+    strengths = "\n".join(f"  - {s}" for s in analysis_result.strengths) or "  (none identified)"
+    weaknesses = "\n".join(f"  - {w}" for w in analysis_result.weaknesses) or "  (none identified)"
     weights_section = ""
     if analysis_result.requirement_weights is not None:
         weights = analysis_result.requirement_weights.as_dict()
         weights_lines = "\n".join(f"  - {k}: {v}" for k, v in weights.items())
-        weights_section = (
-            f"\n{weights_header}\n"
-            f"{weights_lines}\n"
-        )
+        weights_section = f"\n{weights_header}\n{weights_lines}\n"
     return (
         "\n<analysis_summary>\n"
         f"Recommended topology: {analysis_result.recommended_topology}\n"
@@ -344,36 +335,36 @@ def _analyze_system_prompt_cached() -> str:
         block
         for block in (
             (
-                'Example 1 — peaked priorities:\n'
+                "Example 1 — peaked priorities:\n"
                 'Requirements excerpt: "High-volume customer-support automation '
-                'platform: 1M conversations/day, 99.99% uptime, regulated health '
+                "platform: 1M conversations/day, 99.99% uptime, regulated health "
                 'data (HIPAA), p95 first-token latency < 500ms."\n'
                 f"{REQUIREMENT_WEIGHTS_EXAMPLE_PEAKED.model_dump_json(indent=2)}"
             ),
             (
-                'Example 2 — sparse, low-signal requirements (max still normalised '
-                'to 1.0; unmentioned attributes sit at the 0.1-0.2 implicit '
-                'baseline):\n'
+                "Example 2 — sparse, low-signal requirements (max still normalised "
+                "to 1.0; unmentioned attributes sit at the 0.1-0.2 implicit "
+                "baseline):\n"
                 'Requirements excerpt: "Small internal FAQ lookup agent for our '
                 'team."\n'
                 f"{REQUIREMENT_WEIGHTS_EXAMPLE_SPARSE.model_dump_json(indent=2)}"
             ),
             (
-                'Example 3 — explicit anti-requirement (0.0 only for explicitly '
-                'excluded attributes):\n'
+                "Example 3 — explicit anti-requirement (0.0 only for explicitly "
+                "excluded attributes):\n"
                 'Requirements excerpt: "Fully local, deterministic rule-based '
-                'router agent. Explicitly no external API calls and no learning '
+                "router agent. Explicitly no external API calls and no learning "
                 'loop; single-user desktop deployment."\n'
                 f"{REQUIREMENT_WEIGHTS_EXAMPLE_NEGATIVE.model_dump_json(indent=2)}"
             ),
             (
-                'Example 4 — conflict resolution (a concrete numeric SLO wins '
+                "Example 4 — conflict resolution (a concrete numeric SLO wins "
                 'over a vague adjective; "small team / ship MVP" does NOT '
                 'outweigh "1M conversations/day / horizontal scale-out", so '
-                'simplicity drops to the baseline despite being mentioned):\n'
+                "simplicity drops to the baseline despite being mentioned):\n"
                 'Requirements excerpt: "Customer-support automation handling 1M '
-                'conversations/day with horizontal scale-out, p95 first-token '
-                'latency < 500ms. Small startup team of 4 engineers; ship MVP '
+                "conversations/day with horizontal scale-out, p95 first-token "
+                "latency < 500ms. Small startup team of 4 engineers; ship MVP "
                 'in 3 months."\n'
                 f"{REQUIREMENT_WEIGHTS_EXAMPLE_CONFLICT.model_dump_json(indent=2)}"
             ),
@@ -483,6 +474,7 @@ reasoning.
 # AgentPatternPipeline (Workflow-backed)
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class CancellationToken:
     """Cooperative cancellation flag checked between pipeline phases."""
 
@@ -536,6 +528,7 @@ class AgentPatternPipeline(Workflow):
         reranker_config: RerankerConfig | None = None,
         reasoning_client: ReasoningClient | None = None,
         pipeline_config: PipelineConfig | None = None,
+        embedder_config: EmbedderConfig | None = None,
     ) -> None:
         """
         Initialize AgentPatternPipeline with injected dependencies.
@@ -553,12 +546,17 @@ class AgentPatternPipeline(Workflow):
             pipeline_config: Workflow budget for one complete run (all phases,
                 all retry attempts). Defaults to
                 ``DEFAULT_PIPELINE_TIMEOUT_SECONDS`` when omitted.
+            embedder_config: Embedder provider configuration — the dense-leg
+                embedding-cache fingerprint is derived from it (provider,
+                base_url, model, instruction prefixes).  When omitted the
+                cache is disabled and the corpus is embedded on every start.
         """
         self._pipeline_config = pipeline_config or PipelineConfig()
         super().__init__(timeout=self._pipeline_config.timeout_seconds)
         self._agent = agent
         self._pattern_loader = pattern_loader
         self._embedder = embedder
+        self._embedder_config = embedder_config
         self._retrieval_config = retrieval_config or RetrievalConfig()
         self._reranker_config = reranker_config or RerankerConfig()
         self._reasoning_client = reasoning_client
@@ -582,7 +580,7 @@ class AgentPatternPipeline(Workflow):
                 "pipeline_config": self._pipeline_config.model_dump(),
                 "reranker_config": self._reranker_config.model_dump(),
                 "has_reasoning_client": reasoning_client is not None,
-            }
+            },
         )
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -682,8 +680,7 @@ class AgentPatternPipeline(Workflow):
             AnalysisResult with selected patterns, quality metrics, strengths,
             weaknesses, recommendations, and recommended_topology
         """
-        async with _timed_phase("analyze", domain=domain,
-                               verbose=self._retrieval_config.verbose_timing):
+        async with _timed_phase("analyze", domain=domain, verbose=self._retrieval_config.verbose_timing):
             normalized_domain = domain.lower().replace(" ", "-")
 
             # Ensure retrieval legs are built
@@ -745,12 +742,8 @@ class AgentPatternPipeline(Workflow):
             # attribute names only; no pattern data is sent. A server-side
             # reasoning trace (shannonthinking / code-reasoning) grounds the
             # extraction; without one the degraded scaffold applies.
-            reasoning_context = await self._reasoning_block(
-                "analyze", {"requirements": requirements}
-            )
-            weights = await self._extract_requirement_weights(
-                requirements, domain, reasoning_context=reasoning_context
-            )
+            reasoning_context = await self._reasoning_block("analyze", {"requirements": requirements})
+            weights = await self._extract_requirement_weights(requirements, domain, reasoning_context=reasoning_context)
 
             # ── Stage 2b (deterministic score): requirements-aware ranking ──
             scored = self._score_patterns(candidates, weights)
@@ -897,19 +890,20 @@ class AgentPatternPipeline(Workflow):
         Returns:
             AgentSystemDesign with components, relationships, and deployment strategy
         """
-        async with _timed_phase("generate", domain=domain,
-                               verbose=self._retrieval_config.verbose_timing):
+        async with _timed_phase("generate", domain=domain, verbose=self._retrieval_config.verbose_timing):
             if override_user_prompt:
                 user_prompt = override_user_prompt
                 system_prompt = self._build_generate_system_prompt(topology, selected_patterns)
             else:
-                reasoning_context = await self._reasoning_block(
-                    "generate", {"requirements": requirements}
-                )
+                reasoning_context = await self._reasoning_block("generate", {"requirements": requirements})
                 pattern_context = self._build_pattern_context(selected_patterns)
                 system_prompt = self._build_generate_system_prompt(topology, selected_patterns)
                 user_prompt = self._build_generate_user_prompt(
-                    requirements, domain, topology, pattern_context, analysis_result,
+                    requirements,
+                    domain,
+                    topology,
+                    pattern_context,
+                    analysis_result,
                     reasoning_context=reasoning_context,
                 )
 
@@ -930,16 +924,13 @@ class AgentPatternPipeline(Workflow):
             else:
                 full = cast(AgentSystemDesignResponse, design_response)
                 tool_contracts = [
-                    ToolContract.model_validate(c) if isinstance(c, dict) else c
-                    for c in full.tool_contracts
+                    ToolContract.model_validate(c) if isinstance(c, dict) else c for c in full.tool_contracts
                 ]
                 shared_state_models = [
-                    StateModel.model_validate(d) if isinstance(d, dict) else d
-                    for d in full.shared_state_models
+                    StateModel.model_validate(d) if isinstance(d, dict) else d for d in full.shared_state_models
                 ]
                 message_contracts = [
-                    MessageContract.model_validate(e) if isinstance(e, dict) else e
-                    for e in full.message_contracts
+                    MessageContract.model_validate(e) if isinstance(e, dict) else e for e in full.message_contracts
                 ]
                 wire = cast(AgentSystemDesignResponseWire, full)
 
@@ -947,7 +938,9 @@ class AgentPatternPipeline(Workflow):
                 design = AgentSystemDesign(
                     overview=wire.overview,
                     agents=[Agent.model_validate(c) if isinstance(c, dict) else c for c in wire.agents],
-                    relationships=[Relationship.model_validate(r) if isinstance(r, dict) else r for r in wire.relationships],
+                    relationships=[
+                        Relationship.model_validate(r) if isinstance(r, dict) else r for r in wire.relationships
+                    ],
                     quality_attributes=dict(wire.quality_attributes),
                     tool_contracts=tool_contracts,
                     shared_state_models=shared_state_models,
@@ -992,18 +985,12 @@ class AgentPatternPipeline(Workflow):
         Returns:
             AgentSystemEvaluation with metrics and recommendations
         """
-        async with _timed_phase("evaluate", domain=domain,
-                               verbose=self._retrieval_config.verbose_timing):
+        async with _timed_phase("evaluate", domain=domain, verbose=self._retrieval_config.verbose_timing):
             patterns: list[Pattern] = []
             if analysis_result is not None and analysis_result.selected_patterns:
-                patterns = [
-                    _pattern_from_entry(p)
-                    for p in analysis_result.selected_patterns
-                ]
+                patterns = [_pattern_from_entry(p) for p in analysis_result.selected_patterns]
 
-            pattern_alignment = self._evaluate_pattern_alignment(
-                patterns, criteria
-            )
+            pattern_alignment = self._evaluate_pattern_alignment(patterns, criteria)
 
             reasoning_context = await self._reasoning_block(
                 "evaluate",
@@ -1014,8 +1001,12 @@ class AgentPatternPipeline(Workflow):
             )
             system_prompt = self._build_evaluate_system_prompt(patterns)
             user_prompt = self._build_evaluate_user_prompt(
-                design, criteria, domain, patterns,
-                requirements=requirements, analysis_result=analysis_result,
+                design,
+                criteria,
+                domain,
+                patterns,
+                requirements=requirements,
+                analysis_result=analysis_result,
                 reasoning_context=reasoning_context,
             )
 
@@ -1065,8 +1056,7 @@ class AgentPatternPipeline(Workflow):
         Returns:
             PipelineResult with the best design and its evaluation
         """
-        async with _timed_phase("design_loop", domain=domain,
-                               verbose=self._retrieval_config.verbose_timing):
+        async with _timed_phase("design_loop", domain=domain, verbose=self._retrieval_config.verbose_timing):
             best_design: AgentSystemDesign | None = None
             best_evaluation: AgentSystemEvaluation | None = None
             best_score: float = -1.0
@@ -1082,7 +1072,7 @@ class AgentPatternPipeline(Workflow):
                 attempt_start = time.monotonic()
                 logger.info(
                     f"Attempt {attempt}/{max_tries} started",
-                    extra={"phase": "design_loop", "attempt": attempt, "score_before": score_before}
+                    extra={"phase": "design_loop", "attempt": attempt, "score_before": score_before},
                 )
 
                 try:
@@ -1142,13 +1132,13 @@ class AgentPatternPipeline(Workflow):
                             "score_after": current_score,
                             "best_score": best_score,
                             "duration_s": round(attempt_duration, 2),
-                        }
+                        },
                     )
 
                     if current_score >= min_quality_score:
                         logger.info(
                             f"Early stop: score {current_score} >= threshold {min_quality_score}",
-                            extra={"phase": "design_loop", "attempt": attempt}
+                            extra={"phase": "design_loop", "attempt": attempt},
                         )
                         break
 
@@ -1158,7 +1148,7 @@ class AgentPatternPipeline(Workflow):
                 except MalformedAgentSystemOverviewError as exc:
                     logger.warning(
                         f"Attempt {attempt} failed with MalformedAgentSystemOverviewError",
-                        extra={"phase": "design_loop", "attempt": attempt, "error": str(exc)}
+                        extra={"phase": "design_loop", "attempt": attempt, "error": str(exc)},
                     )
                     last_error = exc
                     continue
@@ -1170,9 +1160,7 @@ class AgentPatternPipeline(Workflow):
 
             final_topo = best_design.overview.topology.value
             topo_pattern = self._selected_topology_pattern(analysis_result, final_topo)
-            topo_score = (
-                _effective_pattern_score(topo_pattern) if topo_pattern is not None else None
-            )
+            topo_score = _effective_pattern_score(topo_pattern) if topo_pattern is not None else None
             best_design.overview.score = topo_score
 
             return PipelineResult(
@@ -1180,17 +1168,11 @@ class AgentPatternPipeline(Workflow):
                 evaluation=cast(AgentSystemEvaluation, best_evaluation),
                 attempts=attempts,
                 final_topology=final_topo,
-                final_pattern_name=(
-                    str(topo_pattern.get("name", "")) if topo_pattern is not None else ""
-                ),
+                final_pattern_name=(str(topo_pattern.get("name", "")) if topo_pattern is not None else ""),
                 quality_metrics=analysis_result.quality_metrics if analysis_result else None,
                 final_quality_score=best_score,  # already 0-100
-                alternative_topologies=self._topology_candidates(
-                    analysis_result, final_topo
-                ),
-                matched_domains=[
-                    _to_matched_domain(m) for m in analysis_result.matched_domains
-                ]
+                alternative_topologies=self._topology_candidates(analysis_result, final_topo),
+                matched_domains=[_to_matched_domain(m) for m in analysis_result.matched_domains]
                 if analysis_result
                 else [],
                 is_fallback=analysis_result.is_fallback if analysis_result else False,
@@ -1201,9 +1183,7 @@ class AgentPatternPipeline(Workflow):
     # ──────────────────────────────────────────────────────────────────────────
 
     @step
-    async def _orchestrate(
-        self, _ctx: Context, ev: StartEvent
-    ) -> StopEvent:
+    async def _orchestrate(self, _ctx: Context, ev: StartEvent) -> StopEvent:
         """
         Orchestrator step: runs ANALYZE → GENERATE → EVALUATE → REFINE and returns.
 
@@ -1275,13 +1255,21 @@ class AgentPatternPipeline(Workflow):
             duration_ms,
         )
 
-    def _build_retrievers(self) -> None:
+    def _build_retrievers(self) -> None:  # noqa: PLR0912, PLR0915 — the embed-or-load
+        # decision tree is one sequence of guards; splitting it would scatter the
+        # cache-invalidation contract away from its only caller (see
+        # src/patterns/embedding_cache.py).  Modelled in verify/fizz/embedding_cache.fizz.
         """Build the dense + BM25 retrieval legs over the shared domain slugs.
 
         Collects unique domain slugs from every pattern's suitable_domains,
         builds both legs, and stores them for HybridPatternRetriever
         injection.  A retrieval_config top_k of 0 means "full corpus"
         (lossless stage-1 recall) and is resolved to the slug count here.
+
+        The dense leg comes from the embedding-index snapshot when it is valid
+        (flushed by ``embedding_cache.persist_index`` after a cold build);
+        every invalidation — embedder config, corpus, probe vector — falls
+        back to embedding the corpus.
         """
         all_patterns = self._pattern_loader.load_all()
 
@@ -1300,6 +1288,8 @@ class AgentPatternPipeline(Workflow):
             )
             return
 
+        from src.patterns import embedding_cache
+        from src.patterns.embedder import resolve_model_name
         from src.patterns.nodes import (
             build_bm25_retriever,
             build_domain_nodes,
@@ -1312,9 +1302,75 @@ class AgentPatternPipeline(Workflow):
         dense_k = self._retrieval_config.dense_top_k or corpus_n
         bm25_k = self._retrieval_config.bm25_top_k or corpus_n
 
-        self._dense_retriever = build_vector_index(nodes, self._embedder).as_retriever(
-            similarity_top_k=dense_k
-        )
+        # Exactly one embed call on every path: the probe is the dimension
+        # probe for a cold build and the "same model?" check for a cache hit.
+        probe_vector = self._embedder.get_query_embedding(embedding_cache.PROBE_TEXT)
+        dim = len(probe_vector)
+        corpus_digest = embedding_cache.corpus_fingerprint(all_domains)
+        cache_dir = embedding_cache.resolve_cache_dir() if self._embedder_config is not None else None
+        fingerprint = ""
+        if self._embedder_config is not None:
+            fingerprint = embedding_cache.compute_fingerprint(
+                provider=self._embedder_config.provider,
+                base_url=self._embedder_config.config.base_url,
+                model_name=resolve_model_name(self._embedder_config.provider),
+                query_instruction=self._embedder_config.config.query_instruction,
+                text_instruction=self._embedder_config.config.text_instruction,
+            )
+        else:
+            logger.debug("Embedding index cache disabled: pipeline constructed without embedder_config")
+
+        dense_retriever: Any | None = None
+        miss_reason: str | None = None  # None ⇒ caching disabled (not a miss)
+        if cache_dir is not None:
+            miss_reason = "no/invalid manifest"
+            manifest = embedding_cache.load_manifest(cache_dir)
+            if manifest is None:
+                miss_reason = "no/invalid manifest"
+            elif manifest.fingerprint != fingerprint:
+                miss_reason = "embedder config changed"
+            elif manifest.corpus_sha256 != corpus_digest:
+                miss_reason = "corpus changed"
+            elif not embedding_cache.probe_matches(probe_vector, manifest):
+                miss_reason = "probe mismatch (model changed behind same config)"
+            else:
+                cached = embedding_cache.load_cached_index(cache_dir, self._embedder)
+                if cached is None:
+                    miss_reason = "snapshot unreadable"
+                else:
+                    dense_retriever = cached.as_retriever(similarity_top_k=dense_k)
+
+        if dense_retriever is not None:
+            self._dense_retriever = dense_retriever
+            logger.info(
+                "Embedding index cache hit: %d slugs, 0 corpus embed calls (snapshot %s)",
+                corpus_n,
+                cache_dir,
+            )
+        else:
+            if miss_reason is None:
+                logger.info("Embedding index cache disabled; embedding corpus")
+            else:
+                logger.info("Embedding index cache miss (%s); embedding corpus", miss_reason)
+            built = build_vector_index(nodes, self._embedder, dim=dim)
+            # Persist FIRST, immediately after the embedding pass: the snapshot
+            # must be on disk before any other startup step can fail.
+            if cache_dir is not None:
+                persisted = embedding_cache.persist_index(
+                    built,
+                    cache_dir,
+                    embedding_cache.CacheManifest(
+                        format_version=embedding_cache.CACHE_FORMAT_VERSION,
+                        fingerprint=fingerprint,
+                        corpus_sha256=corpus_digest,
+                        dim=dim,
+                        probe_vector=probe_vector,
+                    ),
+                )
+                if persisted:
+                    logger.info("Embedding index snapshot written: %d slugs (path %s)", corpus_n, cache_dir)
+            self._dense_retriever = built.as_retriever(similarity_top_k=dense_k)
+
         self._bm25_retriever = build_bm25_retriever(nodes, bm25_k)
         self._retrieval_corpus_size = corpus_n
         self._all_domains = all_domains
@@ -1395,13 +1451,8 @@ class AgentPatternPipeline(Workflow):
         A mutated or different selection produces a different key (correct miss).
         Including limits_part ensures changed limits invalidate the cache.
         """
-        patterns_part = tuple(
-            (p.get("name", ""), str(p.get("context", "")))
-            for p in patterns
-        )
-        limits_part = tuple(
-            sorted(self._retrieval_config.pattern_context_limits.items())
-        )
+        patterns_part = tuple((p.get("name", ""), str(p.get("context", ""))) for p in patterns)
+        limits_part = tuple(sorted(self._retrieval_config.pattern_context_limits.items()))
         return (patterns_part, limits_part)
 
     def _build_pattern_context(self, patterns: list[dict[str, Any]]) -> str:
@@ -1457,13 +1508,24 @@ class AgentPatternPipeline(Workflow):
             pattern_text = (
                 f"Pattern {i}: {name}\n\n"
                 f"Context: {ctx}\n\n"
-                f"Benefits:\n" + "\n".join(f"  - {b}" for b in benefits) + "\n\n"
-                + "Tradeoffs:\n" + "\n".join(f"  - {t}" for t in tradeoffs) + "\n\n"
+                f"Benefits:\n"
+                + "\n".join(f"  - {b}" for b in benefits)
+                + "\n\n"
+                + "Tradeoffs:\n"
+                + "\n".join(f"  - {t}" for t in tradeoffs)
+                + "\n\n"
                 + f"Suitable Domains: {', '.join(suitable_domains)}\n\n"
-                + "Component Types:\n" + (ct_section or "  (none listed)") + "\n\n"
-                + "Technology Stack:\n" + (tech_section or "  (none listed)") + "\n\n"
-                + "Best Practices:\n" + "\n".join(f"  - {bp}" for bp in best_practices) + "\n\n"
-                + "Anti-Patterns:\n" + (ap_section or "  (none listed)")
+                + "Component Types:\n"
+                + (ct_section or "  (none listed)")
+                + "\n\n"
+                + "Technology Stack:\n"
+                + (tech_section or "  (none listed)")
+                + "\n\n"
+                + "Best Practices:\n"
+                + "\n".join(f"  - {bp}" for bp in best_practices)
+                + "\n\n"
+                + "Anti-Patterns:\n"
+                + (ap_section or "  (none listed)")
             )
 
             context_parts.append(pattern_text)
@@ -1503,17 +1565,9 @@ class AgentPatternPipeline(Workflow):
         """
         primary_pattern = self._selected_topology_pattern(analysis_result, topology)
         if primary_pattern is None and analysis_result is not None:
-            primary_pattern = (
-                analysis_result.selected_patterns[0]
-                if analysis_result.selected_patterns
-                else None
-            )
-        primary_pattern_name = (
-            str(primary_pattern.get("name", "")) if primary_pattern is not None else ""
-        )
-        primary_pattern_line = (
-            f"\nPrimary Pattern: {primary_pattern_name}" if primary_pattern_name else ""
-        )
+            primary_pattern = analysis_result.selected_patterns[0] if analysis_result.selected_patterns else None
+        primary_pattern_name = str(primary_pattern.get("name", "")) if primary_pattern is not None else ""
+        primary_pattern_line = f"\nPrimary Pattern: {primary_pattern_name}" if primary_pattern_name else ""
         user_prompt = f"""Requirements:
 {requirements}
 
@@ -1588,49 +1642,50 @@ that is not a populated {schema_name} call, is rejected and re-requested.
         recommendations = []
 
         if len(design.agents) > 15:
-            recommendations.append(
-                "High agent count may impact cost efficiency - consider consolidation"
-            )
+            recommendations.append("High agent count may impact cost efficiency - consider consolidation")
 
         return recommendations
 
     def _add_monitoring_components(self, design: AgentSystemDesign) -> None:
         """Add observability-related agents if not present."""
         from src.schemas.components import Agent
+
         has_monitoring = any(
-            "observability" in getattr(c, "role", "") or ""
-            or "monitoring" in getattr(c, "name", "") or ""
+            "observability" in getattr(c, "role", "") or "" or "monitoring" in getattr(c, "name", "") or ""
             for c in design.agents
         )
 
         if not has_monitoring:
-            design.agents.append(Agent(
-                id="observability-agent",
-                name="Observability Agent",
-                role="retriever",
-                description="Centralized observability and monitoring agent",
-                responsibilities=["metrics collection", "trace aggregation", "alerting"],
-                llm_role=None,
-            ))
+            design.agents.append(
+                Agent(
+                    id="observability-agent",
+                    name="Observability Agent",
+                    role="retriever",
+                    description="Centralized observability and monitoring agent",
+                    responsibilities=["metrics collection", "trace aggregation", "alerting"],
+                    llm_role=None,
+                )
+            )
 
     def _add_security_components(self, design: AgentSystemDesign) -> None:
         """Add safety-related agents if not present."""
         from src.schemas.components import Agent
+
         has_security = any(
-            "safety" in getattr(c, "role", "") or ""
-            or "guard" in getattr(c, "role", "") or ""
-            for c in design.agents
+            "safety" in getattr(c, "role", "") or "" or "guard" in getattr(c, "role", "") or "" for c in design.agents
         )
 
         if not has_security:
-            design.agents.append(Agent(
-                id="safety-guard",
-                name="Safety Guard Agent",
-                role="critic",
-                description="Safety and guardrails enforcement agent",
-                responsibilities=["guardrail checks", "output validation", "kill-switch enforcement"],
-                llm_role="reflection",
-            ))
+            design.agents.append(
+                Agent(
+                    id="safety-guard",
+                    name="Safety Guard Agent",
+                    role="critic",
+                    description="Safety and guardrails enforcement agent",
+                    responsibilities=["guardrail checks", "output validation", "kill-switch enforcement"],
+                    llm_role="reflection",
+                )
+            )
 
     # ──────────────────────────────────────────────────────────────────────────
     # Stage-2 analyze helpers: weight extraction + deterministic scoring
@@ -1681,9 +1736,7 @@ that is not a populated {schema_name} call, is rejected and re-requested.
     ) -> RequirementWeights:
         """Single LLM call to extract requirement weights (no retry)."""
         system_prompt = self._build_analyze_system_prompt()
-        user_prompt = self._build_analyze_user_prompt(
-            requirements, domain, reasoning_context=reasoning_context
-        )
+        user_prompt = self._build_analyze_user_prompt(requirements, domain, reasoning_context=reasoning_context)
         llm_result = await self._agent.generate_structured(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
@@ -1735,20 +1788,14 @@ that is not a populated {schema_name} call, is rejected and re-requested.
         for pattern in patterns:
             qa: dict[str, Any] = pattern.get("quality_attributes", {}) or {}
             if weight_sum > 0:
-                weighted_avg = sum(
-                    w[attr] * float(qa.get(attr, 0.0))
-                    for attr in QUALITY_ATTRIBUTE_KEYS
-                ) / weight_sum
+                weighted_avg = sum(w[attr] * float(qa.get(attr, 0.0)) for attr in QUALITY_ATTRIBUTE_KEYS) / weight_sum
             else:
                 vals = [float(qa.get(attr, 0.0)) for attr in QUALITY_ATTRIBUTE_KEYS]
                 weighted_avg = sum(vals) / len(vals) if vals else 0.0
             analysis_score = round(weighted_avg * 10.0, 2)
 
             raw_fusion = float(pattern.get("fusion_score", 0.0))
-            fusion_normalized = (
-                0.0 if f_range == 0
-                else round((raw_fusion - f_min) / f_range * 100.0, 2)
-            )
+            fusion_normalized = 0.0 if f_range == 0 else round((raw_fusion - f_min) / f_range * 100.0, 2)
             blended_score = round(a_w * analysis_score + f_w * fusion_normalized, 2)
 
             scored_pattern = dict(pattern)
@@ -1785,8 +1832,7 @@ that is not a populated {schema_name} call, is rejected and re-requested.
         if top_score >= self._retrieval_config.topology_score_threshold:
             return str(top.get("topology", DEFAULT_FALLBACK_TOPOLOGY))
         logger.info(
-            "Top pattern '%s' analysis_score %.2f < threshold %.2f; "
-            "falling back to topology '%s'",
+            "Top pattern '%s' analysis_score %.2f < threshold %.2f; falling back to topology '%s'",
             top.get("name"),
             top_score,
             self._retrieval_config.topology_score_threshold,
@@ -1873,10 +1919,7 @@ Deliver a detailed evaluation including metrics and recommendations by calling t
         first = patterns[0]
         qa = first.quality_attributes
         qa_items = qa.model_dump().items() if hasattr(qa, "model_dump") else qa.items()
-        qa_lines = "\n".join(
-            f"  - {attr}: {score}/10"
-            for attr, score in qa_items
-        )
+        qa_lines = "\n".join(f"  - {attr}: {score}/10" for attr, score in qa_items)
         ap_lines = "\n".join(f"  - {ap}" for ap in first.anti_patterns[:5])
         dp_lines = "\n".join(f"  - {dp}" for dp in first.design_principles[:5])
         return f"""You are an expert AI agent system architect.
@@ -1997,12 +2040,8 @@ and re-requested."""
         reasoning_context = await self._reasoning_block(
             "refine",
             {
-                "critical_findings": "\n".join(
-                    evaluation.summary.critical_findings
-                ) or "(none)",
-                "weaknesses": "\n".join(
-                    evaluation.summary.weaknesses
-                ) or "(none)",
+                "critical_findings": "\n".join(evaluation.summary.critical_findings) or "(none)",
+                "weaknesses": "\n".join(evaluation.summary.weaknesses) or "(none)",
             },
         )
         return self._retry_prompt(
