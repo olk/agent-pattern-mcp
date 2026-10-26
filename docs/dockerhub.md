@@ -126,7 +126,7 @@ MCP clients implement **client-side idle timeouts** (typically 30–120 s). If n
 
 2. **Async job trio** — For timeout-constrained clients (Claude Desktop, Cursor), use `submit_agent_design_job` + `get_agent_design_status` + `cancel_agent_design`. Returns a `job_id` immediately; poll every 10–30 s.
 
-3. **Direct HTTP client** — The repo's example client (`examples/agent_client.py`, `make client`) bypasses the MCP SDK entirely with no idle timeout.
+3. **Direct HTTP client** — The repo's example client (`examples/agent_client.py`, `make client-design`) bypasses the MCP SDK entirely with no idle timeout.
 
 ## Quick start
 

@@ -53,8 +53,8 @@ export MINIMAXAI_API_KEY=sk-...
 #    per INSTALL.md Path A)
 docker compose -f docker/docker-compose.yml up -d
 
-# 4. Demo
-make client
+# 4. Demo (analyze-only: fast. For the full design: make client-design)
+make client-analyze
 ```
 
 Server starts on **streamable-http** at `http://localhost:8821/mcp` (dev compose host port; systemd uses 8811). Then connect your agent below.
@@ -756,19 +756,20 @@ cancel_agent_design(job_id)                                         → {cancell
 
 The job store is SQLite at `~/.config/agent-pattern-mcp/jobs.db` (configurable via `AGENT_PATTERN_JOBS_DB`).
 
-### Bypassing client timeouts entirely: `make client`
+### Bypassing client timeouts with a direct HTTP client
 
-The example client in `examples/agent_client.py` is a **direct Python HTTP client** — it is not an MCP agent. It calls the server over HTTP without any MCP SDK, and therefore has **no client-side idle timeout**. It makes a single blocking request and waits for the full response, regardless of how long it takes.
+The example client in `examples/agent_client.py` is a **direct Python HTTP client** — it is not an MCP agent. It calls the server over HTTP without an MCP SDK, and therefore has **no client-side idle timeout**: it makes a single blocking request and waits for the full response.
 
 ```bash
 # Start the server (from project root)
 docker compose -f docker/docker-compose.yml up --build
 
-# In another terminal, run the example client
-make client
+# In another terminal: fast analyze demo / full design demo (minutes)
+make client-analyze        # analyze_agent_system only
+make client-design         # design_agent_system, the long synchronous call
 ```
 
-`make client` is a development/demo tool. It demonstrates that the server **correctly completes** long requests — the timeout issue is purely a client-side problem. For production use with MCP agents, the heartbeat defence covers the majority of clients; the async job trio is the universal fallback.
+Both targets drive the same direct client (`--tool analyze|design`). `make client-design` demonstrates that the server **correctly completes** long requests — the timeout issue is purely a client-side problem. For production use with MCP agents, the heartbeat defence covers the majority of clients; the async job trio is the universal fallback.
 
 ---
 
@@ -814,7 +815,8 @@ docker compose -f docker/docker-compose.yml logs agent-pattern-mcp
 | `make check-all` | Run every check-* quality gate (lint, types, dead code, deps) |
 | `make test-unit` | Run unit tests with uv (tests/unit/) |
 | `make test-oracles` | Run executable verification oracles (tests/verification/) |
-| `make client` | Run the example MCP client demo (requires server running) |
+| `make client-analyze` | Run the analyze-only MCP client demo (requires server running) |
+| `make client-design` | Run the synchronous design_agent_system client demo (long-running; requires server running) |
 | `make client-async` | Run the async job trio demo (requires server running) |
 | `make docker-build` | Build the MCP server Docker image |
 | `make docker-build-all` | Build MCP server + TEI embedder + reranker images |

@@ -191,11 +191,21 @@ toolchain-less boxes because the gated members self-skip (see Conventions).
 
 ## Demo (`##@ Demo`)
 
-### `client`
-Runs the pipes-and-filters MCP client demo
-(`examples/agent_client.py`) against `http://localhost:8821/mcp` —
-synchronous `design_agent_system`. Development tool proving the server
-completes long requests; the timeout issue it demonstrates is client-side.
+### `client-analyze`
+Runs the tool-use analyze-only client demo
+(`examples/agent_client.py --tool analyze`) against
+`http://localhost:8821/mcp` — synchronous `analyze_agent_system`
+(recommended topology, selected patterns, matched domains; generate and
+evaluate are skipped). Direct client, so it has no client-side idle
+timeout; use `client-design` for the full design artifact or
+`client-async` when the host imposes its own timeout.
+
+### `client-design`
+Runs the full design client demo (`examples/agent_client.py --tool
+design`) against `http://localhost:8821/mcp` — synchronous
+`design_agent_system` (analyze → generate → evaluate → refine;
+long-running). Direct client, so it has no client-side idle timeout;
+`client-async` is the production-safe pattern for hosts that impose one.
 
 ### `client-async`
 Runs the async job trio demo (`examples/agent_client_async.py`) —

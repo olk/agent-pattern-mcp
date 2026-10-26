@@ -12,7 +12,7 @@
 	test-unit test-oracles test-mutations regen-mutmut-baseline \
 	verify-fizz verify-fizz-simulation verify-fizz-garden regen-fizz-traces \
 	verify-ledger verify-cross-consistency verify-patterns verify-all \
-	client docker-build docker-build-tei \
+	client-analyze client-design docker-build docker-build-tei \
 	docker-build-all docker-publish docker-publish-tei \
 	docker-publish-all \
 	docker-up docker-down docker-logs docker-logs-follow \
@@ -220,8 +220,11 @@ test-all: ## Run the fast test gates (PR-time; test-mutations is nightly-only)
 	@echo "==> [2/2] test-oracles"; $(MAKE) --no-print-directory test-oracles
 
 ##@ Demo
-client: ## Run the agent-patterns MCP client demo
-	@AGENT_CLIENT_URL=http://localhost:8821/mcp uv run python examples/agent_client.py
+client-analyze: ## Run the analyze_agent_system MCP client demo (synchronous)
+	@AGENT_CLIENT_URL=http://localhost:8821/mcp uv run python examples/agent_client.py --tool analyze
+
+client-design: ## Run the design_agent_system MCP client demo (synchronous, long-running)
+	@AGENT_CLIENT_URL=http://localhost:8821/mcp uv run python examples/agent_client.py --tool design
 
 client-async: ## Run the async job trio demo (submit_agent_design_job + get_agent_design_status + cancel_agent_design)
 	@AGENT_CLIENT_URL=http://localhost:8821/mcp uv run python examples/agent_client_async.py
