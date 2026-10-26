@@ -162,6 +162,7 @@ class AnalysisResult(BaseModel):
     matched_domains: list[dict[str, Any]] = Field(default_factory=list)
     is_fallback: bool = Field(default=False)
     requirement_weights: RequirementWeights | None = Field(default=None)
+    topology_fallback: bool = Field(default=False)
 
 
 def _pattern_from_entry(p: dict[str, Any] | Pattern) -> Pattern:
@@ -753,7 +754,7 @@ class AgentPatternPipeline(Workflow):
             selected = scored[:top_k]
 
             quality_metrics = self._calculate_quality_metrics(selected)
-            recommended_topology = self._select_recommended_topology(selected, topology)
+            recommended_topology, topology_fallback = self._select_recommended_topology(selected, topology)
 
             logger.info(
                 "Analyze scored %d patterns for domain '%s' (recommended_topology=%s, top_k=%d)",
@@ -766,6 +767,7 @@ class AgentPatternPipeline(Workflow):
                     "stage": "scored",
                     "domain": domain,
                     "recommended_topology": recommended_topology,
+                    "topology_fallback": topology_fallback,
                     "requirement_weights": weights.as_dict(),
                     "patterns": [
                         {
@@ -795,6 +797,7 @@ class AgentPatternPipeline(Workflow):
                 matched_domains=matched_domains,
                 is_fallback=is_fallback,
                 requirement_weights=weights,
+                topology_fallback=topology_fallback,
             )
 
     def _topology_candidates(
@@ -1812,7 +1815,7 @@ that is not a populated {schema_name} call, is rejected and re-requested.
         self,
         selected: list[dict[str, Any]],
         style_override: str | None,
-    ) -> str:
+    ) -> tuple[str, bool]:
         """Derive ``recommended_topology`` from the scored patterns.
 
         Option A (threshold-gated): use the top-scoring pattern's ``topology``
@@ -1822,15 +1825,22 @@ that is not a populated {schema_name} call, is rejected and re-requested.
         winning pattern's *name* is deliberately NOT used here — pattern names
         identify catalogue entries, topologies identify structural shapes.
         An explicit ``style_override`` always wins.
+
+        Returns:
+            (topology, substituted): ``substituted`` is True exactly when the
+            returned topology is the ``DEFAULT_FALLBACK_TOPOLOGY`` substitution
+            (empty selection or top score below threshold) rather than a scored
+            decision.  Computed here — not via output string comparison — because
+            the top pattern's own topology may equal the fallback value.
         """
         if style_override:
-            return style_override
+            return style_override, False
         if not selected:
-            return DEFAULT_FALLBACK_TOPOLOGY
+            return DEFAULT_FALLBACK_TOPOLOGY, True
         top = selected[0]
         top_score = float(top.get("analysis_score", 0.0))
         if top_score >= self._retrieval_config.topology_score_threshold:
-            return str(top.get("topology", DEFAULT_FALLBACK_TOPOLOGY))
+            return str(top.get("topology", DEFAULT_FALLBACK_TOPOLOGY)), False
         logger.info(
             "Top pattern '%s' analysis_score %.2f < threshold %.2f; falling back to topology '%s'",
             top.get("name"),
@@ -1838,7 +1848,7 @@ that is not a populated {schema_name} call, is rejected and re-requested.
             self._retrieval_config.topology_score_threshold,
             DEFAULT_FALLBACK_TOPOLOGY,
         )
-        return DEFAULT_FALLBACK_TOPOLOGY
+        return DEFAULT_FALLBACK_TOPOLOGY, True
 
     def _build_analyze_system_prompt(self) -> str:
         """Build system prompt for the ANALYZE phase (weight extraction only)."""

@@ -99,6 +99,16 @@ class AnalyzeAgentSystemOutput(BaseModel):
 
     selected_patterns: list[dict[str, Any]] = Field(default_factory=list, description="Selected agent patterns")
 
+    requirement_weights: dict[str, float] | None = Field(
+        default=None,
+        description="Requirement priority weights (0.0-1.0 per quality attribute) extracted from the requirements; these drove the deterministic pattern scoring",
+    )
+
+    topology_fallback: bool = Field(
+        default=False,
+        description="True when recommended_topology is the threshold-substituted single-agent-loop default rather than the top-scored pattern's topology",
+    )
+
     quality_metrics: dict[str, Any] | None = Field(default=None, description="Quality assessment metrics")
     matched_domains: list[dict[str, Any]] = Field(
         default_factory=list, description="Top matched AgentDomain slugs from BM25+FAISS retrieval with fusion scores"
@@ -162,8 +172,10 @@ class AnalyzeAgentSystemTool:
         description=(
             "Analyze requirements and derive agent system recommendations using pattern matching "
             "and domain similarity. Use this when the agent writes the implementation itself: it "
-            "returns the recommended topology, selected patterns with scores, quality_metrics "
-            "(per-attribute 0-10) and matched domains without generating a design, so it skips the "
+            "returns the recommended topology, selected patterns with scores, requirement weights, "
+            "quality_metrics (per-attribute 0-10) and matched domains, plus a topology_fallback "
+            "flag when the recommended topology is the threshold-substituted single-agent-loop "
+            "default, without generating a design, so it skips the "
             "expensive generate and evaluate phases. Do not use this when the caller wants a generated "
             "design artifact (agents, relationships, tool contracts, state models) — call "
             "design_agent_system instead."
@@ -271,6 +283,8 @@ class AnalyzeAgentSystemTool:
                     quality_metrics=None,
                     matched_domains=[],
                     is_fallback=True,
+                    requirement_weights=None,
+                    topology_fallback=True,
                 ).model_dump()
 
             if ctx is not None:
@@ -318,6 +332,8 @@ class AnalyzeAgentSystemTool:
             recommended_topology=pd_result.recommended_topology,
             recommended_pattern_name=pd_result.recommended_pattern_name,
             selected_patterns=[p.model_dump() for p in pd_result.selected_patterns],
+            requirement_weights=pd_result.requirement_weights.as_dict() if pd_result.requirement_weights else None,
+            topology_fallback=pd_result.topology_fallback,
             quality_metrics=pd_result.quality_metrics.model_dump() if pd_result.quality_metrics else None,
             matched_domains=[m.model_dump() for m in pd_result.matched_domains],
             is_fallback=pd_result.is_fallback,

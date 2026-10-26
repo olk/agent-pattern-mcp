@@ -30,6 +30,7 @@ import pytest
 from src.agent import AgentSystemArchitect
 
 from src.pipeline import AnalysisResult, AgentPatternPipeline
+from src.schemas.analysis import RequirementWeights
 from src.schemas.quality import QualityMetrics
 
 from fastmcp.exceptions import ToolError
@@ -63,12 +64,7 @@ def mock_pipeline():
 def sample_quality_metrics():
     """Create sample QualityMetrics for testing."""
     return QualityMetrics(
-        reliability=8.0,
-        cost_efficiency=7.5,
-        latency=7.0,
-        output_quality=8.5,
-        observability=7.0,
-        safety=8.0
+        reliability=8.0, cost_efficiency=7.5, latency=7.0, output_quality=8.5, observability=7.0, safety=8.0
     )
 
 
@@ -81,9 +77,51 @@ def sample_analysis_result(sample_quality_metrics):
         recommendations=["Consider using patterns for multi-agent coordination"],
         quality_metrics=sample_quality_metrics,
         recommended_topology="hierarchical",
+        topology_fallback=False,
+        requirement_weights=RequirementWeights(
+            reliability=1.0,
+            cost_efficiency=0.5,
+            latency=0.6,
+            output_quality=0.8,
+            observability=0.4,
+            safety=0.3,
+            simplicity=0.2,
+        ),
         selected_patterns=[
-            {"name": "supervisor-worker", "topology": "hierarchical", "context": "Hierarchical task decomposition", "category": "planning", "benefits": ["Task decomposition"], "tradeoffs": ["Complexity"], "quality_attributes": {"reliability": 7.0}},
-            {"name": "react", "topology": "single-agent-loop", "context": "ReAct agent pattern", "category": "reasoning", "benefits": ["Simple"], "tradeoffs": ["Limited"], "quality_attributes": {"reliability": 6.0}}
+            {
+                "name": "supervisor-worker",
+                "topology": "hierarchical",
+                "context": "Hierarchical task decomposition",
+                "category": "planning",
+                "benefits": ["Task decomposition"],
+                "tradeoffs": ["Complexity"],
+                "quality_attributes": {
+                    "reliability": 7.0,
+                    "cost_efficiency": 7.0,
+                    "latency": 7.0,
+                    "output_quality": 7.0,
+                    "observability": 7.0,
+                    "safety": 7.0,
+                    "simplicity": 7.0,
+                },
+            },
+            {
+                "name": "react",
+                "topology": "single-agent-loop",
+                "context": "ReAct agent pattern",
+                "category": "reasoning",
+                "benefits": ["Simple"],
+                "tradeoffs": ["Limited"],
+                "quality_attributes": {
+                    "reliability": 6.0,
+                    "cost_efficiency": 6.0,
+                    "latency": 6.0,
+                    "output_quality": 6.0,
+                    "observability": 6.0,
+                    "safety": 6.0,
+                    "simplicity": 6.0,
+                },
+            },
         ],
     )
 
@@ -127,8 +165,10 @@ class TestAnalyzeAgentSystemOutput:
                 "latency": 7.0,
                 "output_quality": 8.5,
                 "observability": 7.0,
-                "safety": 8.0
-            }
+                "safety": 8.0,
+            },
+            requirement_weights={"reliability": 1.0, "latency": 0.6},
+            topology_fallback=True,
         )
 
         assert len(output.strengths) == 1
@@ -136,6 +176,9 @@ class TestAnalyzeAgentSystemOutput:
         assert len(output.recommendations) == 1
         assert output.recommended_topology == "hierarchical"
         assert len(output.selected_patterns) == 1
+        assert output.requirement_weights is not None
+        assert output.requirement_weights["reliability"] == 1.0
+        assert output.topology_fallback is True
 
     def test_output_model_default_values(self):
         """Creating output with defaults sets them correctly."""
@@ -147,18 +190,15 @@ class TestAnalyzeAgentSystemOutput:
         assert output.recommended_topology == ""
         assert output.selected_patterns == []
         assert output.quality_metrics is None
+        assert output.requirement_weights is None
+        assert output.topology_fallback is False
 
 
 class TestAnalyzeAgentSystemToolAnalyze:
     """Test suite for AnalyzeAgentSystemTool.analyze() method."""
 
     @pytest.mark.asyncio
-    async def test_analyze_returns_output_successfully(
-        self,
-        mock_agent,
-        mock_pipeline,
-        sample_analysis_result
-    ):
+    async def test_analyze_returns_output_successfully(self, mock_agent, mock_pipeline, sample_analysis_result):
         """analyze() returns dict with analysis results."""
         mock_pipeline.analyze.return_value = sample_analysis_result
 
@@ -176,27 +216,19 @@ class TestAnalyzeAgentSystemToolAnalyze:
                 "latency": 7.0,
                 "output_quality": 8.5,
                 "observability": 7.0,
-                "safety": 8.0
-            }
+                "safety": 8.0,
+            },
         )
         tool._map_to_output = MagicMock(return_value=expected_output)
 
-        output = await tool.analyze(
-            requirements="System needs high scalability",
-            domain="multi-agent-systems"
-        )
+        output = await tool.analyze(requirements="System needs high scalability", domain="multi-agent-systems")
 
         assert isinstance(output, dict)
-        assert len(output['strengths']) == 2
-        assert output['recommended_topology'] == "hierarchical"
+        assert len(output["strengths"]) == 2
+        assert output["recommended_topology"] == "hierarchical"
 
     @pytest.mark.asyncio
-    async def test_analyze_maps_quality_metrics_correctly(
-        self,
-        mock_agent,
-        mock_pipeline,
-        sample_analysis_result
-    ):
+    async def test_analyze_maps_quality_metrics_correctly(self, mock_agent, mock_pipeline, sample_analysis_result):
         """Quality metrics are properly mapped to dict."""
         mock_pipeline.analyze.return_value = sample_analysis_result
 
@@ -214,31 +246,23 @@ class TestAnalyzeAgentSystemToolAnalyze:
                 "latency": 7.0,
                 "output_quality": 8.5,
                 "observability": 7.0,
-                "safety": 8.0
-            }
+                "safety": 8.0,
+            },
         )
         tool._map_to_output = MagicMock(return_value=expected_output)
 
-        output = await tool.analyze(
-            requirements="System needs high scalability",
-            domain="multi-agent-systems"
-        )
+        output = await tool.analyze(requirements="System needs high scalability", domain="multi-agent-systems")
 
-        assert output['quality_metrics'] is not None
-        assert "reliability" in output['quality_metrics']
-        assert "cost_efficiency" in output['quality_metrics']
-        assert "latency" in output['quality_metrics']
-        assert "output_quality" in output['quality_metrics']
-        assert "observability" in output['quality_metrics']
-        assert "safety" in output['quality_metrics']
+        assert output["quality_metrics"] is not None
+        assert "reliability" in output["quality_metrics"]
+        assert "cost_efficiency" in output["quality_metrics"]
+        assert "latency" in output["quality_metrics"]
+        assert "output_quality" in output["quality_metrics"]
+        assert "observability" in output["quality_metrics"]
+        assert "safety" in output["quality_metrics"]
 
     @pytest.mark.asyncio
-    async def test_analyze_delegates_to_pipeline(
-        self,
-        mock_agent,
-        mock_pipeline,
-        sample_analysis_result
-    ):
+    async def test_analyze_delegates_to_pipeline(self, mock_agent, mock_pipeline, sample_analysis_result):
         """analyze() delegates to pipeline.analyze with correct parameters."""
         mock_pipeline.analyze.return_value = sample_analysis_result
 
@@ -246,15 +270,43 @@ class TestAnalyzeAgentSystemToolAnalyze:
 
         tool._map_to_output = MagicMock(return_value=AnalyzeAgentSystemOutput())
 
-        await tool.analyze(
-            requirements="System needs high scalability",
-            domain="multi-agent-systems"
-        )
+        await tool.analyze(requirements="System needs high scalability", domain="multi-agent-systems")
 
         mock_pipeline.analyze.assert_called_once_with(
-            requirements="System needs high scalability",
-            domain="multi-agent-systems"
+            requirements="System needs high scalability", domain="multi-agent-systems"
         )
+
+    @pytest.mark.asyncio
+    async def test_analyze_passes_through_requirement_weights(self, mock_agent, mock_pipeline, sample_analysis_result):
+        """Pipeline requirement weights are surfaced on the analyze output."""
+        mock_pipeline.analyze.return_value = sample_analysis_result
+
+        tool = AnalyzeAgentSystemTool(agent=mock_agent, pipeline=mock_pipeline)
+
+        output = await tool.analyze(requirements="System needs high scalability", domain="multi-agent-systems")
+
+        assert set(output["requirement_weights"]) == {
+            "reliability",
+            "cost_efficiency",
+            "latency",
+            "output_quality",
+            "observability",
+            "safety",
+            "simplicity",
+        }
+        assert output["requirement_weights"]["reliability"] == 1.0
+
+    @pytest.mark.asyncio
+    async def test_analyze_passes_through_topology_fallback(self, mock_agent, mock_pipeline, sample_analysis_result):
+        """Pipeline topology_fallback flag is surfaced on the analyze output."""
+        sample_analysis_result.topology_fallback = True
+        mock_pipeline.analyze.return_value = sample_analysis_result
+
+        tool = AnalyzeAgentSystemTool(agent=mock_agent, pipeline=mock_pipeline)
+
+        output = await tool.analyze(requirements="System needs high scalability", domain="multi-agent-systems")
+
+        assert output["topology_fallback"] is True
 
 
 class TestAnalyzeArchitectureErrorHandling:
@@ -264,19 +316,15 @@ class TestAnalyzeArchitectureErrorHandling:
     async def test_llm_error_raises_tool_error(self, mock_agent, mock_pipeline):
         """LLM error raises ToolError."""
         from src.agent import LLMError
+
         mock_pipeline.analyze.side_effect = LLMError(
-            provider="openai",
-            error=ERROR_LLM_PROVIDER,
-            provider_message="API rate limit exceeded"
+            provider="openai", error=ERROR_LLM_PROVIDER, provider_message="API rate limit exceeded"
         )
 
         tool = AnalyzeAgentSystemTool(agent=mock_agent, pipeline=mock_pipeline)
 
         with pytest.raises(ToolError):
-            await tool.analyze(
-                requirements="System needs high scalability",
-                domain="multi-agent-systems"
-            )
+            await tool.analyze(requirements="System needs high scalability", domain="multi-agent-systems")
 
     @pytest.mark.asyncio
     async def test_no_patterns_error_returns_empty_result(self, mock_agent, mock_pipeline):
@@ -285,23 +333,23 @@ class TestAnalyzeArchitectureErrorHandling:
 
         tool = AnalyzeAgentSystemTool(agent=mock_agent, pipeline=mock_pipeline)
 
-        output = await tool.analyze(
-            requirements="System needs high scalability",
-            domain="unknown-domain"
-        )
+        output = await tool.analyze(requirements="System needs high scalability", domain="unknown-domain")
 
-        assert output['strengths'] == []
-        assert len(output['weaknesses']) > 0
-        assert "No patterns found" in output['weaknesses'][0]
-        assert output['recommended_topology'] == "single-agent-loop"
-        assert output['recommended_pattern_name'] == "react"
-        assert output['selected_patterns'] == []
+        assert output["strengths"] == []
+        assert len(output["weaknesses"]) > 0
+        assert "No patterns found" in output["weaknesses"][0]
+        assert output["recommended_topology"] == "single-agent-loop"
+        assert output["recommended_pattern_name"] == "react"
+        assert output["selected_patterns"] == []
+        assert output["requirement_weights"] is None
+        assert output["topology_fallback"] is True
 
     def test_is_llm_error_detects_llm_errors(self, mock_agent, mock_pipeline):
         """_is_llm_error returns True for LLMError instances."""
         tool = AnalyzeAgentSystemTool(agent=mock_agent, pipeline=mock_pipeline)
 
         from src.agent import LLMError
+
         error = LLMError(provider="openai", error="ERR_009", provider_message="test")
 
         assert tool._is_llm_error(error) is True

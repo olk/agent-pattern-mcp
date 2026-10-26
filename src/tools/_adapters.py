@@ -127,6 +127,8 @@ def analysis_to_pydantic(dc: AnalysisResultDC) -> AnalysisResult:
         quality_metrics=qm,
         recommended_topology=dc.recommended_topology,
         recommended_pattern_name=dc.recommended_pattern_name,
+        requirement_weights=dc.requirement_weights,
+        topology_fallback=bool(dc.topology_fallback),
         selected_patterns=patterns,
         matched_domains=matched_domains,
         is_fallback=bool(dc.is_fallback),
@@ -176,10 +178,7 @@ def design_from_dict(data: dict[str, Any]) -> AgentSystemDesign:
                 {
                     "type": "model_type",
                     "loc": ("payload",),
-                    "msg": (
-                        "Input must be a JSON object with an 'overview' key, "
-                        f"got {type(data).__name__}"
-                    ),
+                    "msg": (f"Input must be a JSON object with an 'overview' key, got {type(data).__name__}"),
                 }
             ],
         )
@@ -300,4 +299,3 @@ def design_to_pydantic(dc: AgentSystemDesign | dict[str, Any]) -> AgentSystemDes
     if isinstance(dc, dict):
         dc = AgentSystemDesign.model_validate(dc)
     return dc
-

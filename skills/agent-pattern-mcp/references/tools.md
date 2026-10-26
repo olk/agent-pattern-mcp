@@ -66,9 +66,11 @@ Output (flat object):
 | Field | Content |
 |-------|---------|
 | `strengths`, `weaknesses`, `recommendations` | LLM assessment of the requirement set |
-| `recommended_topology` | `AgentTopology` value of the top-scored pattern |
+| `recommended_topology` | `AgentTopology` value of the top-scored pattern (or `single-agent-loop` substitution when `topology_fallback` is `true`) |
 | `recommended_pattern_name` | pattern that drove the recommendation (`""` when nothing scored) |
 | `selected_patterns` | top-k patterns with their scores and metadata |
+| `requirement_weights` | `{reliability, cost_efficiency, latency, output_quality, observability, safety, simplicity}`, each 0–1; priorities that drove deterministic scoring (`null` on the error path) |
+| `topology_fallback` | `true` when `recommended_topology` is the threshold-substituted `single-agent-loop` default rather than the top-scored pattern's topology |
 | `quality_metrics` | `{reliability, cost_efficiency, latency, output_quality, observability, safety}`, each 0–10 |
 | `matched_domains` | top domain slugs with fusion scores |
 | `is_fallback` | `true` when no real domain match was found and `react` was substituted |

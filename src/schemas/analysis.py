@@ -126,6 +126,14 @@ class AnalysisResult(BaseModel):
         default="",
         description="Name of the top-scored pattern that drove the topology recommendation ('' when no patterns were scored)",
     )
+    requirement_weights: RequirementWeights | None = Field(
+        default=None,
+        description="Requirement priority weights (0.0-1.0 per quality attribute) extracted from the requirements; these drove the deterministic pattern scoring",
+    )
+    topology_fallback: bool = Field(
+        default=False,
+        description="True when recommended_topology is the threshold-substituted single-agent-loop default rather than the top-scored pattern's topology (top analysis_score below topology_score_threshold, or empty selection)",
+    )
     selected_patterns: list[ScoredPattern] = Field(
         default_factory=list,
         description="Patterns selected during analysis, ordered by analysis_score descending",

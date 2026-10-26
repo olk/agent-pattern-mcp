@@ -67,15 +67,21 @@ class MockAgentSystemArchitect:
         self.generate_structured_calls = []
 
     async def generate_structured(
-        self, system_prompt: str, user_prompt: str, response_schema,
-        *, role: str = "generation",
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        response_schema,
+        *,
+        role: str = "generation",
     ):
-        self.generate_structured_calls.append({
-            "system_prompt": system_prompt,
-            "user_prompt": user_prompt,
-            "schema": response_schema,
-            "role": role,
-        })
+        self.generate_structured_calls.append(
+            {
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "schema": response_schema,
+                "role": role,
+            }
+        )
 
         if response_schema is AgentSystemDesignResponse:
             return AgentSystemDesignResponse(
@@ -145,13 +151,18 @@ class MockAgentSystemArchitect:
 
         if response_schema.__name__ == "AnalysisResult":
             from src.schemas.quality import QualityMetrics
+
             return AnalysisResult(
                 strengths=["Strong scalability", "Good performance"],
                 weaknesses=["Complex to set up"],
                 recommendations=["Consider starting with simpler architecture"],
                 quality_metrics=QualityMetrics(
-                    reliability=7.0, cost_efficiency=6.0, latency=7.0,
-                    output_quality=8.0, observability=7.0, safety=8.0,
+                    reliability=7.0,
+                    cost_efficiency=6.0,
+                    latency=7.0,
+                    output_quality=8.0,
+                    observability=7.0,
+                    safety=8.0,
                 ),
                 recommended_topology="hierarchical",
                 selected_patterns=[],
@@ -159,6 +170,7 @@ class MockAgentSystemArchitect:
 
         if response_schema.__name__ == "RequirementWeights":
             from src.pipeline import RequirementWeights
+
             return RequirementWeights(
                 reliability=1.0,
                 cost_efficiency=0.8,
@@ -175,10 +187,12 @@ class MockAgentSystemArchitect:
                     overall_score=75.0,
                     strengths=["Good overall quality"],
                     weaknesses=["Consider improvements in maintainability"],
-                    critical_findings=["No critical risks identified"]
+                    critical_findings=["No critical risks identified"],
                 ),
                 metrics=[
-                    MetricResult(name="overall_quality", score=75.0, description="Overall", findings=[], recommendations=[])
+                    MetricResult(
+                        name="overall_quality", score=75.0, description="Overall", findings=[], recommendations=[]
+                    )
                 ],
                 recommendations={},
             )
@@ -233,8 +247,7 @@ class MockPatternLoader:
     def filter_by_domain(self, domain: str) -> list[dict]:
         self.filter_by_domain_calls.append(domain)
         normalized_domain = domain.lower().replace(" ", "-")
-        return [p for p in self._patterns_cache
-                if normalized_domain in p.get("suitable_domains", [])]
+        return [p for p in self._patterns_cache if normalized_domain in p.get("suitable_domains", [])]
 
     def select_top_patterns(self, domain: str, top_k: int = 5) -> list[dict]:
         self.select_top_patterns_calls.append((domain, top_k))
@@ -263,14 +276,10 @@ class MockPatternLoader:
                     "safety": 8,
                     "simplicity": 7,
                 },
-                "best_practices": [
-                    "Use database per service",
-                    "Implement circuit breakers",
-                    "Add distributed tracing"
-                ],
+                "best_practices": ["Use database per service", "Implement circuit breakers", "Add distributed tracing"],
                 "context": "Distributed systems requiring independent deployability",
                 "benefits": ["Independent scaling", "Fault isolation"],
-                "tradeoffs": ["Distributed complexity", "Operational overhead"]
+                "tradeoffs": ["Distributed complexity", "Operational overhead"],
             },
             {
                 "name": "event-driven",
@@ -286,15 +295,11 @@ class MockPatternLoader:
                     "safety": 5,
                     "simplicity": 1,
                 },
-                "best_practices": [
-                    "Use message brokers",
-                    "Implement idempotency",
-                    "Handle dead letter queues"
-                ],
+                "best_practices": ["Use message brokers", "Implement idempotency", "Handle dead letter queues"],
                 "context": "Systems requiring async communication",
                 "benefits": ["Loose coupling", "Scalability"],
-                "tradeoffs": ["Eventual consistency", "Debug complexity"]
-            }
+                "tradeoffs": ["Eventual consistency", "Debug complexity"],
+            },
         ]
 
 
@@ -306,12 +311,15 @@ class MockDenseRetriever:
 
     def retrieve(self, query_bundle):
         from llama_index.core.schema import NodeWithScore, TextNode
+
         nodes = [
             NodeWithScore(node=TextNode(text="cloud-native", metadata={"slug": "cloud-native"}), score=0.95),
-            NodeWithScore(node=TextNode(text="multi-agent-systems", metadata={"slug": "multi-agent-systems"}), score=0.85),
+            NodeWithScore(
+                node=TextNode(text="multi-agent-systems", metadata={"slug": "multi-agent-systems"}), score=0.85
+            ),
             NodeWithScore(node=TextNode(text="tool-use-tasks", metadata={"slug": "tool-use-tasks"}), score=0.75),
         ]
-        return nodes[:self._top_k]
+        return nodes[: self._top_k]
 
 
 class MockBM25Retriever:
@@ -322,12 +330,15 @@ class MockBM25Retriever:
 
     def retrieve(self, query_bundle):
         from llama_index.core.schema import NodeWithScore, TextNode
+
         nodes = [
             NodeWithScore(node=TextNode(text="cloud-native", metadata={"slug": "cloud-native"}), score=0.9),
-            NodeWithScore(node=TextNode(text="multi-agent-systems", metadata={"slug": "multi-agent-systems"}), score=0.8),
+            NodeWithScore(
+                node=TextNode(text="multi-agent-systems", metadata={"slug": "multi-agent-systems"}), score=0.8
+            ),
             NodeWithScore(node=TextNode(text="tool-use-tasks", metadata={"slug": "tool-use-tasks"}), score=0.7),
         ]
-        return nodes[:self._top_k]
+        return nodes[: self._top_k]
 
 
 def create_test_pipeline(retrieval_config=None, pipeline_config=None):
@@ -339,12 +350,11 @@ def create_test_pipeline(retrieval_config=None, pipeline_config=None):
     """
     from src.config import RetrievalConfig, RerankerConfig, RerankerInnerConfig
     from unittest.mock import MagicMock
+
     agent = MockAgentSystemArchitect()
     pattern_loader = MockPatternLoader()
     pattern_loader.load_all()
-    reranker_config = RerankerConfig(
-        config=RerankerInnerConfig(base_url="http://test-reranker:8080")
-    )
+    reranker_config = RerankerConfig(config=RerankerInnerConfig(base_url="http://test-reranker:8080"))
     if retrieval_config is None:
         retrieval_config = RetrievalConfig(min_fusion_score=0.0)
     pipeline = AgentPatternPipeline(
@@ -407,11 +417,13 @@ class TestAgentPatternPipelineInit:
         pipeline = create_test_pipeline()
         assert pipeline is not None
         from workflows import Workflow
+
         assert isinstance(pipeline, Workflow)
 
     def test_pipeline_accepts_dependencies(self):
         """DP-5: Verify pipeline accepts dependency injected agents."""
         from unittest.mock import MagicMock
+
         agent = MockAgentSystemArchitect()
         pattern_loader = MockPatternLoader()
         embedder = MagicMock()
@@ -435,10 +447,7 @@ class TestPipelinePhases:
         """FR-214: ANALYZE phase filters patterns by domain."""
         pipeline = create_test_pipeline()
 
-        result = await pipeline.analyze(
-            requirements="Need scalable distributed system",
-            domain="multi-agent-systems"
-        )
+        result = await pipeline.analyze(requirements="Need scalable distributed system", domain="multi-agent-systems")
 
         assert isinstance(result, AnalysisResult)
         assert len(result.selected_patterns) > 0
@@ -463,7 +472,7 @@ class TestPipelinePhases:
                 "benefits": ["Scaling"],
                 "tradeoffs": ["Complexity"],
                 "suitable_domains": ["microservices"],
-                "best_practices": ["Circuit breakers"]
+                "best_practices": ["Circuit breakers"],
             }
         ]
 
@@ -471,7 +480,7 @@ class TestPipelinePhases:
             requirements="Build scalable API",
             domain="cloud-native",
             topology="microservices",
-            selected_patterns=patterns
+            selected_patterns=patterns,
         )
 
         assert isinstance(design, AgentSystemDesign)
@@ -491,16 +500,20 @@ class TestPipelinePhases:
                 "topology": "hierarchical",
                 "category": "multi_agent",
                 "principles": ["single responsibility"],
-                "constraints": []
+                "constraints": [],
             },
-            agents=[{"id": "svc1", "name": "Service 1", "role": "service", "description": "A service", "responsibilities": ["serve"]}],
+            agents=[
+                {
+                    "id": "svc1",
+                    "name": "Service 1",
+                    "role": "service",
+                    "description": "A service",
+                    "responsibilities": ["serve"],
+                }
+            ],
         )
 
-        evaluation = await pipeline.evaluate(
-            design=design,
-            criteria="quality,scalability",
-            domain="cloud-native"
-        )
+        evaluation = await pipeline.evaluate(design=design, criteria="quality,scalability", domain="cloud-native")
 
         assert isinstance(evaluation, AgentSystemEvaluation)
         assert len(evaluation.metrics) > 0
@@ -515,13 +528,15 @@ class TestPipelinePhases:
             requirements="Build a scalable distributed system",
             domain="cloud-native",
             topology="microservices",
-            selected_patterns=[{
-                "name": "microservices",
-                "context": "Distributed systems",
-                "category": "structural",
-                "benefits": ["scaling"],
-                "best_practices": ["Use database per service"]
-            }],
+            selected_patterns=[
+                {
+                    "name": "microservices",
+                    "context": "Distributed systems",
+                    "category": "structural",
+                    "benefits": ["scaling"],
+                    "best_practices": ["Use database per service"],
+                }
+            ],
             criteria="quality,maintainability,scalability",
             analysis_result=None,
             max_tries=3,
@@ -555,7 +570,7 @@ class TestQualityMetricsCalculation:
                     "output_quality": 8,
                     "observability": 9,
                     "safety": 7,
-                    "reliability": 8
+                    "reliability": 8,
                 }
             },
             {
@@ -565,9 +580,9 @@ class TestQualityMetricsCalculation:
                     "output_quality": 9,
                     "observability": 8,
                     "safety": 6,
-                    "reliability": 7
+                    "reliability": 7,
                 }
-            }
+            },
         ]
 
         metrics = pipeline._calculate_quality_metrics(patterns)
@@ -602,12 +617,28 @@ class TestAnalyzeScoring:
 
         pipeline = create_test_pipeline()
         patterns = [
-            {"name": "a", "quality_attributes": {
-                "reliability": 10, "cost_efficiency": 0, "latency": 0,
-                "output_quality": 0, "observability": 0, "safety": 0}},
-            {"name": "b", "quality_attributes": {
-                "reliability": 0, "cost_efficiency": 0, "latency": 10,
-                "output_quality": 0, "observability": 0, "safety": 0}},
+            {
+                "name": "a",
+                "quality_attributes": {
+                    "reliability": 10,
+                    "cost_efficiency": 0,
+                    "latency": 0,
+                    "output_quality": 0,
+                    "observability": 0,
+                    "safety": 0,
+                },
+            },
+            {
+                "name": "b",
+                "quality_attributes": {
+                    "reliability": 0,
+                    "cost_efficiency": 0,
+                    "latency": 10,
+                    "output_quality": 0,
+                    "observability": 0,
+                    "safety": 0,
+                },
+            },
         ]
         # Pure reliability priority → 'a' (10) outranks 'b' (0).
         weights = RequirementWeights(reliability=1.0)
@@ -624,9 +655,17 @@ class TestAnalyzeScoring:
 
         pipeline = create_test_pipeline()
         patterns = [
-            {"name": "perf-heavy", "quality_attributes": {
-                "reliability": 0, "cost_efficiency": 0, "latency": 10,
-                "output_quality": 0, "observability": 0, "safety": 2}},
+            {
+                "name": "perf-heavy",
+                "quality_attributes": {
+                    "reliability": 0,
+                    "cost_efficiency": 0,
+                    "latency": 10,
+                    "output_quality": 0,
+                    "observability": 0,
+                    "safety": 2,
+                },
+            },
         ]
         # 50/50 latency + safety → (10*0.5 + 2*0.5)/1.0 = 6.0 → 60.0
         weights = RequirementWeights(latency=0.5, safety=0.5)
@@ -638,10 +677,20 @@ class TestAnalyzeScoring:
         from src.pipeline import RequirementWeights
 
         pipeline = create_test_pipeline()
-        patterns = [{"name": "x", "quality_attributes": {
-            "reliability": 8, "cost_efficiency": 8, "latency": 8,
-            "output_quality": 8, "observability": 8, "safety": 8},
-            "fusion_score": 0.42}]
+        patterns = [
+            {
+                "name": "x",
+                "quality_attributes": {
+                    "reliability": 8,
+                    "cost_efficiency": 8,
+                    "latency": 8,
+                    "output_quality": 8,
+                    "observability": 8,
+                    "safety": 8,
+                },
+                "fusion_score": 0.42,
+            }
+        ]
         weights = RequirementWeights(reliability=1.0)
         scored = pipeline._score_patterns(patterns, weights)
         assert scored[0]["fusion_score"] == 0.42
@@ -652,9 +701,20 @@ class TestAnalyzeScoring:
         from src.pipeline import RequirementWeights
 
         pipeline = create_test_pipeline()
-        patterns = [{"name": "x", "quality_attributes": {
-            "reliability": 6, "cost_efficiency": 6, "latency": 6,
-            "output_quality": 6, "observability": 6, "safety": 6, "simplicity": 6}}]
+        patterns = [
+            {
+                "name": "x",
+                "quality_attributes": {
+                    "reliability": 6,
+                    "cost_efficiency": 6,
+                    "latency": 6,
+                    "output_quality": 6,
+                    "observability": 6,
+                    "safety": 6,
+                    "simplicity": 6,
+                },
+            }
+        ]
         weights = RequirementWeights()  # all default 0.0
         scored = pipeline._score_patterns(patterns, weights)
         assert scored[0]["analysis_score"] == 60.0
@@ -663,30 +723,36 @@ class TestAnalyzeScoring:
         """An explicit style override always wins."""
         pipeline = create_test_pipeline()
         selected = [{"name": "microservices", "topology": "pipeline", "analysis_score": 99.0}]
-        assert pipeline._select_recommended_topology(selected, "hierarchical") == "hierarchical"
+        assert pipeline._select_recommended_topology(selected, "hierarchical") == ("hierarchical", False)
 
     def test_select_recommended_topology_top_pattern_above_threshold(self):
         """Top pattern's topology value is used when its score meets the threshold."""
         pipeline = create_test_pipeline()  # default threshold 50.0
         selected = [{"name": "event-driven", "topology": "graph-orchestrated", "analysis_score": 80.0}]
-        assert pipeline._select_recommended_topology(selected, None) == "graph-orchestrated"
+        assert pipeline._select_recommended_topology(selected, None) == ("graph-orchestrated", False)
 
     def test_select_recommended_topology_uses_topology_not_name(self):
         """The pattern's topology field — never its name — becomes the recommendation."""
         pipeline = create_test_pipeline()
         selected = [{"name": "react", "topology": "single-agent-loop", "analysis_score": 90.0}]
-        assert pipeline._select_recommended_topology(selected, None) == "single-agent-loop"
+        assert pipeline._select_recommended_topology(selected, None) == ("single-agent-loop", False)
 
     def test_select_recommended_topology_below_threshold_falls_back(self):
         """Falls back to the fallback topology when top score < threshold."""
         pipeline = create_test_pipeline()  # default threshold 50.0
         selected = [{"name": "event-driven", "topology": "graph-orchestrated", "analysis_score": 40.0}]
-        assert pipeline._select_recommended_topology(selected, None) == "single-agent-loop"
+        assert pipeline._select_recommended_topology(selected, None) == ("single-agent-loop", True)
+
+    def test_select_recommended_topology_below_threshold_aliased_topology(self):
+        """Substitution flag is True even when the top pattern's own topology equals the fallback."""
+        pipeline = create_test_pipeline()  # default threshold 50.0
+        selected = [{"name": "react", "topology": "single-agent-loop", "analysis_score": 40.0}]
+        assert pipeline._select_recommended_topology(selected, None) == ("single-agent-loop", True)
 
     def test_select_recommended_topology_empty_falls_back(self):
         """Empty selection falls back to the fallback topology."""
         pipeline = create_test_pipeline()
-        assert pipeline._select_recommended_topology([], None) == "single-agent-loop"
+        assert pipeline._select_recommended_topology([], None) == ("single-agent-loop", True)
 
     @pytest.mark.asyncio
     async def test_analyze_injects_scores_and_selects_top_k(self):
@@ -717,14 +783,12 @@ class TestAnalyzeScoring:
         # RequirementWeights extraction. Its user prompt must not embed
         # candidate pattern names / quality_attributes.
         weights_calls = [
-            c for c in pipeline._agent.generate_structured_calls
-            if c["schema"].__name__ == "RequirementWeights"
+            c for c in pipeline._agent.generate_structured_calls if c["schema"].__name__ == "RequirementWeights"
         ]
         assert len(weights_calls) == 1
         user_prompt = weights_calls[0]["user_prompt"]
         assert "Candidate patterns" not in user_prompt
         assert "quality_attributes=" not in user_prompt
-
 
 
 class TestPatternFlow:
@@ -735,10 +799,7 @@ class TestPatternFlow:
         """AC-214: Verify ANALYZE filters patterns correctly."""
         pipeline = create_test_pipeline()
 
-        result = await pipeline.analyze(
-            requirements="Distributed system needed",
-            domain="cloud-native"
-        )
+        result = await pipeline.analyze(requirements="Distributed system needed", domain="cloud-native")
 
         assert len(result.selected_patterns) > 0
 
@@ -760,7 +821,7 @@ class TestPatternFlow:
                 "benefits": ["Scaling"],
                 "tradeoffs": ["Complexity"],
                 "suitable_domains": ["cloud-native"],
-                "best_practices": ["Use APIs"]
+                "best_practices": ["Use APIs"],
             }
         ]
 
@@ -768,7 +829,7 @@ class TestPatternFlow:
             requirements="Build distributed system",
             domain="cloud-native",
             topology="microservices",
-            selected_patterns=patterns
+            selected_patterns=patterns,
         )
 
     @pytest.mark.asyncio
@@ -781,18 +842,28 @@ class TestPatternFlow:
                 "topology": "hierarchical",
                 "category": "multi_agent",
                 "principles": ["single responsibility"],
-                "constraints": []
+                "constraints": [],
             },
             agents=[
-                {"id": "api", "name": "API", "role": "gateway", "description": "Entry point", "responsibilities": ["route"]},
-                {"id": "svc", "name": "Service", "role": "service", "description": "Core service", "responsibilities": ["process"]}
+                {
+                    "id": "api",
+                    "name": "API",
+                    "role": "gateway",
+                    "description": "Entry point",
+                    "responsibilities": ["route"],
+                },
+                {
+                    "id": "svc",
+                    "name": "Service",
+                    "role": "service",
+                    "description": "Core service",
+                    "responsibilities": ["process"],
+                },
             ],
         )
 
         evaluation = await pipeline.evaluate(
-            design=design,
-            criteria="maintainability,scalability,performance",
-            domain="cloud-native"
+            design=design, criteria="maintainability,scalability,performance", domain="cloud-native"
         )
 
         assert len(evaluation.metrics) > 0
@@ -807,13 +878,15 @@ class TestPatternFlow:
             requirements="Build a scalable distributed system",
             domain="cloud-native",
             topology="microservices",
-            selected_patterns=[{
-                "name": "microservices",
-                "context": "Distributed systems",
-                "category": "structural",
-                "benefits": ["scaling"],
-                "best_practices": ["Use database per service"]
-            }],
+            selected_patterns=[
+                {
+                    "name": "microservices",
+                    "context": "Distributed systems",
+                    "category": "structural",
+                    "benefits": ["scaling"],
+                    "best_practices": ["Use database per service"],
+                }
+            ],
             criteria="quality,maintainability",
             analysis_result=None,
             max_tries=2,
@@ -843,13 +916,18 @@ class TestGeneratePropagatesContracts:
                     "benefits": ["Scaling"],
                     "tradeoffs": ["Complexity"],
                     "quality_attributes": {
-                        "reliability": 7, "cost_efficiency": 6, "latency": 7,
-                        "output_quality": 8, "observability": 7, "safety": 8, "simplicity": 4,
+                        "reliability": 7,
+                        "cost_efficiency": 6,
+                        "latency": 7,
+                        "output_quality": 8,
+                        "observability": 7,
+                        "safety": 8,
+                        "simplicity": 4,
                     },
                     "suitable_domains": ["cloud-native"],
-                    "best_practices": ["Use APIs"]
+                    "best_practices": ["Use APIs"],
                 }
-            ]
+            ],
         )
 
         assert len(design.tool_contracts) == 1
@@ -883,13 +961,18 @@ class TestGeneratePropagatesContracts:
                     "benefits": ["Scaling"],
                     "tradeoffs": ["Complexity"],
                     "quality_attributes": {
-                        "reliability": 7, "cost_efficiency": 6, "latency": 7,
-                        "output_quality": 8, "observability": 7, "safety": 8, "simplicity": 4,
+                        "reliability": 7,
+                        "cost_efficiency": 6,
+                        "latency": 7,
+                        "output_quality": 8,
+                        "observability": 7,
+                        "safety": 8,
+                        "simplicity": 4,
                     },
                     "suitable_domains": ["cloud-native"],
-                    "best_practices": ["Use APIs"]
+                    "best_practices": ["Use APIs"],
                 }
-            ]
+            ],
         )
 
         dumped = design.model_dump()
@@ -919,13 +1002,18 @@ class TestGeneratePropagatesContracts:
                     "benefits": ["Scaling"],
                     "tradeoffs": ["Complexity"],
                     "quality_attributes": {
-                        "reliability": 7, "cost_efficiency": 6, "latency": 7,
-                        "output_quality": 8, "observability": 7, "safety": 8, "simplicity": 4,
+                        "reliability": 7,
+                        "cost_efficiency": 6,
+                        "latency": 7,
+                        "output_quality": 8,
+                        "observability": 7,
+                        "safety": 8,
+                        "simplicity": 4,
                     },
                     "suitable_domains": ["cloud-native"],
-                    "best_practices": ["Use APIs"]
+                    "best_practices": ["Use APIs"],
                 }
-            ]
+            ],
         )
 
         captured_prompts: list[str] = []
@@ -939,21 +1027,19 @@ class TestGeneratePropagatesContracts:
                     overall_score=75.0,
                     strengths=["Good"],
                     weaknesses=["Consider"],
-                    critical_findings=["None"]
+                    critical_findings=["None"],
                 ),
                 metrics=[
-                    MetricResult(name="overall_quality", score=75.0, description="Overall", findings=[], recommendations=[])
+                    MetricResult(
+                        name="overall_quality", score=75.0, description="Overall", findings=[], recommendations=[]
+                    )
                 ],
-                recommendations={}
+                recommendations={},
             )
 
         pipeline._agent.generate_structured = capture_generate
 
-        await pipeline.evaluate(
-            design=design,
-            criteria="maintainability,scalability",
-            domain="cloud-native"
-        )
+        await pipeline.evaluate(design=design, criteria="maintainability,scalability", domain="cloud-native")
 
         pipeline._agent.generate_structured = original_generate
 
@@ -971,7 +1057,10 @@ class _MockArchitectForDenormalization:
     """
 
     async def generate_structured(
-        self, system_prompt, user_prompt, response_schema,
+        self,
+        system_prompt,
+        user_prompt,
+        response_schema,
     ):
         if response_schema is AgentSystemDesignResponse:
             return AgentSystemDesignResponse(
@@ -1049,13 +1138,18 @@ class _MockArchitectForDenormalization:
 
         if response_schema.__name__ == "AnalysisResult":
             from src.schemas.quality import QualityMetrics
+
             return AnalysisResult(
                 strengths=["Scalable"],
                 weaknesses=["Complex"],
                 recommendations=["Start simple"],
                 quality_metrics=QualityMetrics(
-                    reliability=7.0, cost_efficiency=6.0, latency=7.0,
-                    output_quality=8.0, observability=7.0, safety=8.0,
+                    reliability=7.0,
+                    cost_efficiency=6.0,
+                    latency=7.0,
+                    output_quality=8.0,
+                    observability=7.0,
+                    safety=8.0,
                 ),
                 recommended_topology="hierarchical",
                 selected_patterns=[],
@@ -1067,13 +1161,10 @@ class _MockArchitectForDenormalization:
                 overall_score=75.0,
                 strengths=["Good"],
                 weaknesses=["Consider"],
-                critical_findings=["None"]
+                critical_findings=["None"],
             ),
             metrics=[
-                MetricResult(
-                    name="overall_quality", score=75.0,
-                    description="Overall", findings=[], recommendations=[]
-                )
+                MetricResult(name="overall_quality", score=75.0, description="Overall", findings=[], recommendations=[])
             ],
             recommendations={},
         )
@@ -1081,6 +1172,7 @@ class _MockArchitectForDenormalization:
 
 def _create_denorm_pipeline():
     from unittest.mock import MagicMock
+
     agent = _MockArchitectForDenormalization()
     pattern_loader = MockPatternLoader()
     return AgentPatternPipeline(
@@ -1102,20 +1194,27 @@ class TestDenormalizationIntegration:
             requirements="Build a system",
             domain="microservices",
             topology="hierarchical",
-            selected_patterns=[{
-                "name": "microservices",
-                "topology": "hierarchical",
-                "category": "multi_agent",
-                "context": "Distributed systems",
-                "benefits": ["Scaling"],
-                "tradeoffs": ["Complexity"],
-                "quality_attributes": {
-                    "reliability": 7, "cost_efficiency": 6, "latency": 7,
-                    "output_quality": 8, "observability": 7, "safety": 8, "simplicity": 4,
-                },
-                "suitable_domains": ["microservices"],
-                "best_practices": ["Use APIs"]
-            }]
+            selected_patterns=[
+                {
+                    "name": "microservices",
+                    "topology": "hierarchical",
+                    "category": "multi_agent",
+                    "context": "Distributed systems",
+                    "benefits": ["Scaling"],
+                    "tradeoffs": ["Complexity"],
+                    "quality_attributes": {
+                        "reliability": 7,
+                        "cost_efficiency": 6,
+                        "latency": 7,
+                        "output_quality": 8,
+                        "observability": 7,
+                        "safety": 8,
+                        "simplicity": 4,
+                    },
+                    "suitable_domains": ["microservices"],
+                    "best_practices": ["Use APIs"],
+                }
+            ],
         )
 
         assert len(design.tool_contracts) == 1
@@ -1131,20 +1230,27 @@ class TestDenormalizationIntegration:
             requirements="Build a system",
             domain="microservices",
             topology="hierarchical",
-            selected_patterns=[{
-                "name": "microservices",
-                "topology": "hierarchical",
-                "category": "multi_agent",
-                "context": "Distributed systems",
-                "benefits": ["Scaling"],
-                "tradeoffs": ["Complexity"],
-                "quality_attributes": {
-                    "reliability": 7, "cost_efficiency": 6, "latency": 7,
-                    "output_quality": 8, "observability": 7, "safety": 8, "simplicity": 4,
-                },
-                "suitable_domains": ["microservices"],
-                "best_practices": ["Use APIs"]
-            }]
+            selected_patterns=[
+                {
+                    "name": "microservices",
+                    "topology": "hierarchical",
+                    "category": "multi_agent",
+                    "context": "Distributed systems",
+                    "benefits": ["Scaling"],
+                    "tradeoffs": ["Complexity"],
+                    "quality_attributes": {
+                        "reliability": 7,
+                        "cost_efficiency": 6,
+                        "latency": 7,
+                        "output_quality": 8,
+                        "observability": 7,
+                        "safety": 8,
+                        "simplicity": 4,
+                    },
+                    "suitable_domains": ["microservices"],
+                    "best_practices": ["Use APIs"],
+                }
+            ],
         )
 
         assert len(design.shared_state_models) == 1
@@ -1173,10 +1279,7 @@ class TestDomainNormalization:
             await pipeline.analyze("Requirements", "Cloud Native")
 
         all_calls = pipeline._pattern_loader.filter_by_domain_calls
-        assert any(
-            "cloud native" in c or "cloud-native" in c or "cloudnative" in c
-            for c in all_calls
-        )
+        assert any("cloud native" in c or "cloud-native" in c or "cloudnative" in c for c in all_calls)
 
 
 class TestErrorHandling:
@@ -1187,10 +1290,7 @@ class TestErrorHandling:
         """Verify ANALYZE handles no matching patterns gracefully."""
         pipeline = create_test_pipeline()
 
-        result = await pipeline.analyze(
-            requirements="Requirements",
-            domain="nonexistent-domain-xyz"
-        )
+        result = await pipeline.analyze(requirements="Requirements", domain="nonexistent-domain-xyz")
 
         assert isinstance(result, AnalysisResult)
         assert len(result.selected_patterns) >= 0
@@ -1232,14 +1332,11 @@ class TestInvalidCategoryRegression:
                     "reasoning": "Test reasoning.",
                 },
                 agents=[],
-
             )
         errors = exc_info.value.errors()
-        assert any(
-            "category" in loc
-            for err in errors
-            for loc in [ ".".join(str(l) for l in err["loc"]) ]
-        ), f"Expected 'category' in error locations, got: {errors}"
+        assert any("category" in loc for err in errors for loc in [".".join(str(l) for l in err["loc"])]), (
+            f"Expected 'category' in error locations, got: {errors}"
+        )
 
     def test_architecture_design_response_accepts_valid_category(self):
         """
@@ -1259,7 +1356,6 @@ class TestInvalidCategoryRegression:
                 "reasoning": "Test reasoning.",
             },
             agents=[],
-
         )
         assert isinstance(resp.overview, AgentSystemOverview)
         assert resp.overview.category == PatternCategory.MULTI_AGENT
@@ -1285,21 +1381,21 @@ class TestInvalidCategoryRegression:
                     "principles": ["p1"],
                     "constraints": [],
                 },
-                agents=[Agent.model_validate({
-                    "id": "svc",
-                    "name": "Service",
-                    "role": "service",
-                    "description": "A service",
-                    "responsibilities": ["do work"],
-                    "technology_stack": [],
-                })],
-
+                agents=[
+                    Agent.model_validate(
+                        {
+                            "id": "svc",
+                            "name": "Service",
+                            "role": "service",
+                            "description": "A service",
+                            "responsibilities": ["do work"],
+                            "technology_stack": [],
+                        }
+                    )
+                ],
             )
         errors = exc_info.value.errors()
-        assert any(
-            "category" in str(err["loc"])
-            for err in errors
-        ), f"Expected 'category' in error locs, got: {errors}"
+        assert any("category" in str(err["loc"]) for err in errors), f"Expected 'category' in error locs, got: {errors}"
 
     def test_pipeline_reports_actual_field_location(self):
         """
@@ -1321,24 +1417,24 @@ class TestInvalidCategoryRegression:
                     "principles": ["p1"],
                     "constraints": [],
                 },
-                agents=[{
-                    "id": "svc",
-                    "name": "Service",
-                    "role": "service",
-                    "description": "A service",
-                    "responsibilities": [],
-                }],
-
+                agents=[
+                    {
+                        "id": "svc",
+                        "name": "Service",
+                        "role": "service",
+                        "description": "A service",
+                        "responsibilities": [],
+                    }
+                ],
             )
         errors = exc_info.value.errors()
         first_loc = ".".join(str(l) for l in errors[0]["loc"])
-        assert "responsibilities" in first_loc, (
-            f"Expected 'responsibilities' in first error loc, got: {first_loc}"
-        )
+        assert "responsibilities" in first_loc, f"Expected 'responsibilities' in first error loc, got: {first_loc}"
 
     def test_max_retries_default_is_3(self):
         """ValidationConfig max_retries default is 3 (not 2)."""
         from src.config import ValidationConfig
+
         vc = ValidationConfig()
         assert vc.max_retries == 3
 
@@ -1381,10 +1477,25 @@ class TestDesignLoopPhase:
         async def capture_generate(system_prompt, user_prompt, response_schema):
             captured.append(response_schema)
             from src.schemas.evaluation import AgentSystemEvaluation, EvaluationSummary, MetricResult
+
             if response_schema is AgentSystemDesignResponse:
                 return AgentSystemDesignResponse(
-                    overview={"topology": "hierarchical", "category": "multi_agent", "principles": ["single responsibility"], "constraints": [], "reasoning": "Test reasoning."},
-                    agents=[{"id": "s1", "name": "S1", "role": "executor", "description": "svc", "responsibilities": ["serve"]}],
+                    overview={
+                        "topology": "hierarchical",
+                        "category": "multi_agent",
+                        "principles": ["single responsibility"],
+                        "constraints": [],
+                        "reasoning": "Test reasoning.",
+                    },
+                    agents=[
+                        {
+                            "id": "s1",
+                            "name": "S1",
+                            "role": "executor",
+                            "description": "svc",
+                            "responsibilities": ["serve"],
+                        }
+                    ],
                     relationships=[],
                     quality_attributes={},
                     tool_contracts=[],
@@ -1394,9 +1505,20 @@ class TestDesignLoopPhase:
             if response_schema.__name__ == "AgentSystemEvaluation":
                 score = 80.0 if len(captured) > 2 else 60.0
                 return AgentSystemEvaluation(
-                    summary=EvaluationSummary(reasoning="Evaluator reasoning", overall_score=score, strengths=["good"], weaknesses=["minor"], critical_findings=["none"]),
-                    metrics=[MetricResult(name="overall_quality", score=score, description="q", findings=[], recommendations=[])],
-                     compliance=[], recommendations={}
+                    summary=EvaluationSummary(
+                        reasoning="Evaluator reasoning",
+                        overall_score=score,
+                        strengths=["good"],
+                        weaknesses=["minor"],
+                        critical_findings=["none"],
+                    ),
+                    metrics=[
+                        MetricResult(
+                            name="overall_quality", score=score, description="q", findings=[], recommendations=[]
+                        )
+                    ],
+                    compliance=[],
+                    recommendations={},
                 )
             return None
 
@@ -1406,7 +1528,26 @@ class TestDesignLoopPhase:
             requirements="test",
             domain="cloud-native",
             topology="hierarchical",
-            selected_patterns=[{"name": "microservices", "context": "", "topology": "hierarchical", "category": "multi_agent", "benefits": [], "tradeoffs": [], "quality_attributes": {"reliability": 7, "cost_efficiency": 6, "latency": 7, "output_quality": 8, "observability": 7, "safety": 8, "simplicity": 4}, "best_practices": []}],
+            selected_patterns=[
+                {
+                    "name": "microservices",
+                    "context": "",
+                    "topology": "hierarchical",
+                    "category": "multi_agent",
+                    "benefits": [],
+                    "tradeoffs": [],
+                    "quality_attributes": {
+                        "reliability": 7,
+                        "cost_efficiency": 6,
+                        "latency": 7,
+                        "output_quality": 8,
+                        "observability": 7,
+                        "safety": 8,
+                        "simplicity": 4,
+                    },
+                    "best_practices": [],
+                }
+            ],
             criteria="quality",
             analysis_result=None,
             max_tries=3,
@@ -1424,11 +1565,26 @@ class TestDesignLoopPhase:
         async def counting_generate(system_prompt, user_prompt, response_schema):
             nonlocal generate_count
             from src.schemas.evaluation import AgentSystemEvaluation, EvaluationSummary, MetricResult
+
             if response_schema is AgentSystemDesignResponse:
                 generate_count += 1
                 return AgentSystemDesignResponse(
-                    overview={"topology": "hierarchical", "category": "multi_agent", "principles": ["single responsibility"], "constraints": [], "reasoning": "Test reasoning."},
-                    agents=[{"id": "s1", "name": "S1", "role": "executor", "description": "svc", "responsibilities": ["serve"]}],
+                    overview={
+                        "topology": "hierarchical",
+                        "category": "multi_agent",
+                        "principles": ["single responsibility"],
+                        "constraints": [],
+                        "reasoning": "Test reasoning.",
+                    },
+                    agents=[
+                        {
+                            "id": "s1",
+                            "name": "S1",
+                            "role": "executor",
+                            "description": "svc",
+                            "responsibilities": ["serve"],
+                        }
+                    ],
                     relationships=[],
                     quality_attributes={},
                     tool_contracts=[],
@@ -1437,9 +1593,20 @@ class TestDesignLoopPhase:
                 )
             if response_schema.__name__ == "AgentSystemEvaluation":
                 return AgentSystemEvaluation(
-                    summary=EvaluationSummary(reasoning="Evaluator reasoning", overall_score=50.0, strengths=["ok"], weaknesses=["n/a"], critical_findings=["none"]),
-                    metrics=[MetricResult(name="overall_quality", score=50.0, description="q", findings=[], recommendations=[])],
-                     compliance=[], recommendations={}
+                    summary=EvaluationSummary(
+                        reasoning="Evaluator reasoning",
+                        overall_score=50.0,
+                        strengths=["ok"],
+                        weaknesses=["n/a"],
+                        critical_findings=["none"],
+                    ),
+                    metrics=[
+                        MetricResult(
+                            name="overall_quality", score=50.0, description="q", findings=[], recommendations=[]
+                        )
+                    ],
+                    compliance=[],
+                    recommendations={},
                 )
             return None
 
@@ -1449,7 +1616,26 @@ class TestDesignLoopPhase:
             requirements="test",
             domain="cloud-native",
             topology="hierarchical",
-            selected_patterns=[{"name": "microservices", "context": "", "topology": "hierarchical", "category": "multi_agent", "benefits": [], "tradeoffs": [], "quality_attributes": {"reliability": 7, "cost_efficiency": 6, "latency": 7, "output_quality": 8, "observability": 7, "safety": 8, "simplicity": 4}, "best_practices": []}],
+            selected_patterns=[
+                {
+                    "name": "microservices",
+                    "context": "",
+                    "topology": "hierarchical",
+                    "category": "multi_agent",
+                    "benefits": [],
+                    "tradeoffs": [],
+                    "quality_attributes": {
+                        "reliability": 7,
+                        "cost_efficiency": 6,
+                        "latency": 7,
+                        "output_quality": 8,
+                        "observability": 7,
+                        "safety": 8,
+                        "simplicity": 4,
+                    },
+                    "best_practices": [],
+                }
+            ],
             criteria="quality",
             analysis_result=None,
             max_tries=3,
@@ -1468,11 +1654,26 @@ class TestDesignLoopPhase:
         async def counting_generate(system_prompt, user_prompt, response_schema):
             nonlocal generate_count
             from src.schemas.evaluation import AgentSystemEvaluation, EvaluationSummary, MetricResult
+
             if response_schema is AgentSystemDesignResponse:
                 generate_count += 1
                 return AgentSystemDesignResponse(
-                    overview={"topology": "hierarchical", "category": "multi_agent", "principles": ["single responsibility"], "constraints": [], "reasoning": "Test reasoning."},
-                    agents=[{"id": "s1", "name": "S1", "role": "executor", "description": "svc", "responsibilities": ["serve"]}],
+                    overview={
+                        "topology": "hierarchical",
+                        "category": "multi_agent",
+                        "principles": ["single responsibility"],
+                        "constraints": [],
+                        "reasoning": "Test reasoning.",
+                    },
+                    agents=[
+                        {
+                            "id": "s1",
+                            "name": "S1",
+                            "role": "executor",
+                            "description": "svc",
+                            "responsibilities": ["serve"],
+                        }
+                    ],
                     relationships=[],
                     quality_attributes={},
                     tool_contracts=[],
@@ -1481,9 +1682,20 @@ class TestDesignLoopPhase:
                 )
             if response_schema.__name__ == "AgentSystemEvaluation":
                 return AgentSystemEvaluation(
-                    summary=EvaluationSummary(reasoning="Evaluator reasoning", overall_score=90.0, strengths=["great"], weaknesses=["minor"], critical_findings=["none"]),
-                    metrics=[MetricResult(name="overall_quality", score=90.0, description="q", findings=[], recommendations=[])],
-                     compliance=[], recommendations={}
+                    summary=EvaluationSummary(
+                        reasoning="Evaluator reasoning",
+                        overall_score=90.0,
+                        strengths=["great"],
+                        weaknesses=["minor"],
+                        critical_findings=["none"],
+                    ),
+                    metrics=[
+                        MetricResult(
+                            name="overall_quality", score=90.0, description="q", findings=[], recommendations=[]
+                        )
+                    ],
+                    compliance=[],
+                    recommendations={},
                 )
             return None
 
@@ -1493,7 +1705,26 @@ class TestDesignLoopPhase:
             requirements="test",
             domain="cloud-native",
             topology="hierarchical",
-            selected_patterns=[{"name": "microservices", "context": "", "topology": "hierarchical", "category": "multi_agent", "benefits": [], "tradeoffs": [], "quality_attributes": {"reliability": 7, "cost_efficiency": 6, "latency": 7, "output_quality": 8, "observability": 7, "safety": 8, "simplicity": 4}, "best_practices": []}],
+            selected_patterns=[
+                {
+                    "name": "microservices",
+                    "context": "",
+                    "topology": "hierarchical",
+                    "category": "multi_agent",
+                    "benefits": [],
+                    "tradeoffs": [],
+                    "quality_attributes": {
+                        "reliability": 7,
+                        "cost_efficiency": 6,
+                        "latency": 7,
+                        "output_quality": 8,
+                        "observability": 7,
+                        "safety": 8,
+                        "simplicity": 4,
+                    },
+                    "best_practices": [],
+                }
+            ],
             criteria="quality",
             analysis_result=None,
             max_tries=3,
@@ -1508,6 +1739,7 @@ class TestDesignLoopPhase:
     async def test_design_loop_retries_on_malformed_error(self):
         """design_loop retries when generate throws MalformedAgentSystemOverviewError."""
         from src.errors import MalformedAgentSystemOverviewError, ERROR_INVALID_AGENT_SYSTEM
+
         pipeline = create_test_pipeline()
 
         attempt = 0
@@ -1515,13 +1747,28 @@ class TestDesignLoopPhase:
         async def throwing_generate(system_prompt, user_prompt, response_schema):
             nonlocal attempt
             from src.schemas.evaluation import AgentSystemEvaluation, EvaluationSummary, MetricResult
+
             if response_schema is AgentSystemDesignResponse:
                 attempt += 1
                 if attempt == 1:
                     raise MalformedAgentSystemOverviewError(locator="overview", errors=[])
                 return AgentSystemDesignResponse(
-                    overview={"topology": "hierarchical", "category": "multi_agent", "principles": ["single responsibility"], "constraints": [], "reasoning": "Test reasoning."},
-                    agents=[{"id": "s1", "name": "S1", "role": "executor", "description": "svc", "responsibilities": ["serve"]}],
+                    overview={
+                        "topology": "hierarchical",
+                        "category": "multi_agent",
+                        "principles": ["single responsibility"],
+                        "constraints": [],
+                        "reasoning": "Test reasoning.",
+                    },
+                    agents=[
+                        {
+                            "id": "s1",
+                            "name": "S1",
+                            "role": "executor",
+                            "description": "svc",
+                            "responsibilities": ["serve"],
+                        }
+                    ],
                     relationships=[],
                     quality_attributes={},
                     tool_contracts=[],
@@ -1530,9 +1777,20 @@ class TestDesignLoopPhase:
                 )
             if response_schema.__name__ == "AgentSystemEvaluation":
                 return AgentSystemEvaluation(
-                    summary=EvaluationSummary(reasoning="Evaluator reasoning", overall_score=70.0, strengths=["ok"], weaknesses=["minor"], critical_findings=["none"]),
-                    metrics=[MetricResult(name="overall_quality", score=70.0, description="q", findings=[], recommendations=[])],
-                     compliance=[], recommendations={}
+                    summary=EvaluationSummary(
+                        reasoning="Evaluator reasoning",
+                        overall_score=70.0,
+                        strengths=["ok"],
+                        weaknesses=["minor"],
+                        critical_findings=["none"],
+                    ),
+                    metrics=[
+                        MetricResult(
+                            name="overall_quality", score=70.0, description="q", findings=[], recommendations=[]
+                        )
+                    ],
+                    compliance=[],
+                    recommendations={},
                 )
             return None
 
@@ -1542,7 +1800,26 @@ class TestDesignLoopPhase:
             requirements="test",
             domain="cloud-native",
             topology="hierarchical",
-            selected_patterns=[{"name": "microservices", "context": "", "topology": "hierarchical", "category": "multi_agent", "benefits": [], "tradeoffs": [], "quality_attributes": {"reliability": 7, "cost_efficiency": 6, "latency": 7, "output_quality": 8, "observability": 7, "safety": 8, "simplicity": 4}, "best_practices": []}],
+            selected_patterns=[
+                {
+                    "name": "microservices",
+                    "context": "",
+                    "topology": "hierarchical",
+                    "category": "multi_agent",
+                    "benefits": [],
+                    "tradeoffs": [],
+                    "quality_attributes": {
+                        "reliability": 7,
+                        "cost_efficiency": 6,
+                        "latency": 7,
+                        "output_quality": 8,
+                        "observability": 7,
+                        "safety": 8,
+                        "simplicity": 4,
+                    },
+                    "best_practices": [],
+                }
+            ],
             criteria="quality",
             analysis_result=None,
             max_tries=3,
@@ -1557,13 +1834,36 @@ class TestPatternContextReduction:
 
     def _make_pipeline_with_limits(self, limits: dict[str, int] | None = None):
         from src.config import RetrievalConfig
+
         cfg = RetrievalConfig(pattern_context_limits=limits) if limits else RetrievalConfig()
         return create_test_pipeline(retrieval_config=cfg)
 
     def test_build_pattern_context_respects_benefits_limit(self):
         """benefits are sliced to config limit."""
-        pipeline = self._make_pipeline_with_limits({"benefits": 2, "tradeoffs": 3, "best_practices": 3, "component_types": 5, "technology_stack": 5, "anti_patterns": 3, "suitable_domains": 5})
-        patterns = [{"name": "p1", "context": "c", "benefits": ["b1", "b2", "b3"], "tradeoffs": [], "suitable_domains": [], "best_practices": [], "component_types": [], "technology_stack": [], "anti_patterns": []}]
+        pipeline = self._make_pipeline_with_limits(
+            {
+                "benefits": 2,
+                "tradeoffs": 3,
+                "best_practices": 3,
+                "component_types": 5,
+                "technology_stack": 5,
+                "anti_patterns": 3,
+                "suitable_domains": 5,
+            }
+        )
+        patterns = [
+            {
+                "name": "p1",
+                "context": "c",
+                "benefits": ["b1", "b2", "b3"],
+                "tradeoffs": [],
+                "suitable_domains": [],
+                "best_practices": [],
+                "component_types": [],
+                "technology_stack": [],
+                "anti_patterns": [],
+            }
+        ]
         ctx = pipeline._build_pattern_context(patterns)
         assert ctx.count("b1") == 1
         assert ctx.count("b2") == 1
@@ -1571,8 +1871,30 @@ class TestPatternContextReduction:
 
     def test_build_pattern_context_respects_tradeoffs_limit(self):
         """tradeoffs are sliced to config limit."""
-        pipeline = self._make_pipeline_with_limits({"benefits": 3, "tradeoffs": 2, "best_practices": 3, "component_types": 5, "technology_stack": 5, "anti_patterns": 3, "suitable_domains": 5})
-        patterns = [{"name": "p1", "context": "c", "benefits": [], "tradeoffs": ["t1", "t2", "t3"], "suitable_domains": [], "best_practices": [], "component_types": [], "technology_stack": [], "anti_patterns": []}]
+        pipeline = self._make_pipeline_with_limits(
+            {
+                "benefits": 3,
+                "tradeoffs": 2,
+                "best_practices": 3,
+                "component_types": 5,
+                "technology_stack": 5,
+                "anti_patterns": 3,
+                "suitable_domains": 5,
+            }
+        )
+        patterns = [
+            {
+                "name": "p1",
+                "context": "c",
+                "benefits": [],
+                "tradeoffs": ["t1", "t2", "t3"],
+                "suitable_domains": [],
+                "best_practices": [],
+                "component_types": [],
+                "technology_stack": [],
+                "anti_patterns": [],
+            }
+        ]
         ctx = pipeline._build_pattern_context(patterns)
         assert ctx.count("t1") == 1
         assert ctx.count("t2") == 1
@@ -1580,24 +1902,90 @@ class TestPatternContextReduction:
 
     def test_build_pattern_context_respects_best_practices_limit(self):
         """best_practices are sliced to config limit."""
-        pipeline = self._make_pipeline_with_limits({"benefits": 3, "tradeoffs": 3, "best_practices": 1, "component_types": 5, "technology_stack": 5, "anti_patterns": 3, "suitable_domains": 5})
-        patterns = [{"name": "p1", "context": "c", "benefits": [], "tradeoffs": [], "suitable_domains": [], "best_practices": ["bp1", "bp2"], "component_types": [], "technology_stack": [], "anti_patterns": []}]
+        pipeline = self._make_pipeline_with_limits(
+            {
+                "benefits": 3,
+                "tradeoffs": 3,
+                "best_practices": 1,
+                "component_types": 5,
+                "technology_stack": 5,
+                "anti_patterns": 3,
+                "suitable_domains": 5,
+            }
+        )
+        patterns = [
+            {
+                "name": "p1",
+                "context": "c",
+                "benefits": [],
+                "tradeoffs": [],
+                "suitable_domains": [],
+                "best_practices": ["bp1", "bp2"],
+                "component_types": [],
+                "technology_stack": [],
+                "anti_patterns": [],
+            }
+        ]
         ctx = pipeline._build_pattern_context(patterns)
         assert ctx.count("bp1") == 1
         assert "bp2" not in ctx
 
     def test_build_pattern_context_respects_anti_patterns_limit(self):
         """anti_patterns are sliced to config limit."""
-        pipeline = self._make_pipeline_with_limits({"benefits": 3, "tradeoffs": 3, "best_practices": 3, "component_types": 5, "technology_stack": 5, "anti_patterns": 1, "suitable_domains": 5})
-        patterns = [{"name": "p1", "context": "c", "benefits": [], "tradeoffs": [], "suitable_domains": [], "best_practices": [], "component_types": [], "technology_stack": [], "anti_patterns": ["ap1", "ap2"]}]
+        pipeline = self._make_pipeline_with_limits(
+            {
+                "benefits": 3,
+                "tradeoffs": 3,
+                "best_practices": 3,
+                "component_types": 5,
+                "technology_stack": 5,
+                "anti_patterns": 1,
+                "suitable_domains": 5,
+            }
+        )
+        patterns = [
+            {
+                "name": "p1",
+                "context": "c",
+                "benefits": [],
+                "tradeoffs": [],
+                "suitable_domains": [],
+                "best_practices": [],
+                "component_types": [],
+                "technology_stack": [],
+                "anti_patterns": ["ap1", "ap2"],
+            }
+        ]
         ctx = pipeline._build_pattern_context(patterns)
         assert ctx.count("ap1") == 1
         assert "ap2" not in ctx
 
     def test_build_pattern_context_respects_suitable_domains_limit(self):
         """suitable_domains are sliced to config limit."""
-        pipeline = self._make_pipeline_with_limits({"benefits": 3, "tradeoffs": 3, "best_practices": 3, "component_types": 5, "technology_stack": 5, "anti_patterns": 3, "suitable_domains": 2})
-        patterns = [{"name": "p1", "context": "c", "benefits": [], "tradeoffs": [], "suitable_domains": ["d1", "d2", "d3"], "best_practices": [], "component_types": [], "technology_stack": [], "anti_patterns": []}]
+        pipeline = self._make_pipeline_with_limits(
+            {
+                "benefits": 3,
+                "tradeoffs": 3,
+                "best_practices": 3,
+                "component_types": 5,
+                "technology_stack": 5,
+                "anti_patterns": 3,
+                "suitable_domains": 2,
+            }
+        )
+        patterns = [
+            {
+                "name": "p1",
+                "context": "c",
+                "benefits": [],
+                "tradeoffs": [],
+                "suitable_domains": ["d1", "d2", "d3"],
+                "best_practices": [],
+                "component_types": [],
+                "technology_stack": [],
+                "anti_patterns": [],
+            }
+        ]
         ctx = pipeline._build_pattern_context(patterns)
         assert "d1" in ctx
         assert "d2" in ctx
@@ -1605,10 +1993,40 @@ class TestPatternContextReduction:
 
     def test_build_pattern_context_deduplicates_component_types(self):
         """component_types deduplicated case-insensitively across patterns."""
-        pipeline = self._make_pipeline_with_limits({"benefits": 3, "tradeoffs": 3, "best_practices": 3, "component_types": 5, "technology_stack": 5, "anti_patterns": 3, "suitable_domains": 5})
+        pipeline = self._make_pipeline_with_limits(
+            {
+                "benefits": 3,
+                "tradeoffs": 3,
+                "best_practices": 3,
+                "component_types": 5,
+                "technology_stack": 5,
+                "anti_patterns": 3,
+                "suitable_domains": 5,
+            }
+        )
         patterns = [
-            {"name": "p1", "context": "c", "benefits": [], "tradeoffs": [], "suitable_domains": [], "best_practices": [], "component_types": ["API Gateway", "Load Balancer"], "technology_stack": [], "anti_patterns": []},
-            {"name": "p2", "context": "c", "benefits": [], "tradeoffs": [], "suitable_domains": [], "best_practices": [], "component_types": ["api gateway", "Cache"], "technology_stack": [], "anti_patterns": []},
+            {
+                "name": "p1",
+                "context": "c",
+                "benefits": [],
+                "tradeoffs": [],
+                "suitable_domains": [],
+                "best_practices": [],
+                "component_types": ["API Gateway", "Load Balancer"],
+                "technology_stack": [],
+                "anti_patterns": [],
+            },
+            {
+                "name": "p2",
+                "context": "c",
+                "benefits": [],
+                "tradeoffs": [],
+                "suitable_domains": [],
+                "best_practices": [],
+                "component_types": ["api gateway", "Cache"],
+                "technology_stack": [],
+                "anti_patterns": [],
+            },
         ]
         ctx = pipeline._build_pattern_context(patterns)
         assert ctx.count("API Gateway") == 1
@@ -1618,10 +2036,40 @@ class TestPatternContextReduction:
 
     def test_build_pattern_context_deduplicates_technology_stack(self):
         """technology_stack deduplicated case-insensitively across patterns."""
-        pipeline = self._make_pipeline_with_limits({"benefits": 3, "tradeoffs": 3, "best_practices": 3, "component_types": 5, "technology_stack": 5, "anti_patterns": 3, "suitable_domains": 5})
+        pipeline = self._make_pipeline_with_limits(
+            {
+                "benefits": 3,
+                "tradeoffs": 3,
+                "best_practices": 3,
+                "component_types": 5,
+                "technology_stack": 5,
+                "anti_patterns": 3,
+                "suitable_domains": 5,
+            }
+        )
         patterns = [
-            {"name": "p1", "context": "c", "benefits": [], "tradeoffs": [], "suitable_domains": [], "best_practices": [], "component_types": [], "technology_stack": ["Kubernetes", "Docker"], "anti_patterns": []},
-            {"name": "p2", "context": "c", "benefits": [], "tradeoffs": [], "suitable_domains": [], "best_practices": [], "component_types": [], "technology_stack": ["kubernetes", "Redis"], "anti_patterns": []},
+            {
+                "name": "p1",
+                "context": "c",
+                "benefits": [],
+                "tradeoffs": [],
+                "suitable_domains": [],
+                "best_practices": [],
+                "component_types": [],
+                "technology_stack": ["Kubernetes", "Docker"],
+                "anti_patterns": [],
+            },
+            {
+                "name": "p2",
+                "context": "c",
+                "benefits": [],
+                "tradeoffs": [],
+                "suitable_domains": [],
+                "best_practices": [],
+                "component_types": [],
+                "technology_stack": ["kubernetes", "Redis"],
+                "anti_patterns": [],
+            },
         ]
         ctx = pipeline._build_pattern_context(patterns)
         assert ctx.count("Kubernetes") == 1
@@ -1631,15 +2079,61 @@ class TestPatternContextReduction:
 
     def test_build_pattern_context_drops_design_principles_section(self):
         """design_principles section is not present in pattern context."""
-        pipeline = self._make_pipeline_with_limits({"benefits": 3, "tradeoffs": 3, "best_practices": 3, "component_types": 5, "technology_stack": 5, "anti_patterns": 3, "suitable_domains": 5})
-        patterns = [{"name": "p1", "context": "c", "benefits": [], "tradeoffs": [], "suitable_domains": [], "best_practices": [], "component_types": [], "technology_stack": [], "anti_patterns": [], "design_principles": ["Single Responsibility"]}]
+        pipeline = self._make_pipeline_with_limits(
+            {
+                "benefits": 3,
+                "tradeoffs": 3,
+                "best_practices": 3,
+                "component_types": 5,
+                "technology_stack": 5,
+                "anti_patterns": 3,
+                "suitable_domains": 5,
+            }
+        )
+        patterns = [
+            {
+                "name": "p1",
+                "context": "c",
+                "benefits": [],
+                "tradeoffs": [],
+                "suitable_domains": [],
+                "best_practices": [],
+                "component_types": [],
+                "technology_stack": [],
+                "anti_patterns": [],
+                "design_principles": ["Single Responsibility"],
+            }
+        ]
         ctx = pipeline._build_pattern_context(patterns)
         assert "Design Principles" not in ctx
 
     def test_build_pattern_context_drops_unsuitable_domains_section(self):
         """unsuitable_domains section is not present in pattern context."""
-        pipeline = self._make_pipeline_with_limits({"benefits": 3, "tradeoffs": 3, "best_practices": 3, "component_types": 5, "technology_stack": 5, "anti_patterns": 3, "suitable_domains": 5})
-        patterns = [{"name": "p1", "context": "c", "benefits": [], "tradeoffs": [], "suitable_domains": [], "best_practices": [], "component_types": [], "technology_stack": [], "anti_patterns": [], "unsuitable_domains": ["domain1"]}]
+        pipeline = self._make_pipeline_with_limits(
+            {
+                "benefits": 3,
+                "tradeoffs": 3,
+                "best_practices": 3,
+                "component_types": 5,
+                "technology_stack": 5,
+                "anti_patterns": 3,
+                "suitable_domains": 5,
+            }
+        )
+        patterns = [
+            {
+                "name": "p1",
+                "context": "c",
+                "benefits": [],
+                "tradeoffs": [],
+                "suitable_domains": [],
+                "best_practices": [],
+                "component_types": [],
+                "technology_stack": [],
+                "anti_patterns": [],
+                "unsuitable_domains": ["domain1"],
+            }
+        ]
         ctx = pipeline._build_pattern_context(patterns)
         assert "Unsuitable Domains" not in ctx
 
@@ -1650,36 +2144,63 @@ class TestQualityScoreFallback:
     Fallback chain: overall_quality metric -> summary.overall_score.
     """
 
-    def _make_eval(self, *, overall_metric_score: float | None = None,
-                   summary_score: float = 75.0) -> AgentSystemEvaluation:
+    def _make_eval(
+        self, *, overall_metric_score: float | None = None, summary_score: float = 75.0
+    ) -> AgentSystemEvaluation:
         from src.schemas.evaluation import AgentSystemEvaluation, EvaluationSummary, MetricResult
+
         metrics = []
         if overall_metric_score is not None:
-            metrics.append(MetricResult(name="overall_quality", score=overall_metric_score,
-                                       description="", findings=[], recommendations=[]))
+            metrics.append(
+                MetricResult(
+                    name="overall_quality", score=overall_metric_score, description="", findings=[], recommendations=[]
+                )
+            )
         else:
-            metrics.append(MetricResult(name="overall_quality", score=summary_score,
-                                       description="", findings=[], recommendations=[]))
+            metrics.append(
+                MetricResult(
+                    name="overall_quality", score=summary_score, description="", findings=[], recommendations=[]
+                )
+            )
         return AgentSystemEvaluation(
             summary=EvaluationSummary(
                 reasoning="Evaluator reasoning for the assessment",
                 overall_score=summary_score,
-                strengths=["test"], weaknesses=["test"], critical_findings=["test"]
+                strengths=["test"],
+                weaknesses=["test"],
+                critical_findings=["test"],
             ),
             metrics=metrics,
-            risks=[], compliance=[], recommendations={}
+            risks=[],
+            compliance=[],
+            recommendations={},
         )
 
     def _make_design(self) -> AgentSystemDesignResponse:
         return AgentSystemDesignResponse(
-            overview={"topology": "pipeline", "category": "multi_agent",
-                      "principles": ["test"], "constraints": [], "reasoning": "Test reasoning."},
-            agents=[{"id": "s1", "name": "S1", "role": "executor", "description": "svc",
-                         "responsibilities": ["serve"], "technology_stack": [],
-                         "config_requirements": []}],
+            overview={
+                "topology": "pipeline",
+                "category": "multi_agent",
+                "principles": ["test"],
+                "constraints": [],
+                "reasoning": "Test reasoning.",
+            },
+            agents=[
+                {
+                    "id": "s1",
+                    "name": "S1",
+                    "role": "executor",
+                    "description": "svc",
+                    "responsibilities": ["serve"],
+                    "technology_stack": [],
+                    "config_requirements": [],
+                }
+            ],
             relationships=[],
             quality_attributes={},
-            tool_contracts=[], shared_state_models=[], message_contracts=[]
+            tool_contracts=[],
+            shared_state_models=[],
+            message_contracts=[],
         )
 
     @pytest.mark.asyncio
@@ -1694,14 +2215,19 @@ class TestQualityScoreFallback:
             if response_schema is AgentSystemDesignResponse:
                 return self._make_design()
             from src.schemas.evaluation import AgentSystemEvaluation
+
             if response_schema == AgentSystemEvaluation:
                 return self._make_eval(overall_metric_score=82.5)
             return None
 
         pipeline._agent.generate_structured = mock_generate
         result = await pipeline.design_loop(
-            requirements="test", domain="data-processing", topology="pipeline",
-            selected_patterns=[], criteria="quality", max_tries=1,
+            requirements="test",
+            domain="data-processing",
+            topology="pipeline",
+            selected_patterns=[],
+            criteria="quality",
+            max_tries=1,
         )
         assert result.final_quality_score == 82.5
 
@@ -1714,16 +2240,22 @@ class TestQualityScoreFallback:
             if response_schema is AgentSystemDesignResponse:
                 return self._make_design()
             from src.schemas.evaluation import AgentSystemEvaluation
+
             if response_schema == AgentSystemEvaluation:
                 return self._make_eval(summary_score=88.0)
             return None
 
         pipeline._agent.generate_structured = mock_generate
         result = await pipeline.design_loop(
-            requirements="test", domain="data-processing", topology="pipeline",
-            selected_patterns=[], criteria="quality", max_tries=1,
+            requirements="test",
+            domain="data-processing",
+            topology="pipeline",
+            selected_patterns=[],
+            criteria="quality",
+            max_tries=1,
         )
         assert result.final_quality_score == 88.0
+
 
 class TestPromptExamples:
     """Verify structured-output prompts contain complete JSON examples."""
@@ -1735,6 +2267,7 @@ class TestPromptExamples:
             AGENT_SYSTEM_DESIGN_EXAMPLE,
             AGENT_SYSTEM_EVALUATION_EXAMPLE,
         )
+
         assert PATTERN_ANALYSIS_EXAMPLE
         assert AGENT_SYSTEM_DESIGN_EXAMPLE
         assert AGENT_SYSTEM_EVALUATION_EXAMPLE
@@ -1747,6 +2280,7 @@ class TestPromptExamples:
         raw = PATTERN_ANALYSIS_EXAMPLE.split("```json")[1].split("```")[0].strip()
         data = json.loads(raw)
         from src.schemas.analysis import AnalysisResult
+
         result = AnalysisResult.model_validate(data)
         assert result.strengths
         assert result.weaknesses
@@ -1760,6 +2294,7 @@ class TestPromptExamples:
         raw = AGENT_SYSTEM_DESIGN_EXAMPLE.split("```json")[1].split("```")[0].strip()
         data = json.loads(raw)
         from src.schemas.agent_system import AgentSystemDesignResponse
+
         result = AgentSystemDesignResponse.model_validate(data)
         assert result.overview
 
@@ -1771,15 +2306,14 @@ class TestPromptExamples:
         raw = AGENT_SYSTEM_EVALUATION_EXAMPLE.split("```json")[1].split("```")[0].strip()
         data = json.loads(raw)
         from src.schemas.evaluation import AgentSystemEvaluation
+
         result = AgentSystemEvaluation.model_validate(data)
         assert result.summary.overall_score
 
     def test_generate_system_prompt_contains_example(self):
         """Generate system prompt includes architecture design example."""
         pipeline = create_test_pipeline()
-        prompt = pipeline._build_generate_system_prompt(
-            topology="microservices", _patterns=[]
-        )
+        prompt = pipeline._build_generate_system_prompt(topology="microservices", _patterns=[])
         assert "Example AgentSystemDesign" in prompt
         assert "```json" in prompt
 
@@ -1839,6 +2373,7 @@ class TestPromptExamples:
         """Design example includes tool_contracts, shared_state_models,
         message_contracts."""
         from src.prompts.examples import AGENT_SYSTEM_DESIGN_EXAMPLE
+
         assert "tool_contracts" in AGENT_SYSTEM_DESIGN_EXAMPLE
         assert "shared_state_models" in AGENT_SYSTEM_DESIGN_EXAMPLE
         assert "message_contracts" in AGENT_SYSTEM_DESIGN_EXAMPLE
@@ -1846,6 +2381,7 @@ class TestPromptExamples:
     def test_analysis_example_contains_selected_patterns(self):
         """Analysis example includes selected_patterns."""
         from src.prompts.examples import PATTERN_ANALYSIS_EXAMPLE
+
         assert "selected_patterns" in PATTERN_ANALYSIS_EXAMPLE
 
 
@@ -1886,48 +2422,67 @@ class TestStructuredOutputContract:
         from src.schemas.patterns import Pattern
 
         pipeline = create_test_pipeline()
-        pattern = Pattern.model_validate({
-            "name": "probe-pattern",
-            "context": "ctx",
-            "category": "reasoning",
-            "topology": "evaluator-loop",
-            "suitable_domains": [next(iter(AgentDomain)).value],
-            "benefits": ["b"],
-            "tradeoffs": ["t"],
-            "quality_attributes": {
-                "reliability": 8, "cost_efficiency": 7, "latency": 7,
-                "output_quality": 8, "observability": 7, "safety": 6, "simplicity": 6,
-            },
-        })
+        pattern = Pattern.model_validate(
+            {
+                "name": "probe-pattern",
+                "context": "ctx",
+                "category": "reasoning",
+                "topology": "evaluator-loop",
+                "suitable_domains": [next(iter(AgentDomain)).value],
+                "benefits": ["b"],
+                "tradeoffs": ["t"],
+                "quality_attributes": {
+                    "reliability": 8,
+                    "cost_efficiency": 7,
+                    "latency": 7,
+                    "output_quality": 8,
+                    "observability": 7,
+                    "safety": 6,
+                    "simplicity": 6,
+                },
+            }
+        )
         evaluation = AgentSystemEvaluation(
             summary=EvaluationSummary(
-                reasoning="Evaluator reasoning", overall_score=60.0,
-                strengths=["s"], weaknesses=["w"], critical_findings=["c"],
+                reasoning="Evaluator reasoning",
+                overall_score=60.0,
+                strengths=["s"],
+                weaknesses=["w"],
+                critical_findings=["c"],
             ),
-            metrics=[MetricResult(
-                name="reliability", score=60.0, description="Overall",
-                findings=[], recommendations=["fix svc"],
-            )],
+            metrics=[
+                MetricResult(
+                    name="reliability",
+                    score=60.0,
+                    description="Overall",
+                    findings=[],
+                    recommendations=["fix svc"],
+                )
+            ],
             recommendations={"general": ["fix svc"]},
         )
         return {
-            "generate_system": pipeline._build_generate_system_prompt(
-                topology="hierarchical", _patterns=[]),
+            "generate_system": pipeline._build_generate_system_prompt(topology="hierarchical", _patterns=[]),
             "generate_user": pipeline._build_generate_user_prompt(
-                "reqs", "healthcare", "hierarchical", "pattern context", None),
+                "reqs", "healthcare", "hierarchical", "pattern context", None
+            ),
             "analyze_system": pipeline._build_analyze_system_prompt(),
             "analyze_user": pipeline._build_analyze_user_prompt("reqs", "healthcare"),
             "evaluate_system_empty": pipeline._build_evaluate_system_prompt(patterns=[]),
             "evaluate_system": pipeline._build_evaluate_system_prompt(patterns=[pattern]),
             "evaluate_user": pipeline._build_evaluate_user_prompt(
-                _summary_design(), "reliability", "healthcare", [],
-                requirements="reqs"),
-            "refine_user": pipeline._retry_prompt(
-                _summary_design(), evaluation, "reqs", "hierarchical", "healthcare"),
-            "reasoning_step": REASONING_STEP_SYSTEM_PROMPT + build_step_user_prompt(
-                "generate", "directive", agenda_focus="focus",
-                trace_rendered="", task_inputs={"requirements": "reqs"},
-                step_number=1, total=2,
+                _summary_design(), "reliability", "healthcare", [], requirements="reqs"
+            ),
+            "refine_user": pipeline._retry_prompt(_summary_design(), evaluation, "reqs", "hierarchical", "healthcare"),
+            "reasoning_step": REASONING_STEP_SYSTEM_PROMPT
+            + build_step_user_prompt(
+                "generate",
+                "directive",
+                agenda_focus="focus",
+                trace_rendered="",
+                task_inputs={"requirements": "reqs"},
+                step_number=1,
+                total=2,
             ),
         }
 
@@ -1935,9 +2490,7 @@ class TestStructuredOutputContract:
         """Each prompt names the schema function whose parameters ARE the
         response schema — the wording that survives a thinking model."""
         for name, prompt in self._prompts().items():
-            assert self.CLAUSE in _whitespace_normalised(prompt), (
-                f"{name} prompt lost the function-call clause"
-            )
+            assert self.CLAUSE in _whitespace_normalised(prompt), f"{name} prompt lost the function-call clause"
 
     def test_no_structured_prompt_asks_for_json_text(self):
         """The text-JSON wordings that make the model skip the tool call
@@ -1966,16 +2519,26 @@ class TestStructuredOutputContract:
             _summary_design(),
             AgentSystemEvaluation(
                 summary=EvaluationSummary(
-                    reasoning="r", overall_score=60.0,
-                    strengths=["s"], weaknesses=["w"], critical_findings=["c"],
+                    reasoning="r",
+                    overall_score=60.0,
+                    strengths=["s"],
+                    weaknesses=["w"],
+                    critical_findings=["c"],
                 ),
-                metrics=[MetricResult(
-                    name="reliability", score=60.0, description="Overall",
-                    findings=[], recommendations=["fix svc"],
-                )],
+                metrics=[
+                    MetricResult(
+                        name="reliability",
+                        score=60.0,
+                        description="Overall",
+                        findings=[],
+                        recommendations=["fix svc"],
+                    )
+                ],
                 recommendations={},
             ),
-            "reqs", "hierarchical", "healthcare",
+            "reqs",
+            "hierarchical",
+            "healthcare",
         )
         assert "AgentSystemDesignResponseWire function" in prompt
 
@@ -1993,31 +2556,29 @@ class TestTimedPhaseLogging:
         from src.pipeline import _timed_phase
 
         with caplog.at_level("DEBUG", logger="src.pipeline"):
+
             async def run():
                 async with _timed_phase("analyze", domain="data-processing"):
                     await asyncio.sleep(0.01)
+
             asyncio.run(run())
 
-        assert any(
-            rec.phase == "analyze" and rec.duration_s > 0
-            for rec in caplog.records
-        )
+        assert any(rec.phase == "analyze" and rec.duration_s > 0 for rec in caplog.records)
 
     def test_timed_phase_logs_duration_on_exception(self, caplog):
         import asyncio
         from src.pipeline import _timed_phase
 
         with caplog.at_level("DEBUG", logger="src.pipeline"):
+
             async def run():
                 async with _timed_phase("evaluate"):
                     raise RuntimeError("simulated failure")
+
             with pytest.raises(RuntimeError):
                 asyncio.run(run())
 
-        assert any(
-            rec.phase == "evaluate" and rec.duration_s >= 0
-            for rec in caplog.records
-        )
+        assert any(rec.phase == "evaluate" and rec.duration_s >= 0 for rec in caplog.records)
 
     def test_timed_phase_logs_info_when_verbose(self, caplog):
         """verbose=True bypasses DEBUG gate, logs at INFO."""
@@ -2025,17 +2586,14 @@ class TestTimedPhaseLogging:
         from src.pipeline import _timed_phase
 
         with caplog.at_level("INFO", logger="src.pipeline"):
+
             async def run():
-                async with _timed_phase(
-                    "generate", domain="x", verbose=True
-                ):
+                async with _timed_phase("generate", domain="x", verbose=True):
                     await asyncio.sleep(0.01)
+
             asyncio.run(run())
 
-        assert any(
-            rec.phase == "generate" and rec.duration_s > 0
-            for rec in caplog.records
-        )
+        assert any(rec.phase == "generate" and rec.duration_s > 0 for rec in caplog.records)
 
 
 # ── shared <analysis_summary> renderer (GENERATE + EVALUATE) ─────────────────
@@ -2049,15 +2607,17 @@ def _summary_design() -> AgentSystemDesign:
             category="multi_agent",
             principles=["Single supervisor owns routing"],
         ),
-        agents=[{
-            "id": "supervisor",
-            "name": "Supervisor",
-            "role": "coordinator",
-            "description": "Routes subtasks",
-            "responsibilities": ["Decompose", "Assemble"],
-            "tools": [],
-            "memory": [],
-        }],
+        agents=[
+            {
+                "id": "supervisor",
+                "name": "Supervisor",
+                "role": "coordinator",
+                "description": "Routes subtasks",
+                "responsibilities": ["Decompose", "Assemble"],
+                "tools": [],
+                "memory": [],
+            }
+        ],
     )
 
 
@@ -2171,11 +2731,13 @@ class TestTopologyNameSeparation:
 
     def test_topology_candidates_dedup_per_topology(self):
         pipeline = create_test_pipeline()
-        analysis = self._analysis([
-            {"name": "react", "topology": "single-agent-loop", "analysis_score": 90.0},
-            {"name": "reflection", "topology": "single-agent-loop", "analysis_score": 80.0},
-            {"name": "supervisor-worker", "topology": "hierarchical", "analysis_score": 70.0},
-        ])
+        analysis = self._analysis(
+            [
+                {"name": "react", "topology": "single-agent-loop", "analysis_score": 90.0},
+                {"name": "reflection", "topology": "single-agent-loop", "analysis_score": 80.0},
+                {"name": "supervisor-worker", "topology": "hierarchical", "analysis_score": 70.0},
+            ]
+        )
         candidates = pipeline._topology_candidates(analysis, "single-agent-loop")
         assert [(c.topology, c.pattern_name, c.score) for c in candidates] == [
             ("hierarchical", "supervisor-worker", 70.0)
@@ -2183,26 +2745,33 @@ class TestTopologyNameSeparation:
 
     def test_topology_candidates_sorted_desc_and_excludes_final(self):
         pipeline = create_test_pipeline()
-        analysis = self._analysis([
-            {"name": "react", "topology": "single-agent-loop", "analysis_score": 90.0},
-            {"name": "plan-and-solve", "topology": "plan-execute", "analysis_score": 85.0},
-            {"name": "swarm", "topology": "swarm", "analysis_score": 60.0},
-        ])
+        analysis = self._analysis(
+            [
+                {"name": "react", "topology": "single-agent-loop", "analysis_score": 90.0},
+                {"name": "plan-and-solve", "topology": "plan-execute", "analysis_score": 85.0},
+                {"name": "swarm", "topology": "swarm", "analysis_score": 60.0},
+            ]
+        )
         candidates = pipeline._topology_candidates(analysis, "plan-execute")
         assert [c.topology for c in candidates] == ["single-agent-loop", "swarm"]
 
     def test_topology_candidates_empty_on_fallback(self):
         pipeline = create_test_pipeline()
-        analysis = self._analysis([
-            {"name": "react", "topology": "single-agent-loop", "analysis_score": 90.0},
-        ], is_fallback=True)
+        analysis = self._analysis(
+            [
+                {"name": "react", "topology": "single-agent-loop", "analysis_score": 90.0},
+            ],
+            is_fallback=True,
+        )
         assert pipeline._topology_candidates(analysis, "pipeline") == []
 
     def test_selected_topology_pattern_matches_by_topology_field(self):
         pipeline = create_test_pipeline()
-        analysis = self._analysis([
-            {"name": "supervisor-worker", "topology": "hierarchical", "analysis_score": 70.0},
-        ])
+        analysis = self._analysis(
+            [
+                {"name": "supervisor-worker", "topology": "hierarchical", "analysis_score": 70.0},
+            ]
+        )
         pattern = pipeline._selected_topology_pattern(analysis, "hierarchical")
         assert pattern is not None
         assert pattern["name"] == "supervisor-worker"
@@ -2210,50 +2779,101 @@ class TestTopologyNameSeparation:
 
     def test_selected_topology_pattern_none_when_no_match(self):
         pipeline = create_test_pipeline()
-        analysis = self._analysis([
-            {"name": "react", "topology": "single-agent-loop", "analysis_score": 90.0},
-        ])
+        analysis = self._analysis(
+            [
+                {"name": "react", "topology": "single-agent-loop", "analysis_score": 90.0},
+            ]
+        )
         assert pipeline._selected_topology_pattern(analysis, "hierarchical") is None
         assert pipeline._selected_topology_score(analysis, "hierarchical") is None
 
     def test_refinement_pattern_prefers_topology_match(self):
         pipeline = create_test_pipeline()
-        analysis = self._analysis([
-            {"name": "react", "topology": "single-agent-loop", "analysis_score": 90.0,
-             "category": "reasoning", "context": "c", "benefits": ["b"], "tradeoffs": ["t"],
-             "quality_attributes": {
-                 "reliability": 8, "cost_efficiency": 8, "latency": 8,
-                 "output_quality": 8, "observability": 8, "safety": 8, "simplicity": 8}},
-            {"name": "supervisor-worker", "topology": "hierarchical", "analysis_score": 70.0,
-             "category": "multi_agent", "context": "c", "benefits": ["b"], "tradeoffs": ["t"],
-             "quality_attributes": {
-                 "reliability": 8, "cost_efficiency": 8, "latency": 8,
-                 "output_quality": 8, "observability": 8, "safety": 8, "simplicity": 8}},
-        ])
+        analysis = self._analysis(
+            [
+                {
+                    "name": "react",
+                    "topology": "single-agent-loop",
+                    "analysis_score": 90.0,
+                    "category": "reasoning",
+                    "context": "c",
+                    "benefits": ["b"],
+                    "tradeoffs": ["t"],
+                    "quality_attributes": {
+                        "reliability": 8,
+                        "cost_efficiency": 8,
+                        "latency": 8,
+                        "output_quality": 8,
+                        "observability": 8,
+                        "safety": 8,
+                        "simplicity": 8,
+                    },
+                },
+                {
+                    "name": "supervisor-worker",
+                    "topology": "hierarchical",
+                    "analysis_score": 70.0,
+                    "category": "multi_agent",
+                    "context": "c",
+                    "benefits": ["b"],
+                    "tradeoffs": ["t"],
+                    "quality_attributes": {
+                        "reliability": 8,
+                        "cost_efficiency": 8,
+                        "latency": 8,
+                        "output_quality": 8,
+                        "observability": 8,
+                        "safety": 8,
+                        "simplicity": 8,
+                    },
+                },
+            ]
+        )
         pattern = pipeline._select_refinement_pattern(analysis, "hierarchical")
         assert pattern is not None
         assert pattern.name == "supervisor-worker"
 
     def test_refinement_pattern_falls_back_to_top_scored(self):
         pipeline = create_test_pipeline()
-        analysis = self._analysis([
-            {"name": "react", "topology": "single-agent-loop", "analysis_score": 90.0,
-             "category": "reasoning", "context": "c", "benefits": ["b"], "tradeoffs": ["t"],
-             "quality_attributes": {
-                 "reliability": 8, "cost_efficiency": 8, "latency": 8,
-                 "output_quality": 8, "observability": 8, "safety": 8, "simplicity": 8}},
-        ])
+        analysis = self._analysis(
+            [
+                {
+                    "name": "react",
+                    "topology": "single-agent-loop",
+                    "analysis_score": 90.0,
+                    "category": "reasoning",
+                    "context": "c",
+                    "benefits": ["b"],
+                    "tradeoffs": ["t"],
+                    "quality_attributes": {
+                        "reliability": 8,
+                        "cost_efficiency": 8,
+                        "latency": 8,
+                        "output_quality": 8,
+                        "observability": 8,
+                        "safety": 8,
+                        "simplicity": 8,
+                    },
+                },
+            ]
+        )
         pattern = pipeline._select_refinement_pattern(analysis, "hierarchical")
         assert pattern is not None
         assert pattern.name == "react"
 
     def test_generate_prompt_contains_primary_pattern_line(self):
         pipeline = create_test_pipeline()
-        analysis = self._analysis([
-            {"name": "supervisor-worker", "topology": "hierarchical", "analysis_score": 70.0},
-        ])
+        analysis = self._analysis(
+            [
+                {"name": "supervisor-worker", "topology": "hierarchical", "analysis_score": 70.0},
+            ]
+        )
         prompt = pipeline._build_generate_user_prompt(
-            "req", "domain", "hierarchical", "PATTERN CONTEXT", analysis,
+            "req",
+            "domain",
+            "hierarchical",
+            "PATTERN CONTEXT",
+            analysis,
         )
         assert "Agent Topology: hierarchical" in prompt
         assert "Primary Pattern: supervisor-worker" in prompt
@@ -2261,7 +2881,11 @@ class TestTopologyNameSeparation:
     def test_generate_prompt_omits_primary_pattern_without_match(self):
         pipeline = create_test_pipeline()
         prompt = pipeline._build_generate_user_prompt(
-            "req", "domain", "hierarchical", "PATTERN CONTEXT", None,
+            "req",
+            "domain",
+            "hierarchical",
+            "PATTERN CONTEXT",
+            None,
         )
         assert "Agent Topology: hierarchical" in prompt
         assert "Primary Pattern:" not in prompt

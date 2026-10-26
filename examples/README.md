@@ -36,9 +36,11 @@ make client-design
 
 | Key | Description |
 |---|---|
-| `recommended_topology` | Topology derived from the top-scoring pattern (e.g. `single-agent-loop`, `hierarchical`) |
+| `recommended_topology` | Topology derived from the top-scoring pattern (e.g. `single-agent-loop`, `hierarchical`); `single-agent-loop` substitution when `topology_fallback` is `true` |
 | `recommended_pattern_name` | Name of the top-scored pattern that drove the topology recommendation |
 | `selected_patterns` | Ranked catalogue patterns with `analysis_score`, `fusion_score`, `fusion_score_normalized` and `blended_score` |
+| `requirement_weights` | Per-attribute 0–1 priorities extracted from the requirements that drove the scoring |
+| `topology_fallback` | `true` when the top score fell below threshold and the topology defaulted to `single-agent-loop` |
 | `quality_metrics` | Aggregated quality metrics from the analysis |
 | `strengths` / `weaknesses` / `recommendations` | Deterministic narrative for this selection |
 | `matched_domains` | Top retrieved domain slugs with fusion/rerank scores |
